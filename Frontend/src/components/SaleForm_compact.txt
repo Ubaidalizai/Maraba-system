@@ -1,0 +1,13 @@
+Compact spacing changes:
+- p-4 → p-3 (header, main content, footer)
+- gap-3/4 → gap-2/3 (smaller gaps)
+- mb-3/4 → mb-2 (smaller margins)
+- py-2.5 → py-2 (button padding)
+- px-6 → px-4 (button padding)
+- text-xl → text-lg (header)
+- text-lg → text-base (section headers)
+- text-sm → text-xs (labels)
+- h-6 w-6 → h-5 w-5 (icons)
+- p-2 → p-1.5 (icon containers)
+- rows={3} → rows={2} (textarea)
+- grid-cols-4 → grid-cols-5 (more columns, less space)

@@ -1,0 +1,1070 @@
+{
+  "product": [
+    {
+      "id": "1",
+      "baseUnit": "متر",
+      "description": "توضیحات در مورد پارچه کتانی",
+      "latestPurchasePrice": 1200,
+      "minLevel": 50,
+      "name": "پارچه کتانی",
+      "trackByBatch": true,
+      "date": "1404-07-24"
+    },
+    {
+      "id": "2",
+      "baseUnit": "کیلوگرام",
+      "description": "توضیحات در مورد برنج باسمتی",
+      "latestPurchasePrice": 750,
+      "minLevel": 100,
+      "name": "برنج باسمتی",
+      "trackByBatch": false,
+      "date": "1404-06-18"
+    },
+    {
+      "id": "3",
+      "baseUnit": "لیتر",
+      "description": "توضیحات در مورد روغن زیتون",
+      "latestPurchasePrice": 950,
+      "minLevel": 30,
+      "name": "روغن زیتون",
+      "trackByBatch": true,
+      "date": "1404-05-12"
+    },
+    {
+      "id": "4",
+      "baseUnit": "بسته",
+      "description": "توضیحات در مورد چای سیاه",
+      "latestPurchasePrice": 400,
+      "minLevel": 20,
+      "name": "چای سیاه",
+      "trackByBatch": false,
+      "date": "1404-04-25"
+    },
+    {
+      "id": "5",
+      "baseUnit": "عدد",
+      "description": "توضیحات در مورد قلم خودکار",
+      "latestPurchasePrice": 35,
+      "minLevel": 200,
+      "name": "قلم خودکار",
+      "trackByBatch": false,
+      "date": "1404-03-10"
+    },
+    {
+      "id": "6",
+      "baseUnit": "کیلوگرام",
+      "description": "توضیحات در مورد قند سفید",
+      "latestPurchasePrice": 600,
+      "minLevel": 80,
+      "name": "قند سیاه",
+      "trackByBatch": true,
+      "date": "1404-02-29"
+    },
+    {
+      "id": "44a5",
+      "date": "1404-07-26",
+      "name": "product1",
+      "minLevel": 1231,
+      "latestPurchasePrice": 12312,
+      "description": "description",
+      "trackByBatch": true
+    }
+  ],
+  "inventory": [
+    {
+      "id": "1",
+      "name": "خرما - مجول",
+      "category": "خرما",
+      "sku": "FD001",
+      "warehouseStock": 150,
+      "storeStock": 45,
+      "unitPrice": 15.99,
+      "minStockLevel": 30,
+      "status": "موجود",
+      "expiryDate": "2026-01-15",
+      "lastUpdated": "2025-10-15T00:00:00.000Z",
+      "description": "خرمای ممتاز مجول با کیفیت بالا"
+    },
+    {
+      "id": "2",
+      "name": "خرما - خضری",
+      "category": "خرما",
+      "sku": "FD002",
+      "warehouseStock": 90,
+      "storeStock": 25,
+      "unitPrice": 9.99,
+      "minStockLevel": 20,
+      "status": "موجود",
+      "expiryDate": "2026-02-10",
+      "lastUpdated": "2025-10-15T00:00:00.000Z",
+      "description": "خرمای نرم و تازه خضری"
+    },
+    {
+      "id": "3",
+      "name": "خرما - پیارم",
+      "category": "خرما",
+      "sku": "FD003",
+      "warehouseStock": 60,
+      "storeStock": 18,
+      "unitPrice": 13.49,
+      "minStockLevel": 25,
+      "status": "موجود",
+      "expiryDate": "2025-12-20",
+      "lastUpdated": "2025-10-15T00:00:00.000Z",
+      "description": "خرمای نیمه‌خشک پیارم با طعم عالی"
+    },
+    {
+      "id": "4",
+      "name": "خرما - زاهدی",
+      "category": "خرما",
+      "sku": "FD004",
+      "warehouseStock": 35,
+      "storeStock": 10,
+      "unitPrice": 8.49,
+      "minStockLevel": 15,
+      "status": "موجود",
+      "expiryDate": "2026-03-05",
+      "lastUpdated": "2025-10-15T00:00:00.000Z",
+      "description": "خرمای خشک زاهدی مناسب برای صادرات"
+    },
+    {
+      "id": "5",
+      "name": "خرما - دگلت نور",
+      "category": "خرما",
+      "sku": "FD005",
+      "warehouseStock": 0,
+      "storeStock": 0,
+      "unitPrice": 10.99,
+      "minStockLevel": 30,
+      "status": "تمام شده",
+      "expiryDate": "2025-11-30",
+      "lastUpdated": "2025-10-15T00:00:00.000Z",
+      "description": "خرمای شیرین دگلت نور"
+    },
+    {
+      "id": "6",
+      "name": "خرما - ربی",
+      "category": "خرما",
+      "sku": "FD006",
+      "warehouseStock": 120,
+      "storeStock": 35,
+      "unitPrice": 11.49,
+      "minStockLevel": 25,
+      "status": "موجود",
+      "expiryDate": "2026-04-12",
+      "lastUpdated": "2025-10-15T00:00:00.000Z",
+      "description": "خرمای ربی با طعم طبیعی و خوشمزه"
+    },
+    {
+      "id": "7",
+      "name": "خرما - کبکاب",
+      "category": "خرما",
+      "sku": "FD007",
+      "warehouseStock": 80,
+      "storeStock": 20,
+      "unitPrice": 9.49,
+      "minStockLevel": 20,
+      "status": "موجود",
+      "expiryDate": "2026-05-01",
+      "lastUpdated": "2025-10-15T00:00:00.000Z",
+      "description": "خرمای کبکاب نرم و خوش‌طعم"
+    },
+    {
+      "id": "8",
+      "name": "خرما - شکر",
+      "category": "خرما",
+      "sku": "FD008",
+      "warehouseStock": 55,
+      "storeStock": 12,
+      "unitPrice": 7.99,
+      "minStockLevel": 15,
+      "status": "موجود",
+      "expiryDate": "2025-12-05",
+      "lastUpdated": "2025-10-15T00:00:00.000Z",
+      "description": "خرمای شکر طبیعی و خوش‌عطر"
+    },
+    {
+      "id": "9",
+      "name": "خرما - خضری ویژه",
+      "category": "خرما",
+      "sku": "FD009",
+      "warehouseStock": 100,
+      "storeStock": 28,
+      "unitPrice": 12.25,
+      "minStockLevel": 30,
+      "status": "موجود",
+      "expiryDate": "2026-01-20",
+      "lastUpdated": "2025-10-15T00:00:00.000Z",
+      "description": "خرمای خضری با بسته‌بندی ویژه"
+    },
+    {
+      "id": "10",
+      "name": "خرما - خاصویی",
+      "category": "خرما",
+      "sku": "FD010",
+      "warehouseStock": 25,
+      "storeStock": 5,
+      "unitPrice": 14.75,
+      "minStockLevel": 20,
+      "status": "کمبود موجودی",
+      "expiryDate": "2025-11-15",
+      "lastUpdated": "2025-10-15T00:00:00.000Z",
+      "description": "خرمای خاصویی با کیفیت عالی"
+    }
+  ],
+  "store": [
+    {
+      "trackingNumber": "TRK003",
+      "location": "فروشگاه ۱",
+      "product": "گاز استریل",
+      "expiryDate": "2025-12-20",
+      "purchasePrice": "۵.۰۰",
+      "unit": "بسته",
+      "id": "65a4"
+    },
+    {
+      "trackingNumber": "TRK004",
+      "location": "انبار C",
+      "product": "دستکش جراحی",
+      "expiryDate": "2026-03-10",
+      "purchasePrice": "۲.۰۰",
+      "unit": "جعبه",
+      "id": "6a04"
+    },
+    {
+      "trackingNumber": "TRK005",
+      "location": "فروشگاه ۲",
+      "product": "مایع ضدعفونی‌کننده",
+      "expiryDate": "2026-05-05",
+      "purchasePrice": "۳.۵۰",
+      "unit": "بطری",
+      "id": "e7a8"
+    },
+    {
+      "trackingNumber": "TRK006",
+      "location": "انبار A",
+      "product": "شیلد محافظ صورت",
+      "expiryDate": "2026-02-28",
+      "purchasePrice": "۴.۰۰",
+      "unit": "عدد",
+      "id": "ebba"
+    },
+    {
+      "trackingNumber": "TRK007",
+      "location": "انبار B",
+      "product": "کلاه جراحی",
+      "expiryDate": "2025-12-15",
+      "purchasePrice": "۱.۲۰",
+      "unit": "عدد",
+      "id": "e566"
+    },
+    {
+      "trackingNumber": "TRK008",
+      "location": "فروشگاه ۱",
+      "product": "ست تزریقی IV",
+      "expiryDate": "2026-04-01",
+      "purchasePrice": "۱۲.۵۰",
+      "unit": "ست",
+      "id": "375f"
+    },
+    {
+      "trackingNumber": "TRK009",
+      "location": "انبار C",
+      "product": "تب‌سنج",
+      "expiryDate": "2026-06-10",
+      "purchasePrice": "۸.۰۰",
+      "unit": "عدد",
+      "id": "77fb"
+    },
+    {
+      "trackingNumber": "TRK010",
+      "location": "فروشگاه ۲",
+      "product": "ماسک اکسیژن",
+      "expiryDate": "2026-03-20",
+      "purchasePrice": "۱۵.۰۰",
+      "unit": "عدد",
+      "id": "738e"
+    }
+  ],
+  "purchase": [
+    {
+      "_id": "purchase_101",
+      "supplier": "sup_001",
+      "purchaseDate": "2025-10-01T10:30:00.000Z",
+      "totalAmount": 1500,
+      "paidAmount": 1000,
+      "dueAmount": 500,
+      "isDeleted": false,
+      "items": [
+        {
+          "_id": "pi_101",
+          "purchase": "purchase_101",
+          "product": "prod_001",
+          "unit": "u_box",
+          "batchNumber": "بچ-الف۱۲",
+          "quantity": 5,
+          "unitPrice": 100,
+          "totalPrice": 500,
+          "isDeleted": false,
+          "createdAt": "2025-10-01T10:31:00.000Z",
+          "updatedAt": "2025-10-01T10:31:00.000Z"
+        },
+        {
+          "_id": "pi_102",
+          "purchase": "purchase_101",
+          "product": "prod_002",
+          "unit": "u_kg",
+          "batchNumber": "کیلو-۳۳",
+          "quantity": 20,
+          "unitPrice": 50,
+          "totalPrice": 1000,
+          "isDeleted": false,
+          "createdAt": "2025-10-01T10:32:00.000Z",
+          "updatedAt": "2025-10-01T10:32:00.000Z"
+        }
+      ],
+      "createdAt": "2025-10-01T10:33:00.000Z",
+      "updatedAt": "2025-10-01T10:33:00.000Z",
+      "id": "be28"
+    },
+    {
+      "_id": "purchase_102",
+      "supplier": "sup_003",
+      "purchaseDate": "2025-09-15T14:20:00.000Z",
+      "totalAmount": 375.5,
+      "paidAmount": 375.5,
+      "dueAmount": 0,
+      "isDeleted": false,
+      "items": [
+        {
+          "_id": "pi_103",
+          "purchase": "purchase_102",
+          "product": "prod_005",
+          "unit": "u_piece",
+          "batchNumber": "بچ-ج۱",
+          "quantity": 25,
+          "unitPrice": 10,
+          "totalPrice": 250,
+          "isDeleted": false,
+          "createdAt": "2025-09-15T14:21:00.000Z",
+          "updatedAt": "2025-09-15T14:21:00.000Z"
+        },
+        {
+          "_id": "pi_104",
+          "purchase": "purchase_102",
+          "product": "prod_006",
+          "unit": "u_pack",
+          "batchNumber": "پک-۴",
+          "quantity": 5,
+          "unitPrice": 25.1,
+          "totalPrice": 125.5,
+          "isDeleted": false,
+          "createdAt": "2025-09-15T14:22:00.000Z",
+          "updatedAt": "2025-09-15T14:22:00.000Z"
+        }
+      ],
+      "createdAt": "2025-09-15T14:23:00.000Z",
+      "updatedAt": "2025-09-15T14:23:00.000Z",
+      "paymentStatus": "pending",
+      "id": "ec02"
+    },
+    {
+      "_id": "purchase_103",
+      "supplier": "sup_002",
+      "purchaseDate": "2025-08-05T09:00:00.000Z",
+      "totalAmount": 620,
+      "paidAmount": 200,
+      "dueAmount": 420,
+      "isDeleted": false,
+      "paymentStatus": "paid",
+      "items": [
+        {
+          "_id": "pi_105",
+          "purchase": "purchase_103",
+          "product": "prod_010",
+          "unit": "u_l",
+          "batchNumber": "لیتر-۹",
+          "quantity": 40,
+          "unitPrice": 10,
+          "totalPrice": 400,
+          "isDeleted": false,
+          "createdAt": "2025-08-05T09:01:00.000Z",
+          "updatedAt": "2025-08-05T09:01:00.000Z"
+        },
+        {
+          "_id": "pi_106",
+          "purchase": "purchase_103",
+          "product": "prod_011",
+          "unit": "u_g",
+          "batchNumber": "گرم-۵۵",
+          "quantity": 200,
+          "unitPrice": 1.1,
+          "totalPrice": 220,
+          "isDeleted": false,
+          "createdAt": "2025-08-05T09:02:00.000Z",
+          "updatedAt": "2025-08-05T09:02:00.000Z"
+        }
+      ],
+      "createdAt": "2025-08-05T09:03:00.000Z",
+      "updatedAt": "2025-08-05T09:03:00.000Z",
+      "id": "6827"
+    },
+    {
+      "_id": "purchase_104",
+      "supplier": "sup_007",
+      "purchaseDate": "2025-07-20T16:45:00.000Z",
+      "totalAmount": 90,
+      "paidAmount": 90,
+      "dueAmount": 0,
+      "isDeleted": true,
+      "paymentStatus": "partial",
+      "items": [
+        {
+          "_id": "pi_107",
+          "purchase": "purchase_104",
+          "product": "prod_020",
+          "unit": "u_piece",
+          "batchNumber": "بچ-قدیم",
+          "quantity": 9,
+          "unitPrice": 10,
+          "totalPrice": 90,
+          "isDeleted": true,
+          "createdAt": "2025-07-20T16:46:00.000Z",
+          "updatedAt": "2025-07-20T16:46:00.000Z"
+        }
+      ],
+      "createdAt": "2025-07-20T16:47:00.000Z",
+      "updatedAt": "2025-07-20T16:47:00.000Z",
+      "id": "c44e"
+    }
+  ],
+  "supplier": [
+    {
+      "_id": "sup_001",
+      "name": "شرکت تکتاز تأمین",
+      "contact_info": {
+        "phone": "+93-700-111101",
+        "email": "taktaz.supply@example.com",
+        "address": "کابل، ناحیهٔ چهار، سرک سهیلی، پل ششم",
+        "city": "کابل",
+        "state": "کابل",
+        "zip_code": "1004"
+      },
+      "isDeleted": false,
+      "id": "c098"
+    },
+    {
+      "_id": "sup_002",
+      "name": "شرکت سامان واردات",
+      "contact_info": {
+        "phone": "+93-700-222202",
+        "email": "saman.imports@example.com",
+        "address": "هرات، بازار قدیم، کوچهٔ صانعین، دفتر ۲",
+        "city": "هرات",
+        "state": "هرات",
+        "zip_code": "3002"
+      },
+      "isDeleted": false,
+      "id": "bc48"
+    },
+    {
+      "_id": "sup_003",
+      "name": "تجارت سرآمد",
+      "contact_info": {
+        "phone": "+93-700-333303",
+        "email": "saramad.trading@example.com",
+        "address": "قندهار، ناحیهٔ صنعت، جادهٔ زرغون، پلاک ۴۵",
+        "city": "قندهار",
+        "state": "قندهار",
+        "zip_code": "4004"
+      },
+      "isDeleted": false,
+      "id": "9f9f"
+    },
+    {
+      "_id": "sup_004",
+      "name": "خدمات لجستیک بلخ",
+      "contact_info": {
+        "phone": "+93-700-444404",
+        "email": "balkh.logistics@example.com",
+        "address": "مزار شریف، بولوار صنعتی، نزدیک ترمینال",
+        "city": "مزار شریف",
+        "state": "بلخ",
+        "zip_code": "2202"
+      },
+      "isDeleted": false,
+      "id": "290e"
+    },
+    {
+      "_id": "sup_005",
+      "name": "شرکت آریان تأمین",
+      "contact_info": {
+        "phone": "+93-700-555505",
+        "email": "aryan.supply@example.com",
+        "address": "جلال‌آباد، ناحیهٔ مرکزی، سرک بهسود، بازارچهٔ ۳",
+        "city": "جلال‌آباد",
+        "state": "ننگرهار",
+        "zip_code": "2105"
+      },
+      "isDeleted": false,
+      "id": "dae5"
+    },
+    {
+      "_id": "sup_006",
+      "name": "نظام تجهیز",
+      "contact_info": {
+        "phone": "+93-700-666606",
+        "email": "nezam.tajhiz@example.com",
+        "address": "لشکرگاه، بازارچهٔ نو، ساختمان تجهیزات",
+        "city": "لشکرگاه",
+        "state": "هلمند",
+        "zip_code": "3801"
+      },
+      "isDeleted": false,
+      "id": "b221"
+    },
+    {
+      "_id": "sup_007",
+      "name": "پخش افغانستان",
+      "contact_info": {
+        "phone": "+93-700-777707",
+        "email": "afghanistan.distrib@example.com",
+        "address": "کابل، شهرنو، روبه‌روی میدان استقلال، پلاک ۲۱",
+        "city": "کابل",
+        "state": "کابل",
+        "zip_code": "1001"
+      },
+      "isDeleted": false,
+      "id": "3064"
+    },
+    {
+      "_id": "sup_008",
+      "name": "شرکت پیشتاز تجارت",
+      "contact_info": {
+        "phone": "+93-700-888808",
+        "email": "pishtaz.trading@example.com",
+        "address": "کندهار، ناحیهٔ چهار، کوچهٔ تجارت، دفتر ۵",
+        "city": "کندهار",
+        "state": "کندهار",
+        "zip_code": "4005"
+      },
+      "isDeleted": true,
+      "id": "c206"
+    },
+    {
+      "id": "em7p",
+      "_id": "sup_009",
+      "name": "kjfds",
+      "contact_info": {
+        "phone": "+92384234",
+        "email": "adfk",
+        "address": "123213",
+        "city": "23442",
+        "state": "34",
+        "zip_code": "34324"
+      }
+    },
+    {
+      "id": "w10r",
+      "_id": "sup_009",
+      "name": "h",
+      "contact_info": {
+        "phone": "jj",
+        "email": "jjj",
+        "address": "jj",
+        "city": "jj",
+        "state": "jj",
+        "zip_code": "jj"
+      }
+    }
+  ],
+  "sale": [
+    {
+      "id": "sale_101",
+      "customer": "cust_001",
+      "employee": "emp_001",
+      "saleDate": "2025-10-10T09:15:00.000Z",
+      "totalAmount": 240,
+      "paidAmount": 240,
+      "dueAmount": 0,
+      "placedIn": "acc_001",
+      "invoiceType": "small",
+      "soldBy": "user_001",
+      "isDeleted": false,
+      "items": [
+        {
+          "id": "si_101",
+          "product": "prod_001",
+          "unit": "u_piece",
+          "batchNumber": "بچ-الف۱",
+          "quantity": 10,
+          "unitPrice": 10,
+          "totalPrice": 100
+        },
+        {
+          "id": "si_102",
+          "product": "prod_002",
+          "unit": "u_box",
+          "batchNumber": "بکس-۲۲",
+          "quantity": 2,
+          "unitPrice": 70,
+          "totalPrice": 140
+        }
+      ],
+      "createdAt": "2025-10-10T09:16:00.000Z",
+      "updatedAt": "2025-10-10T09:16:00.000Z",
+      "discount": 20,
+      "tax": 0.6,
+      "saleType": "cash"
+    },
+    {
+      "id": "sale_102",
+      "customer": "cust_003",
+      "employee": "emp_003",
+      "saleDate": "2025-09-28T14:40:00.000Z",
+      "totalAmount": 52.5,
+      "paidAmount": 30,
+      "dueAmount": 22.5,
+      "placedIn": "acc_002",
+      "invoiceType": "large",
+      "soldBy": "user_002",
+      "isDeleted": false,
+      "items": [
+        {
+          "id": "si_103",
+          "product": "prod_003",
+          "unit": "u_kg",
+          "batchNumber": "کیلو-۷۷",
+          "quantity": 2.5,
+          "unitPrice": 12,
+          "totalPrice": 30
+        },
+        {
+          "id": "si_104",
+          "product": "prod_004",
+          "unit": "u_piece",
+          "batchNumber": "بدون-بچ",
+          "quantity": 5,
+          "unitPrice": 4.5,
+          "totalPrice": 22.5
+        }
+      ],
+      "createdAt": "2025-09-28T14:41:00.000Z",
+      "updatedAt": "2025-09-28T14:45:00.000Z",
+      "discount": 2,
+      "tax": 0.6,
+      "saleType": "cash"
+    },
+    {
+      "id": "sale_103",
+      "customer": null,
+      "employee": null,
+      "saleDate": "2025-10-12T11:05:00.000Z",
+      "totalAmount": 15,
+      "paidAmount": 15,
+      "dueAmount": 0,
+      "placedIn": "acc_001",
+      "invoiceType": "small",
+      "soldBy": "user_001",
+      "isDeleted": false,
+      "items": [
+        {
+          "id": "si_105",
+          "product": "prod_005",
+          "unit": "u_piece",
+          "batchNumber": "بچ-۳",
+          "quantity": 3,
+          "unitPrice": 5,
+          "totalPrice": 15
+        }
+      ],
+      "createdAt": "2025-10-12T11:06:00.000Z",
+      "updatedAt": "2025-10-12T11:06:00.000Z",
+      "discount": 5,
+      "tax": 0.6,
+      "saleType": "cash"
+    },
+    {
+      "id": "sale_104",
+      "customer": "cust_002",
+      "employee": "emp_002",
+      "saleDate": "2025-08-05T08:30:00.000Z",
+      "totalAmount": 1000,
+      "paidAmount": 600,
+      "dueAmount": 400,
+      "placedIn": "acc_003",
+      "invoiceType": "large",
+      "soldBy": "user_003",
+      "isDeleted": false,
+      "items": [
+        {
+          "id": "si_106",
+          "product": "prod_006",
+          "unit": "u_box",
+          "batchNumber": "لارج-۹۰۰",
+          "quantity": 5,
+          "unitPrice": 120,
+          "totalPrice": 600
+        },
+        {
+          "id": "si_107",
+          "product": "prod_001",
+          "unit": "u_piece",
+          "batchNumber": "بچ-الف۲",
+          "quantity": 20,
+          "unitPrice": 20,
+          "totalPrice": 400
+        }
+      ],
+      "createdAt": "2025-08-05T08:35:00.000Z",
+      "updatedAt": "2025-08-05T08:37:00.000Z",
+      "discount": 10,
+      "tax": 0.6,
+      "saleType": "cash"
+    }
+  ],
+  "unit": [
+    {
+      "id": "u_piece",
+      "name": "Piece",
+      "description": "Single item unit",
+      "conversion_to_base": 1,
+      "is_base_unit": true,
+      "isDeleted": false
+    },
+    {
+      "id": "u_box",
+      "name": "Box",
+      "description": "Box containing 12 pieces",
+      "conversion_to_base": 12,
+      "is_base_unit": false,
+      "isDeleted": false
+    },
+    {
+      "id": "u_dozen",
+      "name": "Dozen",
+      "description": "12 pieces (dozen)",
+      "conversion_to_base": 12,
+      "is_base_unit": false,
+      "isDeleted": false
+    },
+    {
+      "id": "u_kg",
+      "name": "Kilogram",
+      "description": "Kilogram base for weight",
+      "conversion_to_base": 1,
+      "is_base_unit": true,
+      "isDeleted": false
+    },
+    {
+      "id": "u_g",
+      "name": "Gram",
+      "description": "Gram - 0.001 kg",
+      "conversion_to_base": 0.001,
+      "is_base_unit": false,
+      "isDeleted": false
+    },
+    {
+      "id": "u_l",
+      "name": "Liter",
+      "description": "Liquid liter",
+      "conversion_to_base": 1,
+      "is_base_unit": true,
+      "isDeleted": false
+    },
+    {
+      "id": "u_ml",
+      "name": "Milliliter",
+      "description": "Milliliter - 0.001 L",
+      "conversion_to_base": 0.001,
+      "is_base_unit": false,
+      "isDeleted": false
+    },
+    {
+      "id": "u_pack",
+      "name": "Pack",
+      "description": "Pack - variable conversion",
+      "conversion_to_base": 6,
+      "is_base_unit": false,
+      "isDeleted": false
+    }
+  ],
+  "employee": [
+    {
+      "id": "emp_001",
+      "name": "احسان خان",
+      "role": "salesman",
+      "contact_info": {
+        "phone": "+93-700-111222",
+        "email": "ehsan.khan@example.com",
+        "address": "کابل، ناحیهٔ چهار، سرک گلشن"
+      },
+      "hire_date": "2021-03-15T00:00:00.000Z",
+      "is_active": true,
+      "isDeleted": false
+    },
+    {
+      "id": "emp_002",
+      "name": "سارا احمدی",
+      "role": "riding_man",
+      "contact_info": {
+        "phone": "+93-700-333444",
+        "email": "sara.ahmadi@example.com",
+        "address": "کابل، شیرپور، کوچهٔ پنج"
+      },
+      "hire_date": "2022-07-01T00:00:00.000Z",
+      "is_active": true,
+      "isDeleted": false
+    },
+    {
+      "id": "emp_003",
+      "name": "بلال رضا",
+      "role": "cashier",
+      "contact_info": {
+        "phone": "+93-700-555666",
+        "email": "bilal.reza@example.com",
+        "address": "هرات، شهر نو، بازار مرکزی"
+      },
+      "hire_date": "2020-11-20T00:00:00.000Z",
+      "is_active": true,
+      "isDeleted": false
+    },
+    {
+      "id": "emp_004",
+      "name": "نادیا حسین",
+      "role": "manager",
+      "contact_info": {
+        "phone": "+93-700-777888",
+        "email": "nadia.hussain@example.com",
+        "address": "قندهار، چهارراه صنایع، خانه شماره ۱۲"
+      },
+      "hire_date": "2019-05-10T00:00:00.000Z",
+      "is_active": true,
+      "isDeleted": false
+    },
+    {
+      "id": "emp_005",
+      "name": "عمر فاروق",
+      "role": "admin",
+      "contact_info": {
+        "phone": "+93-700-999000",
+        "email": "omar.farooq@example.com",
+        "address": "مزار شریف، بلوار مرکزی، پلاک ۱۱"
+      },
+      "hire_date": "2018-01-02T00:00:00.000Z",
+      "is_active": true,
+      "isDeleted": false
+    },
+    {
+      "id": "emp_006",
+      "name": "فاطمه نور",
+      "role": "salesman",
+      "contact_info": {
+        "phone": "+93-700-121212",
+        "email": "fatima.noor@example.com",
+        "address": "پلخمری، قبرسکان، ناحیهٔ ۳"
+      },
+      "hire_date": "2023-02-14T00:00:00.000Z",
+      "is_active": true,
+      "isDeleted": false
+    },
+    {
+      "id": "emp_007",
+      "name": "عثمان قریشی",
+      "role": "riding_man",
+      "contact_info": {
+        "phone": "+93-700-343434",
+        "email": "usman.qureshi@example.com",
+        "address": "کابل، شهرنو، نزدیک میدان استقلال"
+      },
+      "hire_date": "2021-09-30T00:00:00.000Z",
+      "is_active": false,
+      "isDeleted": false
+    },
+    {
+      "id": "emp_008",
+      "name": "زارا علی",
+      "role": "cashier",
+      "contact_info": {
+        "phone": "+93-700-565656",
+        "email": "zara.ali@example.com",
+        "address": "قندوز، محلهٔ نو، بازارچهٔ مرکزی"
+      },
+      "hire_date": "2017-06-18T00:00:00.000Z",
+      "is_active": false,
+      "isDeleted": true
+    }
+  ],
+  "company": [
+    {
+      "id": "comp_001",
+      "name": "شرکت روشنان تجارت",
+      "address": "کابل، ناحیهٔ ۳، سرک باغچه، پلاک ۱۲",
+      "contactNumber": "+93-700-111001",
+      "email": "roshanan.tijarat@example.com",
+      "isDeleted": false
+    },
+    {
+      "id": "comp_002",
+      "name": "شرکت گلستان واردات",
+      "address": "هرات، بازار مرکزی، کوچهٔ پنجم، دفتر ۳",
+      "contactNumber": "+93-700-222002",
+      "email": "golestan.vardat@example.com",
+      "isDeleted": false
+    },
+    {
+      "id": "comp_003",
+      "name": "شرکت سراج تولیدات",
+      "address": "قندهار، ناحیهٔ صنعت، پلاک ۴۵",
+      "contactNumber": "+93-700-333003",
+      "email": "siraj.tolidat@example.com",
+      "isDeleted": false
+    },
+    {
+      "id": "comp_004",
+      "name": "شرکت نور آنلاین",
+      "address": "مزار شریف، خیابان اصلی، برج نور، طبقهٔ دوم",
+      "contactNumber": "+93-700-444004",
+      "email": "noor.online@example.com",
+      "isDeleted": false
+    },
+    {
+      "id": "comp_005",
+      "name": "شرکت کریم و پسران",
+      "address": "قندهار، بازارچهٔ قدیم، دروازهٔ غرب، غرفهٔ ۸",
+      "contactNumber": "+93-700-555005",
+      "email": "karim.and.sons@example.com",
+      "isDeleted": false
+    },
+    {
+      "id": "comp_006",
+      "name": "شرکت خدماتی نسرین",
+      "address": "پلخمری، ناحیهٔ ۳، کوچهٔ سوم، ساختمان خدماتی",
+      "contactNumber": "+93-700-666006",
+      "email": "nasrin.services@example.com",
+      "isDeleted": false
+    },
+    {
+      "id": "comp_007",
+      "name": "شرکت افغانستان پخش",
+      "address": "کابل، شهرنو، نزدیک میدان استقلال، پلاک ۲۱",
+      "contactNumber": "+93-700-777007",
+      "email": "afghanistan.distribution@example.com",
+      "isDeleted": false
+    },
+    {
+      "id": "comp_008",
+      "name": "شرکت نغمه تجارت",
+      "address": "قندوز، محلهٔ نو، پلاک ۸، طبقهٔ اول",
+      "contactNumber": "+93-700-888008",
+      "email": "naghma.tijarat@example.com",
+      "isDeleted": true
+    }
+  ],
+  "customer": [
+    {
+      "id": "cust_001",
+      "name": "محمد حکیمی",
+      "contact_info": {
+        "phone": "+93-700-111001",
+        "email": "m.hakimi@example.com",
+        "address": "کابل، ناحیهٔ ۳، سرک باغچه، خانهٔ ۱۲",
+        "city": "کابل",
+        "state": "کابل",
+        "zip_code": "1003"
+      },
+      "isDeleted": false
+    },
+    {
+      "id": "cust_002",
+      "name": "مریم گل",
+      "contact_info": {
+        "phone": "+93-700-222002",
+        "email": "m.gul@example.com",
+        "address": "هرات، بازار مرکزی، کوچهٔ پنجم، دفتر ۳",
+        "city": "هرات",
+        "state": "هرات",
+        "zip_code": "3001"
+      },
+      "isDeleted": false
+    },
+    {
+      "id": "cust_003",
+      "name": "احمد سراج",
+      "contact_info": {
+        "phone": "+93-700-333003",
+        "email": "a.siraj@example.com",
+        "address": "قندهار، ناحیهٔ صنعت، پلاک ۱۲",
+        "city": "قندهار",
+        "state": "قندهار",
+        "zip_code": "4002"
+      },
+      "isDeleted": false
+    },
+    {
+      "id": "cust_004",
+      "name": "فاطمه رضایی",
+      "contact_info": {
+        "phone": "+93-700-444004",
+        "email": "f.rozaee@example.com",
+        "address": "مزار شریف، خیابان اصلی، برج نور، طبقهٔ دوم",
+        "city": "مزار شریف",
+        "state": "بلخ",
+        "zip_code": "2201"
+      },
+      "isDeleted": false
+    },
+    {
+      "id": "cust_005",
+      "name": "علی کریم",
+      "contact_info": {
+        "phone": "+93-700-555005",
+        "email": "a.karim@example.com",
+        "address": "قندهار، بازارچهٔ قدیم، غرفهٔ ۸",
+        "city": "قندهار",
+        "state": "قندهار",
+        "zip_code": "4003"
+      },
+      "isDeleted": false
+    },
+    {
+      "id": "cust_006",
+      "name": "نسرین عظیمی",
+      "contact_info": {
+        "phone": "+93-700-666006",
+        "email": "n.azimi@example.com",
+        "address": "پلخمری، ناحیهٔ ۳، کوچهٔ سوم",
+        "city": "پلخمری",
+        "state": "بغلان",
+        "zip_code": "2104"
+      },
+      "isDeleted": false
+    },
+    {
+      "id": "cust_007",
+      "name": "کریم ولی",
+      "contact_info": {
+        "phone": "+93-700-777007",
+        "email": "k.wali@example.com",
+        "address": "کابل، شهرنو، نزدیک میدان استقلال",
+        "city": "کابل",
+        "state": "کابل",
+        "zip_code": "1001"
+      },
+      "isDeleted": false
+    },
+    {
+      "id": "cust_008",
+      "name": "هلیا احمد",
+      "contact_info": {
+        "phone": "+93-700-888008",
+        "email": "h.ahmad@example.com",
+        "address": "قندوز، محلهٔ نو، پلاک ۸",
+        "city": "قندوز",
+        "state": "قندوز",
+        "zip_code": "2302"
+      },
+      "isDeleted": true
+    }
+  ]
+}

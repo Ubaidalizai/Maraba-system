@@ -1,0 +1,94 @@
+/* Print Styles for Bills */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .print-content,
+  .print-content * {
+    visibility: visible;
+  }
+
+  /* Adjust bill container size */
+  .print-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 10mm;
+    /* Add padding to ensure content doesn't touch the edges */
+    box-sizing: border-box;
+  }
+
+  /* Hide buttons and non-printable elements */
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Page breaks */
+  .page-break {
+    page-break-after: always;
+  }
+
+  /* Adjust bill size */
+  @page {
+    size: A4;
+    /* Use a standard A4 page */
+    margin: 5mm;
+    /* Set a reasonable margin */
+  }
+
+  /* Specific bill size options */
+  .small-bill {
+    width: 80mm !important;
+    padding: 5mm !important;
+  }
+
+  .large-bill {
+    width: 210mm !important;
+    /* 21cm for A4 */
+    padding: 10mm !important;
+    /* Set padding for A4 */
+  }
+
+  /* Table layout inside bill */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 4px 6px;
+    /* Reduced padding */
+    border: 1px solid #ddd;
+    /* Subtle border */
+    text-align: center;
+  }
+
+  /* Reduce the font size */
+  .print-content {
+    font-size: 0.85rem;
+    /* Reduce font size for printing */
+  }
+
+  /* Footer settings */
+  .footer {
+    text-align: center;
+    font-size: 0.75rem;
+    margin-top: 20px;
+  }
+
+  /* Specific adjustments for the header */
+  .header {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+  }
+
+  /* Make sure that content doesn't overflow */
+  .content {
+    max-width: 100%;
+    overflow: hidden;
+  }
+}
