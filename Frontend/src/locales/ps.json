@@ -566,6 +566,71 @@
     "paymentError": "تادیه ثبت نشوه"
   }
 },
+"saleBilling": {
+  "headers": {
+    "billNumber": "د بل نمبر",
+    "date": "نېټه",
+    "customer": "پېرودونکی",
+    "employee": "کارکوونکی",
+    "lineItems": "توکي",
+    "total": "ټوله اندازه",
+    "amountPaid": "ورکړل شوی",
+    "balanceDue": "پاتې",
+    "invoiceType": "د بل ډول",
+    "paymentStatus": "د تادیې حالت",
+    "actions": "عملیات"
+  },
+  "productHeaders": {
+    "product": "محصول",
+    "unit": "واحد",
+    "batch": "بیچ",
+    "quantity": "شمېر",
+    "cartonCount": "کارتنونه",
+    "unitPrice": "د واحد بیه",
+    "lineTotal": "ټوله کرښه"
+  },
+  "searchPlaceholder": "لټون...",
+  "filterByPayment": "د تادیې له مخې",
+  "filterAllPayments": "ټول تادیات",
+  "filterPartial": "نیمګړی ورکړل",
+  "filterPending": "پاتې تادیات",
+  "filterAllInvoices": "ټول بلونه",
+  "filterHighVolume": "لوړ حجم بلونه",
+  "filterLowVolume": "ټیټ حجم بلونه",
+  "filterAllStates": "ټول حالتونه",
+  "filterAllCustomers": "ټول پېرودونکي",
+  "itemsCount": "{{count}} توکي",
+  "paymentPaid": "ورکړل شوی",
+  "paymentPartial": "نیمګړی",
+  "actions": {
+    "view": "کتل",
+    "edit": "سمول",
+    "delete": "حذف",
+    "print": "چاپ"
+  },
+  "detailsTitle": "د خرڅلاو جزئیات",
+  "saleNumber": "د خرڅلاو نمبر",
+  "seller": "پلورونکی",
+  "saleType": "د خرڅلاو ډول",
+  "paymentType": "د تادیې ډول",
+  "subtotal": "فرعي ټول",
+  "discount": "تخفیف",
+  "tax": "مالیه",
+  "total": "ټوله اندازه",
+  "paid": "ورکړل شوی",
+  "owed": "پاتې",
+  "close": "تړل"
+},
+"bill": {
+  "loading": "فاکتور بار کیږي...",
+  "management": "د بلال سدیس شرکت اداره",
+  "signatureStamp": "مهر او لاسلیک",
+  "thanksTitle": "له خپل پیرود څخه مننه",
+  "thanksSubtitle": "هیله لرو بیا ستاسو خدمت وکړو",
+  "printError": "د فاکتور په چاپ کې ستونزه. بیا هڅه وکړئ.",
+  "pdfError": "د PDF په جوړولو کې ستونزه. بیا هڅه وکړئ.",
+  "address": "افغانستان، کندهار، سرک نو احمدي مارکیټ، دوکان شمېر ۳ او ۴"
+},
 
  "saleForm": {
   "loading": "سرچ روان دي...",

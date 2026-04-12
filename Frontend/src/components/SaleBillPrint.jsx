@@ -1,5 +1,6 @@
 import { AiOutlineFilePdf } from "react-icons/ai";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 // import { useReactToPrint } from "react-to-print";
 import { PrinterIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import html2canvas from "html2canvas";
@@ -12,6 +13,7 @@ import { SlCallIn } from "react-icons/sl";
 import { formatNumberWithPersianDigits } from "../utilies/helper";
 
 const SaleBillPrint = ({ sale, customer, customerAccount, onClose, autoPrint = false }) => {
+  const { t } = useTranslation();
   const printRef = useRef(null);
   const [isContentReady, setIsContentReady] = useState(false);
 
@@ -34,31 +36,6 @@ const SaleBillPrint = ({ sale, customer, customerAccount, onClose, autoPrint = f
       }).format("YYYY/MM/DD");
     } catch {
       return new Date(dateString).toLocaleDateString("fa-IR");
-    }
-  };
-
-  const formatPersianDateTime = (dateString) => {
-    try {
-      const date = new DateObject({
-        date: new Date(dateString),
-        calendar: persianCalendar,
-        locale: persianLocale,
-      });
-
-      return {
-        dayName: date.format("dddd"),
-        dateStr: date.format("YYYY/MM/DD"),
-        time: new Date(dateString).toLocaleTimeString("fa-IR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-    } catch {
-      return {
-        dayName: "",
-        dateStr: dateString,
-        time: "",
-      };
     }
   };
 
@@ -91,7 +68,6 @@ const SaleBillPrint = ({ sale, customer, customerAccount, onClose, autoPrint = f
     0
   );
 
-  const printDateTime = formatPersianDateTime(new Date());
   const patchOklabColors = (root) => {
     if (!root) return;
     const props = ['color', 'background', 'backgroundColor', 'borderColor', 'fill', 'stroke'];
@@ -148,9 +124,9 @@ const SaleBillPrint = ({ sale, customer, customerAccount, onClose, autoPrint = f
       window.open(pdf.output("bloburl"), "_blank");
     } catch (error) {
       console.error('Print failed:', error);
-      alert('خطا در چاپ فاکتور. لطفاً دوباره تلاش کنید.');
+      alert(t("bill.printError"));
     }
-  }, []);
+  }, [t]);
 
   const handlePdf = useCallback(async () => {
     if (!printRef.current) return;
@@ -191,14 +167,14 @@ const SaleBillPrint = ({ sale, customer, customerAccount, onClose, autoPrint = f
       window.open(pdf.output("bloburl"), "_blank");
     } catch (error) {
       console.error('PDF generation failed:', error);
-      alert('خطا در تولید PDF. لطفاً دوباره تلاش کنید.');
+      alert(t("bill.pdfError"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (autoPrint && sale) {
-      const t = setTimeout(handlePrint, 400);
-      return () => clearTimeout(t);
+      const timer = setTimeout(handlePrint, 400);
+      return () => clearTimeout(timer);
     }
   }, [autoPrint, sale, handlePrint]);
 
@@ -215,7 +191,7 @@ const SaleBillPrint = ({ sale, customer, customerAccount, onClose, autoPrint = f
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 "></div>
-          <p className="mt-4 text-gray-600">در حال بارگذاری فاکتور...</p>
+          <p className="mt-4 text-gray-600">{t("bill.loading")}</p>
         </div>
       </div>
     );
@@ -258,7 +234,7 @@ const SaleBillPrint = ({ sale, customer, customerAccount, onClose, autoPrint = f
         className=" bg-[#ffffff] border border-[#e2e8f0] rounded-md small-bill"
       >
         <div
-          className=" bg-[url(/bg3.png)]  bg-no-repeat bg-bottom  bg-cover   py-5 px-2  rounded-md "
+          className="bg-white py-5 px-2 rounded-md"
           style={{
             width: "215mm",
             minHeight: "297mm",
@@ -266,35 +242,21 @@ const SaleBillPrint = ({ sale, customer, customerAccount, onClose, autoPrint = f
             boxSizing: "border-box",
           }}
         >
-          {/* Header */}
-          <div className="w-full flex justify-between pb-[12px]">
-            <span className="font-semibold">
-              {formatPersianDate(sale?.saleDate)}
-            </span>
-            <span className="underline underline-offset-2 text-[#a0522d] font-bold">
-              {sale?.billNumber}
-            </span>
-          </div>
-
-          {/* Company Header */}
-          <header className="rounded-md  p-6 mb-2  bg-[url(/banner.png)] bg-no-repeat  bg-cover  bg-center">
-            <h3 className="text-2xl font-bold text-[#ffffff] text-right mb-4">
-              شرکت تجارتی برادران اصغری
+          {/* Company header (text only — no banner / background images) */}
+          <header className="rounded-md p-5 mb-3 border border-[#e2e8f0] bg-slate-800">
+            <h3 className="text-2xl font-bold text-white text-right mb-4">
+              {t("brand.title")}
             </h3>
 
             <div className="flex flex-col md:flex-row md:justify-between gap-4">
-              {/* Address */}
               <div className="flex items-center gap-2">
-                <CiLocationOn className="text-xl text-[#ffffff]" />
-                <p className="text-[#ffffff] text-sm">
-                  افغانستان کندهار سرک نو احمدی مارکیت دوکان شماره ۳ و ۴
-                </p>
+                <CiLocationOn className="text-xl text-white shrink-0" />
+                <p className="text-white text-sm text-right">{t("bill.address")}</p>
               </div>
 
-              {/* Phone Numbers */}
               <div className="flex items-center gap-2">
-                <SlCallIn className="text-xl text-[#ffffff]" />
-                <div className="text-[#ffffff] text-sm flex gap-3">
+                <SlCallIn className="text-xl text-white shrink-0" />
+                <div className="text-white text-sm flex flex-wrap gap-3 justify-end">
                   <span>0708181028</span>
                   <span>0709006272</span>
                   <span>0708471789</span>
@@ -436,43 +398,16 @@ const SaleBillPrint = ({ sale, customer, customerAccount, onClose, autoPrint = f
             <div className="flex flex-col md:flex-row justify-between items-start gap-6">
               {/* Manager Signature */}
               <div className="text-right">
-                <h4 className="text-lg font-semibold">مدیریت برادران اصغری</h4>
+                <h4 className="text-lg font-semibold">{t("bill.management")}</h4>
                 <div className="mt-6">
-                  <p className="text-sm">مهر و امضاء</p>
+                  <p className="text-sm">{t("bill.signatureStamp")}</p>
                   <div className="h-[1px] w-48 border-t border-[#d1d5dc] mt-[30px]"></div>
                 </div>
               </div>
 
-              {/* Thanks Message */}
               <div className="text-right">
-                <p className="text-lg font-medium">از خریداری شما سپاسگزاریم</p>
-                <p className="text-[#4a5565] mt-1">
-                  امیدواریم دوباره خدمت‌گذار تان باشیم
-                </p>
-              </div>
-            </div>
-
-            {/* Print DateTime */}
-            <div className="mt-8 pt-4 border-t border-[#d1d5dc] text-sm">
-              <div className="flex justify-between">
-                <div>
-                  <span className="font-semibold">تاریخ چاپ: </span>
-                  <span>
-                    {printDateTime.dayName} -{" "}
-                    {formatNumberWithPersianDigits(printDateTime.dateStr)}
-                  </span>
-                </div>
-                <div>
-                  <span className="font-semibold">وقت چاپ: </span>
-                  <span>
-                    {new Date().toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                      hour12: true,
-                    })}
-                  </span>
-                </div>
+                <p className="text-lg font-medium">{t("bill.thanksTitle")}</p>
+                <p className="text-[#4a5565] mt-1">{t("bill.thanksSubtitle")}</p>
               </div>
             </div>
           </footer>
