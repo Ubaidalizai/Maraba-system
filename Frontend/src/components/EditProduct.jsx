@@ -53,10 +53,12 @@ function EditProduct({ productId, onClose }) {
 
   return (
     <ProductForm
+      variant="edit"
       register={register}
       control={control}
       formState={formState}
       handleSubmit={handleSubmit(onSubmit)}
+      onClose={onClose}
     />
   );
 }

@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import {
   XMarkIcon,
-  PlusIcon,
   TrashIcon,
-  CurrencyDollarIcon,
   ShoppingCartIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -23,18 +22,45 @@ import JalaliDatePicker from "./JalaliDatePicker";
 import Select from "./Select";
 import { inputStyle } from "./ProductForm.jsx";
 
+const EASTERN_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
+
 const PurchaseModal = ({ isOpen, onClose }) => {
+  const { t, i18n } = useTranslation();
   const { register, handleSubmit, watch, reset, setValue } = useForm();
   const { data: suppliers } = useSuppliers();
   const { data: products } = useProducts();
   const { data: units } = useUnits();
   const { data: systemAccounts } = useSystemAccounts();
-  // Load supplier-type accounts so we can submit supplierAccount directly (Option B)
   const { data: supplierAccountsData } = useAccounts({ type: "supplier" });
   const supplierAccounts = supplierAccountsData?.accounts || [];
   const { mutate: createPurchase, isPending: isCreatingPurchase } =
     useCreatePurchase();
   const { isSubmitting, wrapSubmit } = useSubmitLock();
+
+  const toLocalizedNumber = (num) => {
+    const raw = String(num ?? "");
+    return raw.replace(/\d/g, (d) => EASTERN_DIGITS[d]);
+  };
+
+  const formatPurchaseDate = (iso) => {
+    if (!iso) return "—";
+    const lang = (i18n.language || "ps").split("-")[0];
+    const localeTag = lang === "ps" ? "ps-AF" : "fa-IR";
+    return new Date(iso).toLocaleDateString(localeTag);
+  };
+
+  const formatMoney = (val) => {
+    const n = typeof val === "string" ? parseFloat(val) : Number(val);
+    if (Number.isNaN(n)) return formatCurrency(0);
+    return formatCurrency(n);
+  };
+
+  const formatExpiryCell = (raw) => {
+    if (!raw) return "—";
+    const iso = normalizeDateToIso(raw);
+    if (iso) return formatPurchaseDate(iso);
+    return String(raw);
+  };
 
   useEffect(() => {
     register("purchaseDate", { required: false });
@@ -53,43 +79,49 @@ const PurchaseModal = ({ isOpen, onClose }) => {
 
   const watchedValues = watch();
 
-  // Filter units based on selected product
   const availableUnits = useMemo(() => {
     if (!currentItem.product || !units?.data || !products?.data) return [];
 
-    const selectedProduct = products.data.find((p) => p._id === currentItem.product);
+    const selectedProduct = products.data.find(
+      (p) => p._id === currentItem.product
+    );
     if (!selectedProduct) return [];
 
-    const productUnitId = selectedProduct.baseUnit?._id || selectedProduct.baseUnit;
+    const productUnitId =
+      selectedProduct.baseUnit?._id || selectedProduct.baseUnit;
     const productUnit = units.data.find((u) => u._id === productUnitId);
     if (!productUnit) return [];
 
-    // If product unit is a derived unit (has base_unit), include its base unit too
     if (productUnit.base_unit) {
       const baseUnitId = productUnit.base_unit._id || productUnit.base_unit;
       const baseUnit = units.data.find((u) => u._id === baseUnitId);
       return baseUnit ? [baseUnit, productUnit] : [productUnit];
     }
 
-    // If product unit is a base unit, return only it
     return [productUnit];
   }, [currentItem.product, products?.data, units?.data]);
 
-  // Auto-select product unit when product changes
   useEffect(() => {
     if (currentItem.product && availableUnits.length > 0) {
-      const productUnit = products?.data?.find(p => p._id === currentItem.product);
+      const productUnit = products?.data?.find(
+        (p) => p._id === currentItem.product
+      );
       const productUnitId = productUnit?.baseUnit?._id || productUnit?.baseUnit;
-      
-      if (productUnitId && availableUnits.find(u => u._id === productUnitId)) {
-        setCurrentItem(prev => ({ ...prev, unit: productUnitId }));
-      } else if (!currentItem.unit || !availableUnits.find(u => u._id === currentItem.unit)) {
-        setCurrentItem(prev => ({ ...prev, unit: availableUnits[0]._id }));
+
+      if (
+        productUnitId &&
+        availableUnits.find((u) => u._id === productUnitId)
+      ) {
+        setCurrentItem((prev) => ({ ...prev, unit: productUnitId }));
+      } else if (
+        !currentItem.unit ||
+        !availableUnits.find((u) => u._id === currentItem.unit)
+      ) {
+        setCurrentItem((prev) => ({ ...prev, unit: availableUnits[0]._id }));
       }
     }
   }, [currentItem.product, availableUnits, products?.data]);
 
-  // Calculate totals
   const subtotal = items.reduce(
     (sum, item) => sum + item.quantity * item.unitPrice,
     0
@@ -97,7 +129,6 @@ const PurchaseModal = ({ isOpen, onClose }) => {
   const paidAmount = Number(watchedValues.paidAmount) || 0;
   const dueAmount = Math.max(subtotal - paidAmount, 0);
 
-  // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
       reset();
@@ -120,13 +151,13 @@ const PurchaseModal = ({ isOpen, onClose }) => {
       currentItem.quantity <= 0 ||
       currentItem.unitPrice <= 0
     ) {
-      toast.error("لطفاً تمام فیلدهای مورد نیاز را پر کنید");
+      toast.error(t("purchaseModal.toast.fillRequired"));
       return;
     }
 
     const newItem = {
       ...currentItem,
-      id: Date.now(), // temporary ID for frontend
+      id: Date.now(),
     };
 
     setItems([...items, newItem]);
@@ -160,11 +191,10 @@ const PurchaseModal = ({ isOpen, onClose }) => {
 
   const onSubmit = wrapSubmit(async (data) => {
     if (items.length === 0) {
-      toast.error("لطفاً حداقل یک جنس اضافه کنید");
+      toast.error(t("purchaseModal.toast.addOneItem"));
       return;
     }
 
-    // find selected account to get refId (supplier id) if needed
     const selectedAccount = supplierAccounts.find(
       (a) => a._id === data.supplierAccount
     );
@@ -192,13 +222,12 @@ const PurchaseModal = ({ isOpen, onClose }) => {
 
     await runMutation(createPurchase, purchaseData, {
       onSuccess: () => {
-        console.log(purchaseData);
         onClose();
         reset();
         setItems([]);
       },
       onError: (error) => {
-        toast.error(error.message || "خطا در ایجاد خرید");
+        toast.error(error.message || t("purchaseModal.toast.createError"));
       },
     });
   });
@@ -213,7 +242,9 @@ const PurchaseModal = ({ isOpen, onClose }) => {
             <div className="bg-amber-100 p-2 rounded-lg">
               <ShoppingCartIcon className="h-6 w-6 text-amber-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900">خرید جدید</h2>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {t("purchaseModal.title")}
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -224,39 +255,36 @@ const PurchaseModal = ({ isOpen, onClose }) => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
-          {/* Purchase Info */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <div>
-                      <Select
-                        label="تهیه کننده (حساب) *"
-                        options={
-                          supplierAccounts?.map((acc) => {
-                            const supName = suppliers?.data?.find(
-                              (s) => s._id === acc.refId
-                            )?.name;
-                            return {
-                              value: acc._id,
-                              label: supName ? `${acc.name} — ${supName}` : acc.name,
-                            };
-                          }) || []
-                        }
-                        value={watchedValues.supplierAccount}
-                        onChange={(value) => {
-                          // set selected account id
-                          setValue("supplierAccount", value);
-                          // also set supplier id if the account has refId
-                          const acc = supplierAccounts.find((a) => a._id === value);
-                          if (acc && acc.refId) setValue("supplier", acc.refId);
-                        }}
-                        register={register}
-                        name="supplierAccount"
-                        defaultSelected="انتخاب حساب تهیه کننده"
-                      />
+              <Select
+                label={t("purchaseModal.supplierAccountLabel")}
+                options={
+                  supplierAccounts?.map((acc) => {
+                    const supName = suppliers?.data?.find(
+                      (s) => s._id === acc.refId
+                    )?.name;
+                    return {
+                      value: acc._id,
+                      label: supName ? `${acc.name} — ${supName}` : acc.name,
+                    };
+                  }) || []
+                }
+                value={watchedValues.supplierAccount}
+                onChange={(value) => {
+                  setValue("supplierAccount", value);
+                  const acc = supplierAccounts.find((a) => a._id === value);
+                  if (acc && acc.refId) setValue("supplier", acc.refId);
+                }}
+                register={register}
+                name="supplierAccount"
+                defaultSelected={t("purchaseModal.selectSupplierAccount")}
+              />
             </div>
 
             <div>
               <JalaliDatePicker
-                label="تاریخ خرید"
+                label={t("purchaseModal.purchaseDate")}
                 name="purchaseDate"
                 value={watchedValues.purchaseDate || ""}
                 onChange={(nextValue) =>
@@ -265,12 +293,13 @@ const PurchaseModal = ({ isOpen, onClose }) => {
                     shouldDirty: true,
                   })
                 }
+                placeholder={t("purchaseModal.datePlaceholder")}
               />
             </div>
 
             <div>
               <Select
-                label="حساب پرداخت *"
+                label={t("purchaseModal.paymentAccountLabel")}
                 options={
                   systemAccounts?.accounts?.map((account) => ({
                     value: account._id,
@@ -281,42 +310,41 @@ const PurchaseModal = ({ isOpen, onClose }) => {
                 onChange={(value) => setValue("paymentAccount", value)}
                 register={register}
                 name="paymentAccount"
-                defaultSelected="انتخاب حساب"
+                defaultSelected={t("purchaseModal.selectPaymentAccount")}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                مبلغ پرداخت شده
+                {t("purchaseModal.paidAmount")}
               </label>
               <input
                 type="number"
                 step="0.01"
                 {...register("paidAmount")}
                 className={inputStyle}
-                placeholder="0"
+                placeholder={t("purchaseModal.placeholderZero")}
               />
             </div>
           </div>
 
-          {/* Add Item Form */}
           <div className="bg-gray-50 p-4 rounded-lg">
             <div className=" flex  justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                اضافه کردن جنس
+                {t("purchaseModal.addItemTitle")}
               </h3>
               <button
                 type="button"
                 onClick={addItem}
                 className=" flex text-[12px] items-center justify-center gap-2 px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
               >
-                اضافه کردن
+                {t("purchaseModal.addButton")}
               </button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div>
                 <Select
-                  label=" محصول *"
+                  label={t("purchaseModal.productLabel")}
                   options={
                     products?.data?.map((product) => ({
                       value: product._id,
@@ -334,13 +362,13 @@ const PurchaseModal = ({ isOpen, onClose }) => {
                       unit: selectedProduct?.baseUnit?._id || "",
                     });
                   }}
-                  defaultSelected="انتخاب محصول"
+                  defaultSelected={t("purchaseModal.selectProduct")}
                 />
               </div>
 
               <div>
                 <label className="block mb-[7px] text-[12px] font-medium text-gray-700">
-                  واحد *
+                  {t("purchaseModal.unitLabel")}
                 </label>
                 <select
                   value={currentItem.unit}
@@ -351,7 +379,9 @@ const PurchaseModal = ({ isOpen, onClose }) => {
                   disabled={!currentItem.product || availableUnits.length === 0}
                 >
                   <option value="">
-                    {!currentItem.product ? "ابتدا محصول را انتخاب کنید" : "انتخاب واحد"}
+                    {!currentItem.product
+                      ? t("purchaseModal.selectProductFirst")
+                      : t("purchaseModal.selectUnit")}
                   </option>
                   {availableUnits.map((u) => (
                     <option key={u._id} value={u._id}>
@@ -363,7 +393,7 @@ const PurchaseModal = ({ isOpen, onClose }) => {
 
               <div>
                 <label className="block mb-[7px] text-[12px] font-medium text-gray-700 ">
-                  تعداد *
+                  {t("purchaseModal.quantityLabel")}
                 </label>
                 <input
                   type="number"
@@ -376,13 +406,13 @@ const PurchaseModal = ({ isOpen, onClose }) => {
                     })
                   }
                   className={inputStyle}
-                  placeholder="0"
+                  placeholder={t("purchaseModal.placeholderZero")}
                 />
               </div>
 
               <div>
                 <label className="block mb-[7px] text-[12px] font-medium text-gray-700 ">
-                  قیمت واحد *
+                  {t("purchaseModal.unitPriceLabel")}
                 </label>
                 <input
                   type="number"
@@ -395,13 +425,13 @@ const PurchaseModal = ({ isOpen, onClose }) => {
                     })
                   }
                   className={inputStyle}
-                  placeholder="0.00"
+                  placeholder={t("purchaseModal.placeholderMoney")}
                 />
               </div>
 
               <div>
                 <label className="block text-[12px] font-medium text-gray-700 mb-[7px]">
-                  شماره بچ
+                  {t("purchaseModal.batchNumber")}
                 </label>
                 <input
                   type="text"
@@ -413,53 +443,52 @@ const PurchaseModal = ({ isOpen, onClose }) => {
                     })
                   }
                   className={inputStyle}
-                  placeholder="اختیاری"
+                  placeholder={t("purchaseModal.optional")}
                 />
               </div>
               <div>
                 <JalaliDatePicker
-                  label="تاریخ انقضا"
+                  label={t("purchaseModal.expiryDate")}
                   value={currentItem.expiryDate}
                   onChange={(date) =>
                     setCurrentItem({ ...currentItem, expiryDate: date })
                   }
-                  placeholder="انتخاب تاریخ"
+                  placeholder={t("purchaseModal.datePlaceholder")}
                   clearable={true}
                 />
               </div>
             </div>
           </div>
 
-          {/* Items List */}
           {items.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                اجناس انتخاب شده
+                {t("purchaseModal.selectedItemsTitle")}
               </h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                        محصول
+                        {t("purchaseModal.table.product")}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                        واحد
+                        {t("purchaseModal.table.unit")}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                        تعداد
+                        {t("purchaseModal.table.quantity")}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                        قیمت واحد
+                        {t("purchaseModal.table.unitPrice")}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                        تاریخ انقضا
+                        {t("purchaseModal.table.expiry")}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                        مجموع
+                        {t("purchaseModal.table.total")}
                       </th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                        عملیات
+                        {t("purchaseModal.table.actions")}
                       </th>
                     </tr>
                   </thead>
@@ -482,16 +511,16 @@ const PurchaseModal = ({ isOpen, onClose }) => {
                             {unit?.name || "-"}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-900">
-                            {item.quantity}
+                            {toLocalizedNumber(item.quantity)}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-900">
-                            {formatCurrency(item.unitPrice)}
+                            {formatMoney(item.unitPrice)}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-900">
-                            {item.expiryDate || "-"}
+                            {formatExpiryCell(item.expiryDate)}
                           </td>
                           <td className="px-4 py-3 text-sm font-semibold text-purple-600">
-                            {formatCurrency(total)}
+                            {formatMoney(total)}
                           </td>
                           <td className="px-4 py-3 text-sm">
                             <button
@@ -511,27 +540,27 @@ const PurchaseModal = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Summary */}
           <div className="bg-amber-50 p-4 rounded-lg">
             <div className="flex justify-between items-center">
               <div className="text-lg font-semibold text-gray-900">
-                مجموع کل: {formatCurrency(subtotal)}
+                {t("purchaseModal.summary.grandTotal")}{" "}
+                {formatMoney(subtotal)}
               </div>
               <div className="text-sm text-gray-600">
-                پرداخت شده: {formatCurrency(paidAmount)} | باقی مانده:{" "}
-                {formatCurrency(dueAmount)}
+                {t("purchaseModal.summary.paid")} {formatMoney(paidAmount)}
+                {t("purchaseModal.summary.betweenPaidDue")}
+                {t("purchaseModal.summary.due")} {formatMoney(dueAmount)}
               </div>
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              لغو
+              {t("purchaseModal.cancel")}
             </button>
             <button
               type="submit"
@@ -539,8 +568,8 @@ const PurchaseModal = ({ isOpen, onClose }) => {
               className="px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isCreatingPurchase || isSubmitting
-                ? "در حال ایجاد..."
-                : "ایجاد خرید"}
+                ? t("purchaseModal.submitting")
+                : t("purchaseModal.submit")}
             </button>
           </div>
         </form>

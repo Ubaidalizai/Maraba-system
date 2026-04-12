@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 
 const Pagination = ({
@@ -9,6 +10,7 @@ const Pagination = ({
   onPageChange,
   onRowsPerPageChange,
 }) => {
+  const { t } = useTranslation();
   const totalPages = useMemo(
     () => providedTotalPages || Math.ceil(total / limit),
     [total, limit, providedTotalPages]
@@ -65,7 +67,7 @@ const Pagination = ({
           className={
             "w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm px-3 py-2 transition duration-300 ease focus:outline-none focus:border-slate-300 hover:border-slate-300 shadow-sm pr-10`"
           }
-          aria-label="انتخاب تعداد ردیف در صفحه"
+          aria-label={t("common.pagination.rowsPerPageAria")}
         >
           <option value={10}>10</option>
           <option value={20}>20</option>
@@ -87,15 +89,15 @@ const Pagination = ({
                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400 focus:outline-none"
            }`}
-          aria-label="صفحه قبلی"
+          aria-label={t("common.pagination.prevPageAria")}
         >
           <ChevronRightIcon className="h-4 w-4" />
-          قبلی
+          {t("common.pagination.previous")}
         </button>
 
         {/* Current page display */}
         <div className="px-3 flex gap-x-1 py-2 text-sm text-gray-700 bg-gray-100 rounded">
-          صفحه
+          {t("common.pagination.page")}
           <input
             type="number"
             value={pageInput}
@@ -105,7 +107,7 @@ const Pagination = ({
             min={1}
             max={totalPages}
           />
-          از <span>{totalPages}</span>
+          {t("common.pagination.of")} <span>{totalPages}</span>
         </div>
 
         {/* Next button */}
@@ -118,9 +120,9 @@ const Pagination = ({
               ? "bg-gray-100 text-gray-400 cursor-not-allowed"
               : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400 focus:outline-none "
           }`}
-          aria-label="صفحه بعدی"
+          aria-label={t("common.pagination.nextPageAria")}
         >
-          بعدی
+          {t("common.pagination.next")}
           <ChevronLeftIcon className="h-4 w-4" />
         </button>
       </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, API_ENDPOINTS } from "../services/apiConfig";
@@ -69,6 +70,7 @@ const deleteExpenseApi = async (id) => {
 };
 
 export default function Expenses() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -104,7 +106,7 @@ export default function Expenses() {
   const createMutation = useMutation({
     mutationFn: createExpenseApi,
     onSuccess: (_, variables) => {
-      toast.success("هزینه ثبت شد");
+      toast.success(t("expenses.toast.createSuccess"));
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
@@ -117,13 +119,14 @@ export default function Expenses() {
       }
       setIsModalOpen(false);
     },
-    onError: (e) => toast.error(e.message || "ثبت هزینه ناموفق بود"),
+    onError: (e) =>
+      toast.error(e.message || t("expenses.toast.createError")),
   });
 
   const updateMutation = useMutation({
     mutationFn: updateExpenseApi,
     onSuccess: (_, variables) => {
-      toast.success("هزینه ویرایش شد");
+      toast.success(t("expenses.toast.updateSuccess"));
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
@@ -141,19 +144,21 @@ export default function Expenses() {
       setIsModalOpen(false);
       setEditingExpense(null);
     },
-    onError: (e) => toast.error(e.message || "ویرایش هزینه ناموفق بود"),
+    onError: (e) =>
+      toast.error(e.message || t("expenses.toast.updateError")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteExpenseApi,
     onSuccess: () => {
-      toast.success("حذف شد");
+      toast.success(t("expenses.toast.deleteSuccess"));
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
       queryClient.invalidateQueries({ queryKey: ["accountLedger"] });
     },
-    onError: (e) => toast.error(e.message || "حذف ناموفق بود"),
+    onError: (e) =>
+      toast.error(e.message || t("expenses.toast.deleteError")),
   });
 
   const expenses = expensesRes?.data || [];
@@ -174,13 +179,17 @@ export default function Expenses() {
   };
 
   const onDelete = (id) => {
-    if (window.confirm("آیا از حذف این هزینه مطمئن هستید؟")) {
+    if (window.confirm(t("expenses.deleteConfirm"))) {
       deleteMutation.mutate(id);
     }
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("fa-IR");
+    if (!dateString) return "—";
+    const lang = (i18n.language || "ps").split("-")[0];
+    const localeTag =
+      lang === "ps" ? "ps-AF" : "fa-IR";
+    return new Date(dateString).toLocaleDateString(localeTag);
   };
 
   return (
@@ -190,7 +199,7 @@ export default function Expenses() {
           className="text-xl font-bold"
           style={{ color: "var(--primary-brown)" }}
         >
-          هزینه‌ها
+          {t("expenses.title")}
         </h1>
         <button
           className=" bg-amber-600 cursor-pointer group  text-white hover:bg-amber-600/90  duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in duration-200`"
@@ -199,7 +208,7 @@ export default function Expenses() {
             setIsModalOpen(true);
           }}
         >
-          افزودن هزینه
+          {t("expenses.addExpense")}
         </button>
       </div>
 
@@ -211,14 +220,14 @@ export default function Expenses() {
               className="block mb-2"
               style={{ color: "var(--text-medium)" }}
             >
-              دسته‌بندی
+              {t("expenses.filters.category")}
             </label>
             <select
               className={inputStyle}
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
-              <option value="">همه</option>
+              <option value="">{t("expenses.filters.all")}</option>
               {categories.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.name}
@@ -228,7 +237,7 @@ export default function Expenses() {
           </div>
           <div>
             <JalaliDatePicker
-              label="از تاریخ"
+              label={t("expenses.filters.dateFrom")}
               value={dateRange.start}
               onChange={(nextValue) =>
                 setDateRange((d) => ({
@@ -236,13 +245,13 @@ export default function Expenses() {
                   start: normalizeDateToIso(nextValue),
                 }))
               }
-              placeholder="انتخاب تاریخ شروع"
+              placeholder={t("expenses.filters.dateFromPlaceholder")}
               clearable
             />
           </div>
           <div>
             <JalaliDatePicker
-              label="تا تاریخ"
+              label={t("expenses.filters.dateTo")}
               value={dateRange.end}
               onChange={(nextValue) =>
                 setDateRange((d) => ({
@@ -250,7 +259,7 @@ export default function Expenses() {
                   end: normalizeDateToIso(nextValue),
                 }))
               }
-              placeholder="انتخاب تاریخ پایان"
+              placeholder={t("expenses.filters.dateToPlaceholder")}
               clearable
             />
           </div>
@@ -259,12 +268,12 @@ export default function Expenses() {
               className="block mb-2"
               style={{ color: "var(--text-medium)" }}
             >
-              جستجو
+              {t("expenses.filters.search")}
             </label>
             <input
               type="text"
               className={inputStyle}
-              placeholder="توضیحات..."
+              placeholder={t("expenses.filters.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -276,25 +285,25 @@ export default function Expenses() {
       <Table>
         <TableHeader
           headerData={[
-            { title: "تاریخ" },
-            { title: "دسته‌بندی" },
-            { title: "مبلغ" },
-            { title: "پرداخت از" },
-            { title: "توضیحات" },
-            { title: "اقدامات" },
+            { title: t("expenses.table.date") },
+            { title: t("expenses.table.category") },
+            { title: t("expenses.table.amount") },
+            { title: t("expenses.table.paidFrom") },
+            { title: t("expenses.table.description") },
+            { title: t("expenses.table.actions") },
           ]}
         />
         <TableBody>
           {isLoading ? (
             <TableRow>
               <TableColumn colSpan="6" className="text-center py-6">
-                در حال بارگذاری...
+                {t("expenses.table.loading")}
               </TableColumn>
             </TableRow>
           ) : expenses.length === 0 ? (
             <TableRow>
               <TableColumn colSpan="6" className="text-center py-6">
-                موردی یافت نشد
+                {t("expenses.table.empty")}
               </TableColumn>
             </TableRow>
           ) : (
@@ -304,7 +313,10 @@ export default function Expenses() {
                   {formatDate(e.date)}
                 </TableColumn>
                 <TableColumn>{e.category?.name || "-"}</TableColumn>
-                <TableColumn>{formatNumber(e.amount || 0)} افغانی</TableColumn>
+                <TableColumn>
+                  {formatNumber(e.amount || 0)}{" "}
+                  {t("expenses.table.currencySuffix")}
+                </TableColumn>
                 <TableColumn>{e.paidFromAccount?.name || "-"}</TableColumn>
                 <TableColumn>{e.description || "-"}</TableColumn>
                 <TableColumn>
@@ -315,14 +327,14 @@ export default function Expenses() {
                         setEditingExpense(e);
                         setIsModalOpen(true);
                       }}
-                      title="ویرایش"
+                      title={t("expenses.actions.edit")}
                     >
                       <PencilIcon className="h-4 w-4" />
                     </button>
                     <button
                       className="text-red-600 hover:text-red-900"
                       onClick={() => onDelete(e._id)}
-                      title="حذف"
+                      title={t("expenses.actions.delete")}
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
@@ -363,6 +375,7 @@ export default function Expenses() {
 }
 
 function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     category: initial?.category?._id || initial?.category || "",
     amount: initial?.amount || "",
@@ -400,7 +413,9 @@ function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
           className="text-lg font-bold mb-4"
           style={{ color: "var(--primary-brown)" }}
         >
-          {initial ? "ویرایش هزینه" : "افزودن هزینه"}
+          {initial
+            ? t("expenses.modal.titleEdit")
+            : t("expenses.modal.titleAdd")}
         </h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -408,7 +423,7 @@ function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
               className="block mb-2"
               style={{ color: "var(--text-medium)" }}
             >
-              دسته‌بندی
+              {t("expenses.modal.category")}
             </label>
             <select
               className={inputStyle}
@@ -416,7 +431,7 @@ function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
               value={form.category}
               onChange={handleChange}
             >
-              <option value="">انتخاب کنید</option>
+              <option value="">{t("expenses.modal.selectCategory")}</option>
               {categories.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.name}
@@ -429,7 +444,7 @@ function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
               className="block mb-2"
               style={{ color: "var(--text-medium)" }}
             >
-              مبلغ
+              {t("expenses.modal.amount")}
             </label>
             <input
               className={inputStyle}
@@ -445,7 +460,7 @@ function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
               className="block mb-2"
               style={{ color: "var(--text-medium)" }}
             >
-              پرداخت از
+              {t("expenses.modal.paidFrom")}
             </label>
             <select
               className={inputStyle}
@@ -453,7 +468,7 @@ function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
               value={form.paidFromAccount}
               onChange={handleChange}
             >
-              <option value="">انتخاب حساب</option>
+              <option value="">{t("expenses.modal.selectAccount")}</option>
               {accounts.map((a) => (
                 <option key={a._id} value={a._id}>
                   {a.name}
@@ -463,7 +478,7 @@ function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
           </div>
           <div>
             <JalaliDatePicker
-              label="تاریخ"
+              label={t("expenses.modal.date")}
               name="date"
               value={form.date}
               onChange={(nextValue) =>
@@ -474,7 +489,7 @@ function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
                     new Date().toISOString().slice(0, 10),
                 }))
               }
-              placeholder="انتخاب تاریخ"
+              placeholder={t("expenses.modal.datePlaceholder")}
               clearable={false}
             />
           </div>
@@ -483,7 +498,7 @@ function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
               className="block mb-2"
               style={{ color: "var(--text-medium)" }}
             >
-              توضیحات
+              {t("expenses.modal.description")}
             </label>
             <textarea
               className={inputStyle}
@@ -499,7 +514,7 @@ function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
               className=" bg-transparent border rounded-sm "
               onClick={onClose}
             >
-              لغو
+              {t("expenses.modal.cancel")}
             </Button>
             <Button
               className=" bg-amber-600 text-white"
@@ -516,7 +531,9 @@ function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
                 })
               }
             >
-              {initial ? "ذخیره تغییرات" : "ثبت"}
+              {initial
+                ? t("expenses.modal.saveChanges")
+                : t("expenses.modal.submit")}
             </Button>
           </div>
         </div>

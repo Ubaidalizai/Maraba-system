@@ -7,6 +7,7 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   useCreateSupplier,
   useDeleteSupplier,
@@ -17,6 +18,7 @@ import GloableModal from "./GloableModal";
 import { inputStyle } from "./ProductForm";
 
 const SupplierManagement = () => {
+  const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
@@ -140,7 +142,7 @@ const SupplierManagement = () => {
           style={{ borderColor: "var(--primary-brown)" }}
         ></div>
         <span className="mr-4 text-lg" style={{ color: "var(--text-medium)" }}>
-          در حال بارگذاری...
+          {t("admin.suppliersPage.loading")}
         </span>
       </div>
     );
@@ -151,17 +153,19 @@ const SupplierManagement = () => {
       <div className="text-center py-12">
         <ExclamationTriangleIcon className="h-16 w-16 mx-auto text-red-500 mb-4" />
         <h3 className="text-lg font-medium text-red-600 mb-2">
-          خطا در بارگذاری داده‌ها
+          {t("admin.suppliersPage.errorTitle")}
         </h3>
         <p className="text-gray-600 mb-4">
-          {error.message || "لطفاً صفحه را رفرش کنید یا دوباره تلاش کنید"}
+          {error.message || t("admin.suppliersPage.errorHint")}
         </p>
         <button onClick={() => refetch()} className="btn-primary">
-          تلاش مجدد
+          {t("admin.suppliersPage.retry")}
         </button>
       </div>
     );
   }
+
+  const totalCount = suppliers?.data?.length ?? 0;
 
   return (
     <div className="space-y-6">
@@ -172,10 +176,10 @@ const SupplierManagement = () => {
             className="text-xl font-bold"
             style={{ color: "var(--primary-brown)" }}
           >
-            مدیریت تامین‌کنندگان
+            {t("admin.suppliersPage.pageTitle")}
           </h2>
           <p className="text-gray-600 mt-1">
-            افزودن، ویرایش و حذف تامین‌کنندگان
+            {t("admin.suppliersPage.pageSubtitle")}
           </p>
         </div>
         <button
@@ -183,7 +187,7 @@ const SupplierManagement = () => {
           className={`bg-amber-600 cursor-pointer group  text-white hover:bg-amber-600/90  duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in `}
         >
           <PlusIcon className="h-5 w-5" />
-          <span>افزودن تامین‌کننده</span>
+          <span>{t("admin.suppliersPage.addButton")}</span>
         </button>
       </div>
 
@@ -194,15 +198,21 @@ const SupplierManagement = () => {
             <MagnifyingGlassIcon className="h-5 w-5 absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="جستجو در تامین‌کنندگان..."
+              placeholder={t("admin.suppliersPage.searchPlaceholder")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className={`${inputStyle} pr-10`}
             />
           </div>
           <div className="flex items-center space-x-4 space-x-reverse text-sm text-gray-600">
-            <span>کل: {suppliers?.length || 0}</span>
-            <span>نمایش: {filteredSuppliers.length}</span>
+            <span>
+              {t("admin.suppliersPage.total", { count: totalCount })}
+            </span>
+            <span>
+              {t("admin.suppliersPage.showing", {
+                count: filteredSuppliers.length,
+              })}
+            </span>
           </div>
         </div>
       </div>
@@ -214,22 +224,22 @@ const SupplierManagement = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  نام تامین‌کننده
+                  {t("admin.suppliersPage.table.name")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ایمیل
+                  {t("admin.suppliersPage.table.email")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  تلفن
+                  {t("admin.suppliersPage.table.phone")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  آدرس
+                  {t("admin.suppliersPage.table.address")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  شهر
+                  {t("admin.suppliersPage.table.city")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  عملیات
+                  {t("admin.suppliersPage.table.actions")}
                 </th>
               </tr>
             </thead>
@@ -241,7 +251,7 @@ const SupplierManagement = () => {
                     className="px-6 py-12 text-center text-gray-500"
                   >
                     <BuildingOfficeIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>هیچ تامین‌کننده‌ای یافت نشد</p>
+                    <p>{t("admin.suppliersPage.empty")}</p>
                   </td>
                 </tr>
               ) : (
@@ -274,7 +284,7 @@ const SupplierManagement = () => {
                         <button
                           onClick={() => handleEdit(supplier)}
                           className="text-indigo-600 hover:text-indigo-900 p-1 rounded"
-                          title="ویرایش"
+                          title={t("admin.suppliersPage.tooltipEdit")}
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
@@ -284,7 +294,7 @@ const SupplierManagement = () => {
                             setDeleteConfirm(true);
                           }}
                           className="text-red-600 hover:text-red-900 p-1 rounded"
-                          title="حذف"
+                          title={t("admin.suppliersPage.tooltipDelete")}
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
@@ -306,14 +316,16 @@ const SupplierManagement = () => {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
                   {editingSupplier
-                    ? "ویرایش تامین‌کننده"
-                    : "افزودن تامین‌کننده جدید"}
+                    ? t("admin.suppliersPage.modal.titleEdit")
+                    : t("admin.suppliersPage.modal.titleAdd")}
                 </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <span className="sr-only">بستن</span>
+                  <span className="sr-only">
+                    {t("admin.suppliersPage.modal.closeSr")}
+                  </span>
                   <svg
                     className="h-6 w-6"
                     fill="none"
@@ -336,7 +348,7 @@ const SupplierManagement = () => {
               >
                 <div className=" col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    نام تامین‌کننده *
+                    {t("admin.suppliersPage.modal.nameLabel")}
                   </label>
                   <input
                     type="text"
@@ -345,13 +357,13 @@ const SupplierManagement = () => {
                     onChange={handleInputChange}
                     required
                     className={inputStyle}
-                    placeholder="نام تامین‌کننده"
+                    placeholder={t("admin.suppliersPage.modal.namePlaceholder")}
                   />
                 </div>
 
                 <div className=" col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ایمیل
+                    {t("admin.suppliersPage.modal.email")}
                   </label>
                   <input
                     type="email"
@@ -365,7 +377,7 @@ const SupplierManagement = () => {
 
                 <div className=" col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    تلفن
+                    {t("admin.suppliersPage.modal.phone")}
                   </label>
                   <input
                     type="tel"
@@ -378,7 +390,7 @@ const SupplierManagement = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    کد پستی
+                    {t("admin.suppliersPage.modal.zip")}
                   </label>
                   <input
                     type="text"
@@ -391,7 +403,7 @@ const SupplierManagement = () => {
                 </div>
                 <div className=" col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    آدرس
+                    {t("admin.suppliersPage.modal.address")}
                   </label>
                   <textarea
                     name="contact_info.address"
@@ -399,14 +411,16 @@ const SupplierManagement = () => {
                     onChange={handleInputChange}
                     rows={2}
                     className={inputStyle}
-                    placeholder="آدرس کامل"
+                    placeholder={t(
+                      "admin.suppliersPage.modal.addressPlaceholder"
+                    )}
                   />
                 </div>
 
                 <div className=" col-span-2  grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      شهر
+                      {t("admin.suppliersPage.modal.city")}
                     </label>
                     <input
                       type="text"
@@ -414,12 +428,14 @@ const SupplierManagement = () => {
                       value={formData.contact_info.city}
                       onChange={handleInputChange}
                       className={inputStyle}
-                      placeholder="شهر"
+                      placeholder={t(
+                        "admin.suppliersPage.modal.cityPlaceholder"
+                      )}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      استان
+                      {t("admin.suppliersPage.modal.state")}
                     </label>
                     <input
                       type="text"
@@ -427,7 +443,9 @@ const SupplierManagement = () => {
                       value={formData.contact_info.state}
                       onChange={handleInputChange}
                       className={inputStyle}
-                      placeholder="استان"
+                      placeholder={t(
+                        "admin.suppliersPage.modal.statePlaceholder"
+                      )}
                     />
                   </div>
                 </div>
@@ -438,7 +456,7 @@ const SupplierManagement = () => {
                     onClick={() => setIsModalOpen(false)}
                     className={` bg-transparent cursor-pointer group  text-slate-600 border border-slate-600  duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in `}
                   >
-                    انصراف
+                    {t("admin.suppliersPage.modal.cancel")}
                   </button>
                   <button
                     type="submit"
@@ -450,10 +468,10 @@ const SupplierManagement = () => {
                   >
                     {createSupplierMutation.isPending ||
                     updateSupplierMutation.isPending
-                      ? "در حال ذخیره..."
+                      ? t("admin.suppliersPage.modal.saving")
                       : editingSupplier
-                      ? "به‌روزرسانی"
-                      : "افزودن"}
+                      ? t("admin.suppliersPage.modal.update")
+                      : t("admin.suppliersPage.modal.add")}
                   </button>
                 </div>
               </form>
@@ -472,18 +490,19 @@ const SupplierManagement = () => {
               <div className="bg-red-100 p-2 rounded-full mr-3">
                 <TrashIcon className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">تأیید حذف</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t("admin.suppliersPage.delete.title")}
+              </h3>
             </div>
             <p className="text-gray-600 mb-6">
-              آیا مطمئن هستید که می‌خواهید این خرید را حذف کنید؟ این عمل قابل
-              بازگشت نیست.
+              {t("admin.suppliersPage.delete.message")}
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDeleteConfirm(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
-                لغو
+                {t("admin.suppliersPage.delete.cancel")}
               </button>
               <button
                 onClick={() => {
@@ -493,7 +512,9 @@ const SupplierManagement = () => {
                 disabled={deleteSupplierMutation.isPending}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
-                {deleteSupplierMutation.isPending ? "در حال حذف..." : "حذف"}
+                {deleteSupplierMutation.isPending
+                  ? t("admin.suppliersPage.delete.deleting")
+                  : t("admin.suppliersPage.delete.confirm")}
               </button>
             </div>
           </div>

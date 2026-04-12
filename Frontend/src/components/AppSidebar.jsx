@@ -16,6 +16,7 @@ import {
   MdOutlineAccountBalance,
 } from "react-icons/md";
 import { RiLogoutBoxLine } from "react-icons/ri";
+import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { useAuth } from "../contexts/AuthContext";
 import { useSidebar } from "../contexts/SidebarContext";
@@ -23,39 +24,39 @@ import { BACKEND_BASE_URL } from "../services/apiConfig";
 import { useClickOutSide } from "../hooks/useClickOutSide";
 
 const navItem = [
-  { name: "داشبورد", path: "/", icon: <AiOutlineHome /> },
+  { nameKey: "nav.dashboard", path: "/", icon: <AiOutlineHome /> },
   {
-    name: "موجودی",
+    nameKey: "nav.inventory",
     path: "/inventory",
     icon: <CubeIcon className=" text-[20px]" />,
   },
   {
-    name: "خریدها",
+    nameKey: "nav.purchases",
     path: "/purchases",
     icon: <ShoppingCartIcon className=" text-[20px]" />,
   },
   {
-    name: "فروش‌ها",
+    nameKey: "nav.sales",
     path: "/sales",
     icon: <CurrencyDollarIcon className=" text-[20px]" />,
   },
   // Finance group items will be rendered together below
   {
-    name: "مالی",
+    nameKey: "nav.finance",
     icon: <MdAccountBalanceWallet className=" text-sm" />,
     subItems: [
       {
-        name: "هزینه‌ها",
+        nameKey: "nav.expenses",
         path: "/expenses",
         icon: <BiMoneyWithdraw className=" text-sm" />,
       },
       {
-        name: "حساب ها",
+        nameKey: "nav.accounts",
         path: "/accounts",
         icon: <MdOutlineAccountBalance className=" text-sm" />,
       },
       {
-        name: "درآمد ",
+        nameKey: "nav.income",
         path: "/income",
         icon: (
           <svg
@@ -81,18 +82,19 @@ const navItem = [
     ],
   },
   {
-    name: "گزارش‌ها",
+    nameKey: "nav.reports",
     path: "/reports",
     icon: <ChartBarIcon className=" text-[20px]" />,
   },
   {
-    name: "پنل مدیریت",
+    nameKey: "nav.admin",
     path: "/admin",
     icon: <ShieldCheckIcon className=" text-[20px]" />,
   },
 ];
 
 function AppSidebar() {
+  const { t } = useTranslation();
   const { isMobileOpen, isExpanded, isHoverd, setIsHoverd } = useSidebar();
   const [openSubmenu, setOpenSubmenu] = useState({ type: "", index: 0 });
   const [subMenuHeight, setSubMenuHeight] = useState({});
@@ -104,11 +106,11 @@ function AppSidebar() {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success("خروج موفقیت‌آمیز بود");
+      toast.success(t("toast.logoutSuccess"));
       navigate("/login");
     } catch (error) {
       console.error("Logout error:", error);
-      toast.error(error.message || "خطا در خروج از سیستم");
+      toast.error(error.message || t("toast.logoutError"));
     }
   };
   const location = useLocation();
@@ -166,7 +168,7 @@ function AppSidebar() {
   const renderMenuItems = (items, menuType) => (
     <ul className="flex flex-col gap-4">
       {items.map((nav, index) => (
-        <li key={nav.name}>
+        <li key={nav.nameKey}>
           {nav.subItems ? (
             <button
               onClick={() => handleSubMenuToggle(index, menuType)}
@@ -188,7 +190,7 @@ function AppSidebar() {
                 {nav.icon}
               </span>
               {(isExpanded || isHoverd) && (
-                <span className="menu-item-text">{nav.name}</span>
+                <span className="menu-item-text">{t(nav.nameKey)}</span>
               )}
               {(isExpanded || isHoverd) && (
                 <HiChevronDown
@@ -221,7 +223,7 @@ function AppSidebar() {
                   {nav.icon}
                 </span>
                 {(isExpanded || isHoverd || isMobileOpen) && (
-                  <span className="menu-item-text  ">{nav.name}</span>
+                  <span className="menu-item-text  ">{t(nav.nameKey)}</span>
                 )}
               </NavLink>
             )
@@ -241,7 +243,7 @@ function AppSidebar() {
             >
               <ul className="mt-2 space-y-1 ml-9">
                 {nav.subItems.map((subItem) => (
-                  <li key={subItem.name}>
+                  <li key={subItem.nameKey}>
                     <NavLink
                       to={subItem.path}
                       className={`menu-dropdown-item ${
@@ -251,7 +253,7 @@ function AppSidebar() {
                       }`}
                     >
                       <span>{subItem.icon}</span>
-                      <span> {subItem.name}</span>
+                      <span> {t(subItem.nameKey)}</span>
                       <span className="flex items-center gap-1 ml-auto">
                         {subItem.new && (
                           <span
@@ -261,7 +263,7 @@ function AppSidebar() {
                                 : "menu-dropdown-badge-inactive"
                             } menu-dropdown-badge`}
                           >
-                            new
+                            {t("common.new")}
                           </span>
                         )}
                         {subItem.pro && (
@@ -272,7 +274,7 @@ function AppSidebar() {
                                 : "menu-dropdown-badge-inactive"
                             } menu-dropdown-badge`}
                           >
-                            pro
+                            {t("common.pro")}
                           </span>
                         )}
                       </span>
@@ -316,7 +318,7 @@ function AppSidebar() {
           {isExpanded || isHoverd || isMobileOpen ? (
             <div className=" w-full  text-center">
               <h1 className=" md:font-bold font-medium text-white md:text-[16px] text-[14px] w-full">
-                اصغری خرما فروشی{" "}
+                {t("brand.title")}{" "}
               </h1>
               <p
                 className="text-sm"
@@ -325,7 +327,7 @@ function AppSidebar() {
                   marginTop: "var(--space-1)",
                 }}
               >
-                تجارت و توزیع
+                {t("brand.tagline")}
               </p>
             </div>
           ) : (
@@ -357,9 +359,9 @@ function AppSidebar() {
                 {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
               </div>
             )}
-            <div className="flex-1 text-right min-w-0">
+                       <div className="flex-1 text-end min-w-0">
               <p className="text-sm font-medium text-white truncate">
-                {user?.name || "کاربر مدیر"}
+                {user?.name || t("user.adminFallback")}
               </p>
               <p className="text-xs text-white/70 truncate">
                 {user?.email || ""}
@@ -387,7 +389,7 @@ function AppSidebar() {
                     className="text-sm font-medium truncate"
                     style={{ color: "var(--text-dark)" }}
                   >
-                    {user?.name || user?.email || "کاربر"}
+                    {user?.name || user?.email || t("user.fallback")}
                   </p>
                   <p
                     className="text-xs truncate"
@@ -401,7 +403,7 @@ function AppSidebar() {
                   className="flex items-center w-full px-4 hover:bg-slate-100 py-2 text-sm transition-colors duration-200"
                 >
                   <RiLogoutBoxLine className="text-[18px] text-black" />
-                  خروج از سیستم
+                  {t("auth.logout")}
                 </button>
               </div>
             </div>

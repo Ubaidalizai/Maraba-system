@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   useEmployees,
   useCreateEmployee,
@@ -27,6 +28,7 @@ import JalaliDatePicker from "./JalaliDatePicker";
 import { normalizeDateToIso } from "../utilies/helper";
 
 const EmployeeManagement = () => {
+  const { t, i18n } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -49,14 +51,31 @@ const EmployeeManagement = () => {
   const updateEmployeeMutation = useUpdateEmployee();
   const deleteEmployeeMutation = useDeleteEmployee();
 
-  // Role options with Persian labels
-  const roleOptions = [
-    { value: "salesman", label: "فروشنده" },
-    { value: "riding_man", label: "راننده" },
-    { value: "cashier", label: "صندوقدار" },
-    { value: "manager", label: "مدیر" },
-    { value: "admin", label: "مدیر سیستم" },
-  ];
+  const roleOptions = useMemo(
+    () => [
+      {
+        value: "salesman",
+        label: t("admin.employeesPage.roles.salesman"),
+      },
+      {
+        value: "riding_man",
+        label: t("admin.employeesPage.roles.riding_man"),
+      },
+      {
+        value: "cashier",
+        label: t("admin.employeesPage.roles.cashier"),
+      },
+      {
+        value: "manager",
+        label: t("admin.employeesPage.roles.manager"),
+      },
+      {
+        value: "admin",
+        label: t("admin.employeesPage.roles.admin"),
+      },
+    ],
+    [t]
+  );
 
   // Filter employees based on search term
   const filteredEmployees =
@@ -160,7 +179,9 @@ const EmployeeManagement = () => {
   const formatDate = (dateString) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
-    return date.toLocaleDateString("fa-IR");
+    const lang = (i18n.language || "ps").split("-")[0];
+    const localeTag = lang === "ps" ? "ps-AF" : "fa-IR";
+    return date.toLocaleDateString(localeTag);
   };
 
   if (isLoading) {
@@ -171,7 +192,7 @@ const EmployeeManagement = () => {
           style={{ borderColor: "var(--primary-brown)" }}
         ></div>
         <span className="mr-4 text-lg" style={{ color: "var(--text-medium)" }}>
-          در حال بارگذاری...
+          {t("admin.common.loading")}
         </span>
       </div>
     );
@@ -182,13 +203,13 @@ const EmployeeManagement = () => {
       <div className="text-center py-12">
         <ExclamationTriangleIcon className="h-16 w-16 mx-auto text-red-500 mb-4" />
         <h3 className="text-lg font-medium text-red-600 mb-2">
-          خطا در بارگذاری داده‌ها
+          {t("admin.common.errorTitle")}
         </h3>
         <p className="text-gray-600 mb-4">
-          {error.message || "لطفاً صفحه را رفرش کنید یا دوباره تلاش کنید"}
+          {error.message || t("admin.common.errorHint")}
         </p>
         <button onClick={() => refetch()} className="btn-primary">
-          تلاش مجدد
+          {t("admin.common.retry")}
         </button>
       </div>
     );
@@ -203,16 +224,18 @@ const EmployeeManagement = () => {
             className="text-2xl font-bold"
             style={{ color: "var(--primary-brown)" }}
           >
-            مدیریت کارمندان
+            {t("admin.employeesPage.pageTitle")}
           </h2>
-          <p className="text-gray-600 mt-1">افزودن، ویرایش و حذف کارمندان</p>
+          <p className="text-gray-600 mt-1">
+            {t("admin.employeesPage.pageSubtitle")}
+          </p>
         </div>
         <button
           onClick={handleAddNew}
           className={`bg-amber-600 cursor-pointer group  text-white hover:bg-amber-600/90  duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in `}
         >
           <PlusIcon className="h-5 w-5" />
-          <span>افزودن کارمند</span>
+          <span>{t("admin.employeesPage.addButton")}</span>
         </button>
       </div>
 
@@ -223,17 +246,28 @@ const EmployeeManagement = () => {
             <MagnifyingGlassIcon className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="جستجو در کارمندان..."
+              placeholder={t("admin.employeesPage.searchPlaceholder")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="form-input pr-10"
             />
           </div>
           <div className="flex items-center space-x-4 space-x-reverse text-sm text-gray-600">
-            <span>کل: {employees?.data?.length || 0}</span>
-            <span>نمایش: {filteredEmployees?.length}</span>
             <span>
-              فعال: {employees?.data?.filter((e) => e.is_active).length || 0}
+              {t("admin.common.total", {
+                count: employees?.data?.length || 0,
+              })}
+            </span>
+            <span>
+              {t("admin.common.showing", {
+                count: filteredEmployees?.length || 0,
+              })}
+            </span>
+            <span>
+              {t("admin.employeesPage.activeCount", {
+                count:
+                  employees?.data?.filter((e) => e.is_active).length || 0,
+              })}
             </span>
           </div>
         </div>
@@ -246,25 +280,25 @@ const EmployeeManagement = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  نام کارمند
+                  {t("admin.employeesPage.colName")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  نقش
+                  {t("admin.employeesPage.colRole")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  تماس
+                  {t("admin.employeesPage.colContact")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ایمیل
+                  {t("admin.employeesPage.colEmail")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  تاریخ استخدام
+                  {t("admin.employeesPage.colHireDate")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  وضعیت
+                  {t("admin.employeesPage.colStatus")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  عملیات
+                  {t("admin.employeesPage.colActions")}
                 </th>
               </tr>
             </thead>
@@ -276,7 +310,7 @@ const EmployeeManagement = () => {
                     className="px-6 py-12 text-center text-gray-500"
                   >
                     <UserIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>هیچ کارمندی یافت نشد</p>
+                    <p>{t("admin.employeesPage.empty")}</p>
                   </td>
                 </tr>
               ) : (
@@ -324,12 +358,12 @@ const EmployeeManagement = () => {
                       {employee.is_active ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           <CheckCircleIcon className="h-3 w-3 ml-1" />
-                          فعال
+                          {t("admin.employeesPage.statusActive")}
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                           <XCircleIcon className="h-3 w-3 ml-1" />
-                          غیرفعال
+                          {t("admin.employeesPage.statusInactive")}
                         </span>
                       )}
                     </td>
@@ -338,7 +372,7 @@ const EmployeeManagement = () => {
                         <button
                           onClick={() => handleEdit(employee)}
                           className="text-indigo-600 hover:text-indigo-900 p-1 rounded"
-                          title="ویرایش"
+                          title={t("admin.employeesPage.tooltipEdit")}
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
@@ -348,7 +382,7 @@ const EmployeeManagement = () => {
                             setDeleteConfirm(true);
                           }}
                           className="text-red-600 hover:text-red-900 p-1 rounded"
-                          title="حذف"
+                          title={t("admin.employeesPage.tooltipDelete")}
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
@@ -369,13 +403,17 @@ const EmployeeManagement = () => {
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {editingEmployee ? "ویرایش کارمند" : "افزودن کارمند جدید"}
+                  {editingEmployee
+                    ? t("admin.employeesPage.modalTitleEdit")
+                    : t("admin.employeesPage.modalTitleAdd")}
                 </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <span className="sr-only">بستن</span>
+                  <span className="sr-only">
+                    {t("admin.employeesPage.closeSr")}
+                  </span>
                   <svg
                     className="h-6 w-6"
                     fill="none"
@@ -398,7 +436,7 @@ const EmployeeManagement = () => {
               >
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    نام کارمند *
+                    {t("admin.employeesPage.nameLabel")}
                   </label>
                   <input
                     type="text"
@@ -407,13 +445,13 @@ const EmployeeManagement = () => {
                     onChange={handleInputChange}
                     required
                     className={inputStyle}
-                    placeholder="نام کارمند"
+                    placeholder={t("admin.employeesPage.namePlaceholder")}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    نقش *
+                    {t("admin.employeesPage.roleLabel")}
                   </label>
                   <select
                     name="role"
@@ -432,7 +470,7 @@ const EmployeeManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ایمیل
+                    {t("admin.employeesPage.email")}
                   </label>
                   <input
                     type="email"
@@ -446,7 +484,7 @@ const EmployeeManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    تلفن
+                    {t("admin.employeesPage.phone")}
                   </label>
                   <input
                     type="tel"
@@ -460,7 +498,7 @@ const EmployeeManagement = () => {
 
                 <div>
                   <JalaliDatePicker
-                    label="تاریخ استخدام"
+                    label={t("admin.employeesPage.hireDateLabel")}
                     value={formData.hire_date}
                     onChange={(nextValue) =>
                       setFormData((prev) => ({
@@ -468,7 +506,7 @@ const EmployeeManagement = () => {
                         hire_date: normalizeDateToIso(nextValue) || "",
                       }))
                     }
-                    placeholder="انتخاب تاریخ"
+                    placeholder={t("admin.employeesPage.hireDatePlaceholder")}
                     clearable
                   />
                 </div>
@@ -481,12 +519,12 @@ const EmployeeManagement = () => {
                     onChange={handleInputChange}
                   />
                   <label className="mr-2 block text-sm text-gray-700">
-                    کارمند فعال است
+                    {t("admin.employeesPage.activeEmployee")}
                   </label>
                 </div>
                 <div className=" col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    آدرس
+                    {t("admin.employeesPage.address")}
                   </label>
                   <textarea
                     name="contact_info.address"
@@ -494,7 +532,7 @@ const EmployeeManagement = () => {
                     onChange={handleInputChange}
                     rows={2}
                     className={inputStyle}
-                    placeholder="آدرس کامل"
+                    placeholder={t("admin.employeesPage.addressPlaceholder")}
                   />
                 </div>
                 <div className="flex justify-start  gap-x-3 space-x-reverse pt-4">
@@ -503,7 +541,7 @@ const EmployeeManagement = () => {
                     onClick={() => setIsModalOpen(false)}
                     className={`bg-transparent border border-slate-500 cursor-pointer group  text-slate-600   duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in `}
                   >
-                    انصراف
+                    {t("admin.employeesPage.cancel")}
                   </button>
                   <button
                     type="submit"
@@ -515,10 +553,10 @@ const EmployeeManagement = () => {
                   >
                     {createEmployeeMutation.isPending ||
                     updateEmployeeMutation.isPending
-                      ? "در حال ذخیره..."
+                      ? t("admin.employeesPage.saving")
                       : editingEmployee
-                      ? "به‌روزرسانی"
-                      : "افزودن"}
+                      ? t("admin.employeesPage.update")
+                      : t("admin.employeesPage.add")}
                   </button>
                 </div>
               </form>
@@ -537,18 +575,19 @@ const EmployeeManagement = () => {
               <div className="bg-red-100 p-2 rounded-full mr-3">
                 <TrashIcon className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">تأیید حذف</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t("admin.employeesPage.delete.title")}
+              </h3>
             </div>
             <p className="text-gray-600 mb-6">
-              آیا مطمئن هستید که می‌خواهید این خرید را حذف کنید؟ این عمل قابل
-              بازگشت نیست.
+              {t("admin.employeesPage.delete.message")}
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDeleteConfirm(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
-                لغو
+                {t("admin.employeesPage.delete.cancel")}
               </button>
               <button
                 onClick={() => {
@@ -558,7 +597,9 @@ const EmployeeManagement = () => {
                 disabled={deleteEmployeeMutation.isPending}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
-                {deleteEmployeeMutation.isPending ? "در حال حذف..." : "حذف"}
+                {deleteEmployeeMutation.isPending
+                  ? t("admin.employeesPage.delete.deleting")
+                  : t("admin.employeesPage.delete.confirm")}
               </button>
             </div>
           </div>

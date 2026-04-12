@@ -1,7 +1,9 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { BiSearch } from "react-icons/bi";
 
 function SearchInput({ placeholder, value, onChange }) {
+  const { t } = useTranslation();
   return (
     <div className="relative my-1.5">
       <input
@@ -15,7 +17,7 @@ function SearchInput({ placeholder, value, onChange }) {
         type="button"
       >
         <BiSearch className=" text-slate-100 dark:text-slate-200" />
-        <span className=" text-slate-100 font-semibold"> جستجو</span>
+        <span className=" text-slate-100 font-semibold">{t("common.search")}</span>
       </button>
     </div>
   );

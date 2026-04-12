@@ -11,6 +11,7 @@ import {
   PrinterIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { formatCurrency, formatNumber } from "../utilies/helper";
 import { useForm } from "react-hook-form";
@@ -39,6 +40,7 @@ import { toast } from "react-toastify";
 import Pagination from "../components/Pagination";
 
 const Sales = () => {
+  const { t, i18n } = useTranslation();
   // URL parameters for payment flow
   const [searchParams, setSearchParams] = useSearchParams();
   const openId = searchParams.get("openId");
@@ -181,7 +183,7 @@ const Sales = () => {
           setDeleteConfirmId(null);
         },
         onError: (error) => {
-          toast.error(error.message || "خطا در حذف فروش");
+          toast.error(error.message || t("sales.toast.deleteError"));
         },
       });
     }
@@ -196,10 +198,12 @@ const Sales = () => {
           onSuccess: () => {
             setShowAddSaleModal(false);
             setSelectedSaleId(null);
-            toast.success("خرید موفقانه اجرا شد");
+            toast.success(t("sales.toast.updateSuccess"));
           },
           onError: (error) => {
-            toast.error(`خطا در ویرایش فروش: ${error.message}`);
+            toast.error(
+              `${t("sales.toast.updateError")}: ${error.message}`
+            );
           },
         }
       );
@@ -262,7 +266,7 @@ const Sales = () => {
         }
       },
       onError: (error) => {
-        toast.error(`خطا در ایجاد فروش: ${error.message}`);
+        toast.error(`${t("sales.toast.createError")}: ${error.message}`);
       },
     });
   };
@@ -302,13 +306,18 @@ const Sales = () => {
 
   const handleRecordPayment = async () => {
     if (!paymentAmount || !selectedAccount) {
-      toast.error("لطفاً مبلغ و حساب پرداخت را وارد کنید");
+      toast.error(t("sales.toast.enterAmountAndAccount"));
       return;
     }
 
     const amount = parseFloat(paymentAmount);
     if (amount <= 0 || amount > selectedSale.dueAmount) {
-      toast.error(`مبلغ وارد شده باید بین 0 و ${selectedSale.dueAmount} باشد`);
+      toast.error(
+        t("sales.toast.amountRange", {
+          min: 0,
+          max: selectedSale.dueAmount,
+        })
+      );
       return;
     }
 
@@ -317,7 +326,8 @@ const Sales = () => {
       const updatedSale = await recordSalePayment(selectedSaleId, {
         amount,
         paymentAccount: selectedAccount,
-        description: paymentDescription || `Payment for sale`,
+        description:
+          paymentDescription || t("sales.payment.defaultDescription"),
       });
 
       const updatedSaleData =
@@ -327,7 +337,7 @@ const Sales = () => {
         updatedSale ||
         {};
 
-      toast.success("پرداخت با موفقیت ثبت شد!");
+      toast.success(t("sales.toast.paymentSuccess"));
       setShowPaymentModal(false);
       setPaymentAmount("");
       setSelectedAccount("");
@@ -374,7 +384,9 @@ const Sales = () => {
         queryClient.invalidateQueries({ queryKey: ["recentTransactions"] }),
       ]);
     } catch (error) {
-      toast.error("خطا در ثبت پرداخت: " + error.message);
+      toast.error(
+        `${t("sales.toast.paymentError")}: ${error.message}`
+      );
     } finally {
       setIsSubmittingPayment(false);
     }
@@ -409,15 +421,19 @@ const Sales = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("fa-IR");
+    if (!dateString) return "—";
+    const lang = (i18n.language || "ps").split("-")[0];
+    const localeTag =
+      lang === "ps" ? "ps-AF" : "fa-IR";
+    return new Date(dateString).toLocaleDateString(localeTag);
   };
 
   return (
     <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Page header */}
       <div>
-        <h1 className="text-xl font-bold text-gray-900">مدیریت فروش</h1>
-        <p className="text-gray-600 mt-1">مشاهده و مدیریت فروشها</p>
+        <h1 className="text-xl font-bold text-gray-900">{t("sales.title")}</h1>
+        <p className="text-gray-600 mt-1">{t("sales.subtitle")}</p>
       </div>
 
       {/* Statistics Cards */}
@@ -425,7 +441,9 @@ const Sales = () => {
         <div className="bg-white rounded-lg  border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">مجموع فروش</p>
+              <p className="text-sm text-gray-600">
+                {t("sales.stats.totalSales")}
+              </p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
                 {formatNumber(stats.totalSales || 0)}
               </p>
@@ -439,7 +457,9 @@ const Sales = () => {
         <div className="bg-white rounded-lg  border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">مجموع عواید</p>
+              <p className="text-sm text-gray-600">
+                {t("sales.stats.totalRevenue")}
+              </p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
                 {formatCurrency(stats.totalRevenue || 0)}
               </p>
@@ -453,7 +473,9 @@ const Sales = () => {
         <div className="bg-white rounded-lg  border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">مبلغ جمع آوری شده</p>
+              <p className="text-sm text-gray-600">
+                {t("sales.stats.totalCollected")}
+              </p>
               <p className="text-2xl font-bold text-green-600 mt-1">
                 {formatCurrency(stats.totalPaid || 0)}
               </p>
@@ -467,7 +489,9 @@ const Sales = () => {
         <div className="bg-white rounded-lg  border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">مبلغ باقی مانده</p>
+              <p className="text-sm text-gray-600">
+                {t("sales.stats.totalOwed")}
+              </p>
               <p className="text-2xl font-bold text-red-600 mt-1">
                 {formatCurrency(stats.totalOwed || 0)}
               </p>
@@ -491,7 +515,7 @@ const Sales = () => {
               }}
               className={inputStyle}
             >
-              <option value="">همه مشتری ها</option>
+              <option value="">{t("sales.filters.allCustomers")}</option>
               {customers?.data
                 ?.filter((customer) =>
                   customerAccounts.some((acc) => acc.refId === customer._id)
@@ -510,10 +534,14 @@ const Sales = () => {
               }}
               className={inputStyle}
             >
-              <option value="">همه حالات</option>
-              <option value="paid">پرداخت شده</option>
-              <option value="partial">نسبی پرداخت شده</option>
-              <option value="pending">باقی مانده</option>
+              <option value="">{t("sales.filters.allStatuses")}</option>
+              <option value="paid">{t("sales.filters.statusPaid")}</option>
+              <option value="partial">
+                {t("sales.filters.statusPartial")}
+              </option>
+              <option value="pending">
+                {t("sales.filters.statusPending")}
+              </option>
             </select>
           </div>
           <button
@@ -527,8 +555,8 @@ const Sales = () => {
           >
             <PlusIcon className="h-5 w-5" />
             {createSaleMutation?.isPending
-              ? "در حال اضافه..."
-              : "اضافه کردن فروش"}
+              ? t("sales.filters.addSalePending")
+              : t("sales.filters.addSale")}
           </button>
         </div>
       </div>
@@ -540,28 +568,28 @@ const Sales = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  تاریخ
+                  {t("sales.table.date")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  مشتری
+                  {t("sales.table.customer")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  کارمند
+                  {t("sales.table.employee")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  قیمت مجموعی
+                  {t("sales.table.totalAmount")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  پرداخت شده
+                  {t("sales.table.paid")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  باقی مانده
+                  {t("sales.table.due")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  حالت
+                  {t("sales.table.status")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  عملیات
+                  {t("sales.table.actions")}
                 </th>
               </tr>
             </thead>
@@ -572,7 +600,7 @@ const Sales = () => {
                     colSpan={8}
                     className="px-6 py-8 text-center text-gray-500"
                   >
-                    در حال بارگذاری...
+                    {t("sales.table.loading")}
                   </td>
                 </tr>
               ) : sales.length === 0 ? (
@@ -581,7 +609,7 @@ const Sales = () => {
                     colSpan={8}
                     className="px-6 py-8 text-center text-gray-500"
                   >
-                    فروشی یافت نشد
+                    {t("sales.table.empty")}
                   </td>
                 </tr>
               ) : (
@@ -615,11 +643,11 @@ const Sales = () => {
                       >
                         {recentlyUpdatedSale?.id === sale._id
                           ? recentlyUpdatedSale.dueAmount > 0
-                            ? "نسبی پرداخت شده"
-                            : "تمام پرداخت شده"
+                            ? t("sales.table.statusPartialPaid")
+                            : t("sales.table.statusFullyPaid")
                           : sale.dueAmount > 0
-                          ? "نسبی پرداخت شده"
-                          : "تمام پرداخت شده"}
+                          ? t("sales.table.statusPartialPaid")
+                          : t("sales.table.statusFullyPaid")}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm">
@@ -627,7 +655,7 @@ const Sales = () => {
                         <button
                           onClick={() => handleViewDetails(sale._id)}
                           className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
-                          title="مشاهده جزئیات"
+                          title={t("sales.actions.viewDetails")}
                         >
                           <EyeIcon className="h-4 w-4" />
                         </button>
@@ -636,7 +664,7 @@ const Sales = () => {
                             handlePrintSale(sale);
                           }}
                           className="text-purple-600 hover:text-purple-900 flex items-center gap-1"
-                          title="چاپ فاکتور"
+                          title={t("sales.actions.printInvoice")}
                         >
                           <PrinterIcon className="h-4 w-4" />
                         </button>
@@ -648,7 +676,7 @@ const Sales = () => {
                               setShowPaymentModal(true);
                             }}
                             className="text-green-600 hover:text-green-900 flex items-center gap-1"
-                            title="ثبت پرداخت"
+                            title={t("sales.actions.recordPayment")}
                           >
                             <BanknotesIcon className="h-4 w-4" />
                           </button>
@@ -656,14 +684,14 @@ const Sales = () => {
                         <button
                           onClick={() => handleEditSale(sale)}
                           className="text-green-600 hover:text-green-900 flex items-center gap-1"
-                          title="ویرایش"
+                          title={t("sales.actions.edit")}
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteSale(sale._id)}
                           className="text-red-600 hover:text-red-900 flex items-center gap-1"
-                          title="حذف"
+                          title={t("sales.actions.delete")}
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
@@ -727,7 +755,9 @@ const Sales = () => {
         {selectedSale && (
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] mx-auto overflow-y-auto">
             <div className="p-3 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900">جزئیات فروش</h2>
+              <h2 className="text-xl font-bold text-gray-900">
+                {t("sales.details.title")}
+              </h2>
               <button
                 onClick={() => {
                   setShowDetailsModal(false);
@@ -742,32 +772,42 @@ const Sales = () => {
             {isLoadingDetails ? (
               <div className="p-8 text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">در حال بارگذاری...</p>
+                <p className="mt-4 text-gray-600">
+                  {t("sales.details.loading")}
+                </p>
               </div>
             ) : (
               <div className="p-4 space-y-4">
                 {/* Sale Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="bg-purple-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-600">قیمت مجموعی</p>
+                    <p className="text-xs text-gray-600">
+                      {t("sales.details.totalAmount")}
+                    </p>
                     <p className="text-lg font-semibold text-purple-600">
                       {formatCurrency(selectedSale.totalAmount || 0)}
                     </p>
                   </div>
                   <div className="bg-green-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-600">مبلغ پرداخت شده</p>
+                    <p className="text-xs text-gray-600">
+                      {t("sales.details.paidAmount")}
+                    </p>
                     <p className="text-lg font-semibold text-green-600">
                       {formatCurrency(selectedSale.paidAmount || 0)}
                     </p>
                   </div>
                   <div className="bg-red-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-600">مبلغ باقی مانده</p>
+                    <p className="text-xs text-gray-600">
+                      {t("sales.details.dueAmount")}
+                    </p>
                     <p className="text-lg font-semibold text-red-600">
                       {formatCurrency(selectedSale.dueAmount || 0)}
                     </p>
                   </div>
                   <div className="bg-blue-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-600">تعداد اجناس</p>
+                    <p className="text-xs text-gray-600">
+                      {t("sales.details.itemCount")}
+                    </p>
                     <p className="text-lg font-semibold text-blue-600">
                       {formatNumber(selectedSale.items?.length || 0)}
                     </p>
@@ -777,12 +817,12 @@ const Sales = () => {
                 {/* Sale Information */}
                 <div className="bg-gray-50 rounded-lg p-3">
                   <h3 className="text-sm font-medium text-gray-700 mb-3">
-                    اطلاعات فروش
+                    {t("sales.details.saleInfo")}
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div>
                       <h4 className="text-xs font-medium text-gray-500 mb-1">
-                        نمبر بیل
+                        {t("sales.details.billNumber")}
                       </h4>
                       <p className="text-sm font-medium text-gray-900">
                         {selectedSale.billNumber || "-"}
@@ -790,7 +830,7 @@ const Sales = () => {
                     </div>
                     <div>
                       <h4 className="text-xs font-medium text-gray-500 mb-1">
-                        تاریخ فروش
+                        {t("sales.details.saleDate")}
                       </h4>
                       <p className="text-sm font-medium text-gray-900">
                         {formatDate(selectedSale.saleDate)}
@@ -798,7 +838,7 @@ const Sales = () => {
                     </div>
                     <div>
                       <h4 className="text-xs font-medium text-gray-500 mb-1">
-                        مشتری
+                        {t("sales.details.customer")}
                       </h4>
                       <p className="text-sm font-medium text-gray-900">
                         {selectedSale.customerAccount?.name ||
@@ -808,7 +848,7 @@ const Sales = () => {
                     </div>
                     <div>
                       <h4 className="text-xs font-medium text-gray-500 mb-1">
-                        حالت پرداخت
+                        {t("sales.details.paymentStatus")}
                       </h4>
                       <span
                         className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(
@@ -816,8 +856,8 @@ const Sales = () => {
                         )}`}
                       >
                         {selectedSale.dueAmount > 0
-                          ? "نسبی پرداخت شده"
-                          : "تمام پرداخت شده"}
+                          ? t("sales.table.statusPartialPaid")
+                          : t("sales.table.statusFullyPaid")}
                       </span>
                     </div>
                   </div>
@@ -827,7 +867,7 @@ const Sales = () => {
                 <div className="bg-white border border-gray-200 rounded-lg">
                   <div className="px-3 py-2 border-b border-gray-200">
                     <h3 className="text-sm font-medium text-gray-700">
-                      اجناس فروخته شده
+                      {t("sales.details.itemsTitle")}
                     </h3>
                   </div>
                   <div className="overflow-x-auto">
@@ -835,22 +875,22 @@ const Sales = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            محصول
+                            {t("sales.details.product")}
                           </th>
                           <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            واحد
+                            {t("sales.details.unit")}
                           </th>
                           <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            تعداد
+                            {t("sales.details.quantity")}
                           </th>
                           <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            تعداد کارتن
+                            {t("sales.details.cartonCount")}
                           </th>
                           <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            قیمت یک دانه
+                            {t("sales.details.unitPrice")}
                           </th>
                           <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            قیمت مجموعی
+                            {t("sales.details.lineTotal")}
                           </th>
                         </tr>
                       </thead>
@@ -861,7 +901,7 @@ const Sales = () => {
                               colSpan={6}
                               className="px-3 py-6 text-center text-gray-500 text-sm"
                             >
-                              جنس یافت نشد
+                              {t("sales.details.noItems")}
                             </td>
                           </tr>
                         ) : (
@@ -905,13 +945,13 @@ const Sales = () => {
                             className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm"
                           >
                             <BanknotesIcon className="h-4 w-4" />
-                            ثبت پرداخت
+                            {t("sales.details.recordPayment")}
                           </button>
                         )}
                       </div>
                       <div className="text-right">
                         <div className="text-sm font-semibold text-gray-900">
-                          مجموع کل:{" "}
+                          {t("sales.details.grandTotal")}{" "}
                           {formatCurrency(selectedSale.totalAmount || 0)}
                         </div>
                       </div>
@@ -938,7 +978,9 @@ const Sales = () => {
         >
           <div className="w-[500px] bg-white max-h-[90vh] overflow-y-auto rounded-md">
             <div className="p-6 border-b flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900">ثبت پرداخت</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {t("sales.payment.title")}
+              </h2>
               <button
                 onClick={() => {
                   setShowPaymentModal(false);
@@ -952,13 +994,14 @@ const Sales = () => {
             <div className="p-6 space-y-4 grid grid-cols-2 gap-x-2">
               <div className="bg-blue-50 p-4 rounded-lg col-span-2">
                 <p className="text-sm text-blue-900">
-                  مبلغ باقی‌مانده: {formatCurrency(selectedSale.dueAmount)} AFN
+                  {t("sales.payment.remaining")}{" "}
+                  {formatCurrency(selectedSale.dueAmount)} AFN
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  مبلغ پرداخت *
+                  {t("sales.payment.amountLabel")}
                 </label>
                 <input
                   type="number"
@@ -966,21 +1009,21 @@ const Sales = () => {
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                  placeholder="مبلغ را وارد کنید"
+                  placeholder={t("sales.payment.amountPlaceholder")}
                   max={selectedSale.dueAmount}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  حساب دریافت *
+                  {t("sales.payment.receiptAccountLabel")}
                 </label>
                 <select
                   value={selectedAccount}
                   onChange={(e) => setSelectedAccount(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 >
-                  <option value="">انتخاب حساب</option>
+                  <option value="">{t("sales.payment.selectAccount")}</option>
                   {accounts.map((acc) => (
                     <option key={acc._id} value={acc._id}>
                       {acc.name} ({formatCurrency(acc.currentBalance)} AFN)
@@ -991,14 +1034,14 @@ const Sales = () => {
 
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  توضیحات
+                  {t("sales.payment.descriptionLabel")}
                 </label>
                 <textarea
                   value={paymentDescription}
                   onChange={(e) => setPaymentDescription(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                   rows={3}
-                  placeholder="توضیحات اختیاری..."
+                  placeholder={t("sales.payment.descriptionPlaceholder")}
                 />
               </div>
 
@@ -1010,14 +1053,16 @@ const Sales = () => {
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-sm hover:bg-gray-50"
                 >
-                  انصراف
+                  {t("sales.payment.cancel")}
                 </button>
                 <button
                   onClick={handleRecordPayment}
                   disabled={isSubmittingPayment}
                   className="px-4 py-2 bg-green-600 text-white rounded-sm hover:bg-green-700 disabled:opacity-50"
                 >
-                  {isSubmittingPayment ? "در حال ثبت..." : "ثبت پرداخت"}
+                  {isSubmittingPayment
+                    ? t("sales.payment.submitting")
+                    : t("sales.payment.submit")}
                 </button>
               </div>
             </div>
@@ -1037,18 +1082,17 @@ const Sales = () => {
               <div className="bg-red-100 p-2 rounded-full mr-3">
                 <TrashIcon className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">تأیید حذف</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t("sales.delete.title")}
+              </h3>
             </div>
-            <p className="text-gray-600 mb-6">
-              آیا مطمئن هستید که می‌خواهید این فروش را حذف کنید؟ این عمل قابل
-              بازگشت نیست.
-            </p>
+            <p className="text-gray-600 mb-6">{t("sales.delete.message")}</p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
-                لغو
+                {t("sales.delete.cancel")}
               </button>
               <button
                 onClick={() => {
@@ -1058,7 +1102,9 @@ const Sales = () => {
                 disabled={deleteSaleMutation.isPending}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
-                {deleteSaleMutation.isPending ? "در حال حذف..." : "حذف"}
+                {deleteSaleMutation.isPending
+                  ? t("sales.delete.deleting")
+                  : t("sales.delete.confirm")}
               </button>
             </div>
           </div>

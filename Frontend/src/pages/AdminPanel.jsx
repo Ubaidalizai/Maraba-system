@@ -1,5 +1,6 @@
 import { CgCloseO } from "react-icons/cg";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext";
 import SupplierManagement from "../components/SupplierManagement";
 import UnitManagement from "../components/UnitManagement";
@@ -36,66 +37,70 @@ import Button from "../components/Button";
 import { useSubmitLock } from "../hooks/useSubmitLock.js";
 
 const AdminPanel = () => {
+  const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
   const [activeSection, setActiveSection] = useState("suppliers");
-  // Redirect if not authenticated
+
+  const adminSections = useMemo(
+    () => [
+      {
+        id: "profile",
+        name: t("admin.sections.profile.name"),
+        icon: IdentificationIcon,
+        description: t("admin.sections.profile.description"),
+      },
+      {
+        id: "users",
+        name: t("admin.sections.users.name"),
+        icon: UserIcon,
+        description: t("admin.sections.users.description"),
+      },
+      {
+        id: "suppliers",
+        name: t("admin.sections.suppliers.name"),
+        icon: BuildingOfficeIcon,
+        description: t("admin.sections.suppliers.description"),
+      },
+      {
+        id: "categories",
+        name: t("admin.sections.categories.name"),
+        icon: TagIcon,
+        description: t("admin.sections.categories.description"),
+      },
+      {
+        id: "customers",
+        name: t("admin.sections.customers.name"),
+        icon: UserGroupIcon,
+        description: t("admin.sections.customers.description"),
+      },
+      {
+        id: "employees",
+        name: t("admin.sections.employees.name"),
+        icon: UserIcon,
+        description: t("admin.sections.employees.description"),
+      },
+      {
+        id: "units",
+        name: t("admin.sections.units.name"),
+        icon: ScaleIcon,
+        description: t("admin.sections.units.description"),
+      },
+    ],
+    [t]
+  );
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-red-600 mb-4">
-            دسترسی غیرمجاز
+            {t("admin.unauthorizedTitle")}
           </h2>
-          <p className="text-gray-600">لطفاً ابتدا وارد شوید</p>
+          <p className="text-gray-600">{t("admin.unauthorizedMessage")}</p>
         </div>
       </div>
     );
   }
-
-  const adminSections = [
-    {
-      id: "profile",
-      name: "پروفایل کاربری",
-      icon: IdentificationIcon,
-      description: "مشاهده و مدیریت اطلاعات پروفایل",
-    },
-    {
-      id: "users",
-      name: "مدیریت کاربران",
-      icon: UserIcon,
-      description: "مشاهده، افزودن و مدیریت کاربران سیستم",
-    },
-    {
-      id: "suppliers",
-      name: "مدیریت تامین‌کنندگان",
-      icon: BuildingOfficeIcon,
-      description: "افزودن، ویرایش و حذف تامین‌کنندگان",
-    },
-    {
-      id: "categories",
-      name: "مدیریت دسته‌بندی‌ها",
-      icon: TagIcon,
-      description: "CRUD دسته‌بندی‌ها برای هزینه/درآمد/محصول",
-    },
-    {
-      id: "customers",
-      name: "مدیریت مشتریان",
-      icon: UserGroupIcon,
-      description: "افزودن، ویرایش و حذف مشتریان",
-    },
-    {
-      id: "employees",
-      name: "مدیریت کارمندان",
-      icon: UserIcon,
-      description: "افزودن، ویرایش و حذف کارمندان",
-    },
-    {
-      id: "units",
-      name: "مدیریت واحدها",
-      icon: ScaleIcon,
-      description: "مدیریت واحدهای اندازه‌گیری و تبدیل",
-    },
-  ];
 
   const renderSectionContent = () => {
     switch (activeSection) {
@@ -129,13 +134,14 @@ const AdminPanel = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-[24px] font-bold text-primary-brown-light">
-                پنل مدیریت
+                {t("admin.title")}
               </h1>
               <p
                 className="mt-1 text-lg"
                 style={{ color: "var(--text-medium)" }}
               >
-                مدیریت تامین‌کنندگان، مشتریان، کارمندان، واحدها و دسته‌بندی‌ها              </p>
+                {t("admin.subtitle")}
+              </p>
             </div>
             <div className="flex items-center space-x-4 space-x-reverse">
               <div className="flex items-center space-x-2 space-x-reverse">
@@ -147,7 +153,7 @@ const AdminPanel = () => {
                   className="text-sm font-medium"
                   style={{ color: "var(--text-dark)" }}
                 >
-                  دسترسی مدیر
+                  {t("admin.adminAccess")}
                 </span>
               </div>
             </div>
@@ -159,7 +165,7 @@ const AdminPanel = () => {
           <div className="lg:col-span-1">
             <div className="card">
               <h3 className="text-lg font-semibold mb-4 text-[var(--text-dark)]">
-                بخش‌های مدیریت
+                {t("admin.sectionsTitle")}
               </h3>
               <nav className="space-y-2">
                 {adminSections.map((section) => (
@@ -202,6 +208,7 @@ export default AdminPanel;
 
 // Category Management Component
 const CategoryManagement = () => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState(""); // expense | income | product | both
@@ -235,11 +242,12 @@ const CategoryManagement = () => {
         body: JSON.stringify(payload),
       }),
     onSuccess: () => {
-      toast.success("دسته‌بندی ایجاد شد");
+      toast.success(t("admin.categoriesPage.toastCreated"));
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       setIsModalOpen(false);
     },
-    onError: (e) => toast.error(e.message || "ایجاد ناموفق بود"),
+    onError: (e) =>
+      toast.error(e.message || t("admin.categoriesPage.errCreate")),
   });
 
   const updateMutation = useMutation({
@@ -250,25 +258,34 @@ const CategoryManagement = () => {
         body: JSON.stringify(payload),
       }),
     onSuccess: () => {
-      toast.success("دسته‌بندی ویرایش شد");
+      toast.success(t("admin.categoriesPage.toastUpdated"));
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       setIsModalOpen(false);
       setEditing(null);
     },
-    onError: (e) => toast.error(e.message || "ویرایش ناموفق بود"),
+    onError: (e) =>
+      toast.error(e.message || t("admin.categoriesPage.errUpdate")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id) =>
       apiRequest(API_ENDPOINTS.CATEGORIES.DELETE(id), { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("حذف شد");
+      toast.success(t("admin.categoriesPage.toastDeleted"));
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
-    onError: (e) => toast.error(e.message || "حذف ناموفق بود"),
+    onError: (e) =>
+      toast.error(e.message || t("admin.categoriesPage.errDelete")),
   });
 
   const categories = data?.data || [];
+
+  const categoryTypeLabel = (type) => {
+    if (type === "expense") return t("admin.categoriesPage.typeExpenseShort");
+    if (type === "income") return t("admin.categoriesPage.typeIncomeShort");
+    if (type === "both") return t("admin.categoriesPage.typeBothShort");
+    return type || "—";
+  };
 
   return (
     <div className="space-y-6">
@@ -279,10 +296,10 @@ const CategoryManagement = () => {
             className="text-2xl font-bold"
             style={{ color: "var(--primary-brown)" }}
           >
-            مدیریت دسته‌بندی‌ها
+            {t("admin.categoriesPage.title")}
           </h2>
           <p className="text-gray-600 mt-1">
-            افزودن، ویرایش و حذف دسته‌بندی‌ها
+            {t("admin.categoriesPage.subtitle")}
           </p>
         </div>
         <button
@@ -299,7 +316,7 @@ const CategoryManagement = () => {
           }}
         >
           <PlusIcon className="h-5 w-5" />
-          <span>افزودن دسته‌بندی</span>
+          <span>{t("admin.categoriesPage.add")}</span>
         </button>
       </div>
 
@@ -310,7 +327,7 @@ const CategoryManagement = () => {
             <MagnifyingGlassIcon className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="جستجو در دسته‌بندی‌ها..."
+              placeholder={t("admin.categoriesPage.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className={`${inputStyle} pr-10`}
@@ -322,10 +339,14 @@ const CategoryManagement = () => {
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
             >
-              <option value="">همه انواع</option>
-              <option value="expense">هزینه</option>
-              <option value="income">درآمد</option>
-              <option value="both">هزینه و درآمد</option>
+              <option value="">{t("admin.categoriesPage.filterAll")}</option>
+              <option value="expense">
+                {t("admin.categoriesPage.typeExpense")}
+              </option>
+              <option value="income">
+                {t("admin.categoriesPage.typeIncome")}
+              </option>
+              <option value="both">{t("admin.categoriesPage.typeBoth")}</option>
             </select>
           </div>
         </div>
@@ -338,19 +359,19 @@ const CategoryManagement = () => {
             <thead>
               <tr>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  نام
+                  {t("admin.categoriesPage.tableName")}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  نوع
+                  {t("admin.categoriesPage.tableType")}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  رنگ
+                  {t("admin.categoriesPage.tableColor")}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  فعال
+                  {t("admin.categoriesPage.tableActive")}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  اقدامات
+                  {t("admin.categoriesPage.tableActions")}
                 </th>
               </tr>
             </thead>
@@ -358,20 +379,22 @@ const CategoryManagement = () => {
               {isLoading ? (
                 <tr>
                   <td colSpan="5" className="text-center py-6">
-                    در حال بارگذاری...
+                    {t("admin.common.loading")}
                   </td>
                 </tr>
               ) : categories.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="text-center py-6">
-                    موردی یافت نشد
+                    {t("admin.categoriesPage.empty")}
                   </td>
                 </tr>
               ) : (
                 categories.map((c) => (
                   <tr key={c._id}>
                     <td className="px-4 py-3 whitespace-nowrap">{c.name}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{c.type}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {categoryTypeLabel(c.type)}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span
                         className="inline-block w-4 h-4 rounded align-middle"
@@ -382,7 +405,9 @@ const CategoryManagement = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      {c.isActive ? "بله" : "خیر"}
+                      {c.isActive
+                        ? t("admin.categoriesPage.yes")
+                        : t("admin.categoriesPage.no")}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2 justify-end">
@@ -398,17 +423,21 @@ const CategoryManagement = () => {
                             setIsModalOpen(true);
                           }}
                           className="text-blue-600 hover:text-blue-900 p-1 rounded"
-                          title="ویرایش"
+                          title={t("admin.categoriesPage.tooltipEdit")}
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => {
-                            if (window.confirm("حذف شود؟"))
+                            if (
+                              window.confirm(
+                                t("admin.common.shortDeleteConfirm")
+                              )
+                            )
                               deleteMutation.mutate(c._id);
                           }}
                           className="text-red-600 hover:text-red-900 p-1 rounded"
-                          title="حذف"
+                          title={t("admin.categoriesPage.tooltipDelete")}
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
@@ -428,10 +457,12 @@ const CategoryManagement = () => {
           <div className=" mx-auto p-5 w-full rounded-md bg-white">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">
-                {editing ? "ویرایش دسته‌بندی" : "افزودن دسته‌بندی"}
+                {editing
+                  ? t("admin.categoriesPage.modalEdit")
+                  : t("admin.categoriesPage.modalAdd")}
               </h3>
               <span className="text-sm" style={{ color: "var(--text-medium)" }}>
-                دسته‌بندی‌ها
+                {t("admin.categoriesPage.badge")}
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -440,7 +471,7 @@ const CategoryManagement = () => {
                   className="block mb-2"
                   style={{ color: "var(--text-medium)" }}
                 >
-                  نام
+                  {t("admin.categoriesPage.labelName")}
                 </label>
                 <input
                   className={inputStyle}
@@ -456,7 +487,7 @@ const CategoryManagement = () => {
                   className="block mb-2"
                   style={{ color: "var(--text-medium)" }}
                 >
-                  نوع
+                  {t("admin.categoriesPage.labelType")}
                 </label>
                 <select
                   className={inputStyle}
@@ -466,9 +497,15 @@ const CategoryManagement = () => {
                     setForm((f) => ({ ...f, type: e.target.value }))
                   }
                 >
-                  <option value="expense">هزینه</option>
-                  <option value="income">درآمد</option>
-                  <option value="both">هزینه و درآمد</option>
+                  <option value="expense">
+                    {t("admin.categoriesPage.typeExpense")}
+                  </option>
+                  <option value="income">
+                    {t("admin.categoriesPage.typeIncome")}
+                  </option>
+                  <option value="both">
+                    {t("admin.categoriesPage.typeBoth")}
+                  </option>
                 </select>
               </div>
               <div>
@@ -476,7 +513,7 @@ const CategoryManagement = () => {
                   className="block mb-2"
                   style={{ color: "var(--text-medium)" }}
                 >
-                  رنگ
+                  {t("admin.categoriesPage.labelColor")}
                 </label>
                 <input
                   className={inputStyle}
@@ -502,7 +539,7 @@ const CategoryManagement = () => {
                   htmlFor="isActive"
                   style={{ color: "var(--text-medium)" }}
                 >
-                  فعال
+                  {t("admin.categoriesPage.labelActive")}
                 </label>
               </div>
             </div>
@@ -514,7 +551,7 @@ const CategoryManagement = () => {
                   setEditing(null);
                 }}
               >
-                لغو
+                {t("admin.categoriesPage.cancel")}
               </button>
               <button
                 className={`bg-amber-600 cursor-pointer group  text-white hover:bg-amber-600/90  duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in duration-200`}
@@ -525,7 +562,9 @@ const CategoryManagement = () => {
                     : createMutation.mutate(form)
                 }
               >
-                {editing ? "ذخیره تغییرات" : "ثبت"}
+                {editing
+                  ? t("admin.categoriesPage.saveEdit")
+                  : t("admin.categoriesPage.saveNew")}
               </button>
             </div>
           </div>
@@ -537,6 +576,7 @@ const CategoryManagement = () => {
 
 // Profile Management Component
 const ProfileManagement = () => {
+  const { t } = useTranslation();
   const { user, setUser } = useAuth();
   const [imagePreview, setImagePreview] = useState(null);
   const [changeSetting, setChangeSetting] = useState(false);
@@ -598,7 +638,7 @@ const ProfileManagement = () => {
 
     // Only submit if at least one field has a value
     if (Object.keys(updateData).length === 0) {
-      toast.error("لطفا حداقل یک فیلد را برای ویرایش وارد کنید");
+      toast.error(t("admin.profilePage.toastMinField"));
       return;
     }
 
@@ -641,7 +681,7 @@ const ProfileManagement = () => {
             {displayData?.image && displayData.image !== 'default-user.jpg' ? (
               <img
                 src={`${BACKEND_BASE_URL}/public/images/users/${displayData.image}`}
-                alt="Profile"
+                alt={t("admin.profilePage.avatarAlt")}
                 className="w-full h-full rounded-full object-cover"
               />
             ) : displayData?.name ? (
@@ -656,30 +696,32 @@ const ProfileManagement = () => {
       {/* Profile Information - Row Layout */}
       <div className="card">
         <h4 className="text-sm font-semibold mb-3" style={{ color: "var(--text-dark)" }}>
-          اطلاعات شخصی
+          {t("admin.profilePage.personalInfo")}
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-medium)" }}>
-              نام کامل
+              {t("admin.profilePage.fullName")}
             </label>
             <p className="text-sm text-gray-700">{displayData?.name || "-"}</p>
           </div>
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-medium)" }}>
-              ایمیل
+              {t("admin.profilePage.email")}
             </label>
             <p className="text-sm text-gray-700">{displayData?.email || "-"}</p>
           </div>
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-medium)" }}>
-              نقش
+              {t("admin.profilePage.role")}
             </label>
-            <p className="text-sm text-gray-700">{displayData?.role || "کاربر"}</p>
+            <p className="text-sm text-gray-700">
+              {displayData?.role || t("admin.profilePage.defaultRole")}
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-medium)" }}>
-              شماره تلفن
+              {t("admin.profilePage.phone")}
             </label>
             <p className="text-sm text-gray-700">{displayData?.phone || "-"}</p>
           </div>
@@ -689,7 +731,7 @@ const ProfileManagement = () => {
       {/* Security Settings - Compact */}
       <div className="card">
         <h4 className="text-sm font-semibold mb-3" style={{ color: "var(--text-dark)" }}>
-          تنظیمات امنیتی
+          {t("admin.profilePage.securityTitle")}
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <button
@@ -698,7 +740,7 @@ const ProfileManagement = () => {
           >
             <div className="flex items-center">
               <span className="text-sm font-medium" style={{ color: "var(--text-dark)" }}>
-                تغییر رمز عبور
+                {t("admin.profilePage.changePassword")}
               </span>
           </div>
             <span className="text-xs" style={{ color: "var(--text-medium)" }}>✎</span>
@@ -710,7 +752,7 @@ const ProfileManagement = () => {
           >
             <div className="flex items-center">
               <span className="text-sm font-medium" style={{ color: "var(--text-dark)" }}>
-                ویرایش پروفایل
+                {t("admin.profilePage.editProfile")}
             </span>
           </div>
             <span className="text-xs" style={{ color: "var(--text-medium)" }}>✎</span>
@@ -724,7 +766,7 @@ const ProfileManagement = () => {
           <div className="mx-auto p-5 w-full">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                تغییر رمز عبور
+                {t("admin.profilePage.passwordTitle")}
               </h3>
             </div>
             <form
@@ -734,14 +776,14 @@ const ProfileManagement = () => {
             >
               <div>
                 <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-dark)" }}>
-                  رمز عبور فعلی
+                  {t("admin.profilePage.currentPassword")}
                   </label>
                   <input
                     type="password"
                     {...register("currentPassword", {
-                      required: "لطفا پسورد قبلی تانرا وارد کنید",
+                      required: t("admin.profilePage.currentPasswordRequired"),
                     })}
-                  placeholder="رمز عبور فعلی"
+                  placeholder={t("admin.profilePage.currentPasswordPh")}
                     className={inputStyle}
                   />
                   {errors.currentPassword && (
@@ -752,14 +794,14 @@ const ProfileManagement = () => {
                 </div>
               <div>
                 <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-dark)" }}>
-                  رمز عبور جدید
+                  {t("admin.profilePage.newPassword")}
                   </label>
                   <input
                     type="password"
                     {...register("newPassword", {
-                      required: "لطفا پسورد جدید تانرا وارد کنید",
+                      required: t("admin.profilePage.newPasswordRequired"),
                     })}
-                  placeholder="رمز عبور جدید"
+                  placeholder={t("admin.profilePage.newPasswordPh")}
                     className={inputStyle}
                   />
                   {errors.newPassword && (
@@ -774,7 +816,7 @@ const ProfileManagement = () => {
                   className="cursor-pointer bg-transparent border border-slate-500 text-slate-600 duration-200 flex gap-2 justify-center items-center px-4 py-2 rounded-sm font-medium text-sm transition-all ease-in"
                   onClick={() => setChangeSetting(false)}
                 >
-                  لغو
+                  {t("admin.profilePage.cancel")}
                 </button>
             <button
                   type="submit"
@@ -785,7 +827,9 @@ const ProfileManagement = () => {
                   : "bg-amber-600 hover:bg-amber-600/90 cursor-pointer"
               }`}
             >
-              {passwordSubmitLock.isSubmitting ? "در حال ذخیره..." : "تغییر رمز"}
+              {passwordSubmitLock.isSubmitting
+                ? t("admin.profilePage.changingPassword")
+                : t("admin.profilePage.changePasswordSubmit")}
             </button>
           </div>
             </form>
@@ -799,7 +843,7 @@ const ProfileManagement = () => {
           <div className="mx-auto p-5 w-full">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                ویرایش پروفایل
+                {t("admin.profilePage.editProfileTitle")}
               </h3>
             </div>
             <form
@@ -809,12 +853,12 @@ const ProfileManagement = () => {
             >
               <div>
                 <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-dark)" }}>
-                    نام کامل
+                    {t("admin.profilePage.fullName")}
                   </label>
                   <input
                     type="text"
                   {...emailReigster("name")}
-                  placeholder="نام کامل"
+                  placeholder={t("admin.profilePage.fullNamePh")}
                   defaultValue={displayData?.name || ""}
                     className={inputStyle}
                   />
@@ -826,17 +870,17 @@ const ProfileManagement = () => {
                 </div>
               <div>
                 <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-dark)" }}>
-                  ایمیل
+                  {t("admin.profilePage.email")}
                   </label>
                   <input
                     type="email"
                     {...emailReigster("email", {
                     pattern: {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: "فرمت ایمیل صحیح نیست",
+                      message: t("admin.profilePage.emailInvalid"),
                     },
                     })}
-                  placeholder="ایمیل"
+                  placeholder={t("admin.profilePage.emailPh")}
                   defaultValue={displayData?.email || ""}
                     className={inputStyle}
                   />
@@ -848,12 +892,12 @@ const ProfileManagement = () => {
                 </div>
               <div>
                 <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-dark)" }}>
-                  شماره تلفن
+                  {t("admin.profilePage.phone")}
                 </label>
                 <input
                   type="tel"
                   {...emailReigster("phone")}
-                  placeholder="شماره تلفن"
+                  placeholder={t("admin.profilePage.phonePh")}
                   defaultValue={displayData?.phone || ""}
                   className={inputStyle}
                 />
@@ -865,12 +909,14 @@ const ProfileManagement = () => {
               </div>
               <div>
                 <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-dark)" }}>
-                  تصویر پروفایل
+                  {t("admin.profilePage.profileImage")}
                 </label>
                 <label className="relative cursor-pointer">
                   <div className="flex items-center gap-2 border border-gray-300 rounded-md px-3 py-2 hover:border-amber-400 transition-colors">
                     <PhotoIcon className="h-5 w-5 text-gray-500" />
-                    <span className="text-sm text-gray-600">انتخاب تصویر</span>
+                    <span className="text-sm text-gray-600">
+                      {t("admin.profilePage.chooseImage")}
+                    </span>
                   </div>
                   <input
                     type="file"
@@ -884,7 +930,7 @@ const ProfileManagement = () => {
                   <div className="mt-2">
                     <img
                       src={imagePreview}
-                      alt="Preview"
+                      alt={t("admin.profilePage.previewAlt")}
                       className="w-20 h-20 rounded-full object-cover"
                     />
                   </div>
@@ -896,7 +942,7 @@ const ProfileManagement = () => {
                   className="cursor-pointer bg-transparent border border-slate-500 text-slate-600 duration-200 flex gap-2 justify-center items-center px-4 py-2 rounded-sm font-medium text-sm transition-all ease-in"
                   onClick={() => setChangeEmail(false)}
                 >
-                  لغو
+                  {t("admin.profilePage.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -908,8 +954,8 @@ const ProfileManagement = () => {
                   }`}
                 >
                   {emailSubmitLock.isSubmitting
-                    ? "در حال ذخیره..."
-                    : "ذخیره تغییرات"}
+                    ? t("admin.profilePage.saving")
+                    : t("admin.profilePage.saveChanges")}
                 </button>
               </div>
             </form>
@@ -922,6 +968,7 @@ const ProfileManagement = () => {
 
 // User Management Component
 const UserManagement = () => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -940,10 +987,11 @@ const UserManagement = () => {
     mutationFn: async (id) =>
       apiRequest(`${API_ENDPOINTS.AUTH.UPDATEUSERS}/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("کاربر حذف شد");
+      toast.success(t("admin.usersPage.toastDeleted"));
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
-    onError: (e) => toast.error(e.message || "حذف ناموفق بود"),
+    onError: (e) =>
+      toast.error(e.message || t("admin.usersPage.errDelete")),
   });
 
   const users = data?.data?.results || [];
@@ -953,9 +1001,9 @@ const UserManagement = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold" style={{ color: "var(--primary-brown)" }}>
-            مدیریت کاربران
+            {t("admin.usersPage.title")}
           </h2>
-          <p className="text-gray-600 mt-1">مشاهده و مدیریت کاربران سیستم</p>
+          <p className="text-gray-600 mt-1">{t("admin.usersPage.subtitle")}</p>
         </div>
       </div>
 
@@ -964,7 +1012,7 @@ const UserManagement = () => {
           <MagnifyingGlassIcon className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="جستجو بر اساس نام..."
+            placeholder={t("admin.usersPage.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={`${inputStyle} pr-10`}
@@ -977,23 +1025,41 @@ const UserManagement = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead>
               <tr>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">تصویر</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">نام</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">ایمیل</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">تلفن</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">نقش</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">وضعیت</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">اقدامات</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  {t("admin.usersPage.colImage")}
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  {t("admin.usersPage.colName")}
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  {t("admin.usersPage.colEmail")}
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  {t("admin.usersPage.colPhone")}
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  {t("admin.usersPage.colRole")}
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  {t("admin.usersPage.colStatus")}
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  {t("admin.usersPage.colActions")}
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-6">در حال بارگذاری...</td>
+                  <td colSpan="7" className="text-center py-6">
+                    {t("admin.common.loading")}
+                  </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-6">کاربری یافت نشد</td>
+                  <td colSpan="7" className="text-center py-6">
+                    {t("admin.usersPage.empty")}
+                  </td>
                 </tr>
               ) : (
                 users.map((u) => (
@@ -1025,17 +1091,23 @@ const UserManagement = () => {
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                         u.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                       }`}>
-                        {u.isActive ? 'فعال' : 'غیرفعال'}
+                        {u.isActive
+                          ? t("admin.usersPage.statusActive")
+                          : t("admin.usersPage.statusInactive")}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => {
-                          if (window.confirm("حذف شود؟"))
+                          if (
+                            window.confirm(
+                              t("admin.common.shortDeleteConfirm")
+                            )
+                          )
                             deleteMutation.mutate(u._id);
                         }}
                         className="text-red-600 hover:text-red-900"
-                        title="حذف"
+                        title={t("admin.usersPage.tooltipDelete")}
                       >
                         <TrashIcon className="h-4 w-4" />
                       </button>

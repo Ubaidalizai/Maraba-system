@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 import { Link } from "react-router-dom";
 import { useSidebar } from "../contexts/SidebarContext";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 const AppHeader = () => {
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
@@ -34,6 +35,7 @@ const AppHeader = () => {
   return (
     <header className="sticky  top-0 flex w-full bg-white border-gray-200 z-20 lg:border-b">
       <div className="flex  items-center justify-between w-full gap-2 px-3  border-b border-gray-200 dark:border-gray-800 sm:gap-4 lg:justify-normal lg:border-b-0 lg:px-0 lg:py-2">
+        <div className="flex items-center gap-2 min-w-0">
         <button
           className="items-center justify-center w-8 mx-3 h-8 text-gray-500 border-gray-200 rounded-lg z-99999 lg:flex lg:8 lg:w-8 lg:border cursor-pointer"
           onClick={handleToggle}
@@ -75,6 +77,8 @@ const AppHeader = () => {
         <Link to="/" className="lg:hidden">
           <img className=" w-8" src="log.png" alt="Logo" />
         </Link>
+        </div>
+        <LanguageSwitcher className="shrink-0 ms-auto" />
       </div>
     </header>
   );
