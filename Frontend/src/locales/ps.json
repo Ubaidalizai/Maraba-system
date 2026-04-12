@@ -12,8 +12,8 @@
     "admin": "اداري پینل"
   },
   "brand": {
-    "title": "اصغري خرما پلورنځی",
-    "tagline": "سوداګري او وېش"
+    "title": "بلال سدیس شرکت",
+    "tagline": " سوداګري او تجارت سیستم  "
   },
   "user": {
     "adminFallback": "ادمین",
@@ -23,8 +23,8 @@
     "logout": "وتل"
   },
   "toast": {
-    "logoutSuccess": "په بریالیتوب سره ووتل",
-    "logoutError": "وتل ممکن نه شول",
+    "logoutSuccess": "په بریالیتوب سره له سیستم څخه ووتلاست",
+    "logoutError": "  له سیستم څخه پّ وتلو کي ستونزه پیښه سوه ",
     "loginSuccess": "په بریالیتوب سره داخل شو",
     "loginError": "ننوتل ممکن نه شول"
   },
@@ -33,17 +33,17 @@
     "subtitle": "د سوداګرۍ او وېش مدیریت",
     "email": "برېښنالیک",
     "emailPlaceholder": "خپل برېښنالیک داخل کړئ",
-    "password": "پټنوم",
-    "passwordPlaceholder": "خپل پټنوم داخل کړئ",
-    "forgotPassword": "پټنوم مو هېر کړی؟",
+    "password": "پاسورډ",
+    "passwordPlaceholder": "خپل پاسورډ داخل کړئ",
+    "forgotPassword": "پاسورډ مو هېر کړی؟",
     "submit": "ننوتل",
     "submitting": "ننوتل روان دي...",
-    "forgotTitle": "پټنوم بیا تنظیم کړئ",
-    "forgotDescription": "خپل برېښنالیک ورکړئ، موږ به تاسو ته د پټنوم د بیا تنظیم لینک ولېږو.",
+    "forgotTitle": "پاسورډ بیا تنظیم کړئ",
+    "forgotDescription": "خپل برېښنالیک ورکړئ، موږ به تاسو ته د پاسورډ د تفیریدلو لینک ولېږو.",
     "forgotEmailLabel": "برېښنالیک",
     "forgotSubmit": "لینک ولېږئ",
-    "rememberPassword": "پټنوم مو یاد دی؟",
-    "backToLogin": "بېرته ننوتل ته"
+    "rememberPassword": "پاسورډ مو یاد دی؟",
+    "backToLogin": "بېرته سیستم ته داخل شه  ته"
   },
   "language": {
     "ps": "پښتو",
@@ -90,9 +90,9 @@
     "processing": "پروسس روان دی...",
     "auditDetailTitle": "د لاګ جزئیات",
     "labelTable": "جدول",
-    "labelOperationType": "د عملیاتو ډول",
+    "labelOperationType": "د کارونو ډول",
     "labelChangedBy": "بدلون ورکړی",
-    "labelChangedAt": "د بدلون وخت",
+    "labelChangedAt": "د تفیر  وخت",
     "labelReason": "دلیل",
     "noReason": "هیڅ دلیل نشته",
     "viewDetailsTitle": "جزئیات وګورئ",
@@ -186,7 +186,7 @@
     },
     "operations": {
       "INSERT": "اضافه کول",
-      "UPDATE": "تازه کول",
+      "UPDATE": "اپډیټ کول",
       "DELETE": "حذف"
     },
     "headers": {
@@ -273,7 +273,7 @@
     "currencyAfn": "افغانۍ",
     "batchTrackingLabel": "د بیچ تعقیب",
     "createdAt": "د جوړېدو نېټه",
-    "updatedAt": "وروستی تازه",
+    "updatedAt": "وروستی اپډیټ",
     "description": "تشریح",
     "noDescription": "هیڅ تشریح نشته.",
     "form": {
@@ -368,7 +368,7 @@
     "noPurchaseSelected": "د تادیې لپاره کوم پېرود نه دی ټاکل شوی",
     "noDebtRemaining": "په دې پېرود کې نور پور نشته",
     "amountRange": "اندازه باید د {{min}} او {{max}} ترمنځ وي",
-    "editError": "پېرود تازه نشو"
+    "editError": "پېرود اپډیټ نشو"
   },
   "payment": {
     "defaultDescription": "د پېرود لپاره تادیه",
@@ -386,10 +386,10 @@
     "submitting": "ثبت روان دی..."
   },
  "edit": {
-  "title": "پېرود سمول",
+  "title": "پیرودل سمول",
   "supplier": "عرضه کوونکی",
   "selectSupplier": "عرضه کوونکی وټاکئ",
-  "purchaseDate": "د پېرود نېټه",
+  "purchaseDate": "د پیرودل نېټه",
   "datePlaceholder": "نېټه وټاکئ",
   "paidAmount": "ورکړل شوې اندازه",
   "paymentAccount": "د تادیې حساب",
@@ -398,7 +398,7 @@
   "warehouse": "ګودام",
   "store": "دوکان",
   "reason": "د بدلون دلیل",
-  "reasonPlaceholder": "د دې پېرود د سمولو دلیل",
+  "reasonPlaceholder": "د دې پیرود د سمولو دلیل",
   "itemsTitle": "د پېرود توکي",
   "product": "محصول",
   "selectProduct": "محصول وټاکئ",
@@ -421,14 +421,14 @@
   "cancel": "لغوه",
   "save": "بدلونونه ثبت کړئ",
   "saving": "ثبت روان دی...",
-  "defaultReason": "پېرود د سیسټم له لارې تازه شو"
+  "defaultReason": "پیرودل د سیسټم له لارې اپډیټ شو"
 }
 },
 "purchaseModal": {
-  "title": "نوی پېرود",
+  "title": "نوی پیرودل",
   "supplierAccountLabel": "عرضه کوونکی (حساب) *",
   "selectSupplierAccount": "د عرضه کوونکي حساب وټاکئ",
-  "purchaseDate": "د پېرود نېټه",
+  "purchaseDate": "د پیرودل نېټه",
   "paymentAccountLabel": "د تادیې حساب *",
   "selectPaymentAccount": "حساب وټاکئ",
   "paidAmount": "ورکړل شوې اندازه",
@@ -464,7 +464,7 @@
     "betweenPaidDue": " | "
   },
   "cancel": "لغوه",
-  "submit": "پېرود جوړ کړئ",
+  "submit": "پیرودل اضافه کړی کړئ",
   "submitting": "جوړول روان دي...",
   "toast": {
     "fillRequired": "مهرباني وکړئ ټول اړین فیلډونه ډک کړئ",
@@ -482,13 +482,13 @@
     "totalOwed": "پاتې پیسې"
   },
   "filters": {
-    "allCustomers": "ټول پېرودونکي",
+    "allCustomers": "ټول پیرودونکي",
     "allStatuses": "ټول حالتونه",
     "statusPaid": "ورکړل شوی",
     "statusPartial": "نیمګړی ورکړل شوی",
     "statusPending": "پاتې",
     "addSale": "خرڅلاو زیات کړئ",
-    "addSalePending": "زیاتول روان دي..."
+    "addSalePending": "اضافه کول روان دي..."
   },
   "table": {
     "date": "نېټه",
@@ -557,8 +557,8 @@
   },
   "toast": {
     "deleteError": "خرڅلاو حذف نشو",
-    "updateSuccess": "خرڅلاو په بریالیتوب سره تازه شو",
-    "updateError": "خرڅلاو تازه نشو",
+    "updateSuccess": "خرڅلاو په بریالیتوب سره اپډیټ شو",
+    "updateError": "خرڅلاو اپډیټ نشو",
     "createError": "خرڅلاو جوړ نشو",
     "enterAmountAndAccount": "مهرباني وکړئ اندازه او د ترلاسه کولو حساب داخل کړئ",
     "amountRange": "اندازه باید د {{min}} او {{max}} ترمنځ وي",
@@ -575,7 +575,7 @@
   "typeCustomer": "پېرودونکی",
   "typeEmployee": "کارکوونکی",
   "typeWalkIn": "عادي پېرودونکی",
-  "selectCustomerAccount": "د پېرودونکي حساب وټاکئ",
+  "selectCustomerAccount": "د پیرودونکي حساب وټاکئ",
   "selectEmployeeAccount": "د کارکوونکي حساب وټاکئ",
   "accountCount": "{{count}} حسابونه",
   "walkInHint": "عادي پېرودونکی",
@@ -592,7 +592,7 @@
   "saleDateRequired": "د خرڅلاو نېټه اړینه ده",
   "itemsTitle": "توکي",
   "addItem": "زیات کړئ",
-  "addItemSaving": "زیاتول روان دي...",
+  "addItemSaving": "اضافه کول روان دي...",
   "productName": "د محصول نوم",
   "requiredStar": "*",
   "unitLabel": "واحد",
@@ -670,8 +670,8 @@
   "toast": {
     "createSuccess": "لګښت ثبت شو",
     "createError": "لګښت ثبت نشو",
-    "updateSuccess": "لګښت تازه شو",
-    "updateError": "لګښت تازه نشو",
+    "updateSuccess": "لګښت اپډیټ شو",
+    "updateError": "لګښت اپډیټ نشو",
     "deleteSuccess": "حذف شو",
     "deleteError": "حذف نشو"
   },
@@ -725,8 +725,8 @@
   "toast": {
     "createSuccess": "عاید ثبت شو",
     "createError": "عاید ثبت نشو",
-    "updateSuccess": "عاید تازه شو",
-    "updateError": "عاید تازه نشو",
+    "updateSuccess": "عاید اپډیټ شو",
+    "updateError": "عاید اپډیټ نشو",
     "deleteSuccess": "حذف شو",
     "deleteError": "حذف نشو"
   },
@@ -816,10 +816,10 @@
     "optionDebit": "ډیبیټ (بیلانس کموي)",
     "optionExpense": "لګښت (بیلانس کموي)",
     "examplesTitle": "بېلګې",
-    "creditEx1": "پېرودونکی پیسې درکړي → د پېرودونکي حساب زیاتېږي",
+    "creditEx1": "پيرودونکی پیسې درکړي → د پیرودونکي حساب زیاتېږي",
     "creditEx2": "تاسو عرضه کوونکي ته پیسې ورکړئ → د عرضه کوونکي حساب کمېږي (پور کمېږي)",
     "creditEx3": "کارکوونکي ته معاش ورکړل شو → د کارکوونکي حساب زیاتېږي",
-    "debitEx1": "تاسو پېرودونکي ته پیسې ورکړئ → د پېرودونکي حساب کمېږي",
+    "debitEx1": "تاسو پیرودونکي ته پیسې ورکړئ → د پیرودونکي حساب کمېږي",
     "debitEx2": "عرضه کوونکي پیسې بېرته درکړې → د عرضه کوونکي حساب کمېږي",
     "debitEx3": "کارکوونکي پیسې بېرته درکړې → د کارکوونکي حساب کمېږي",
     "expenseEx1": "د دفتر توکي → د صندوق بیلانس کمېږي",
@@ -834,7 +834,7 @@
     "noteExpense": "دا معامله د حساب بیلانس کموي.",
     "noteLabel": "یادښت:",
     "cancel": "لغوه",
-    "adding": "زیاتول روان دي...",
+    "adding": "اضافه کول روان دي...",
     "submit": "معامله اضافه کړئ",
     "defaultDescription": "لاسي {{type}} معامله"
   }
@@ -858,7 +858,7 @@
     "balanceAfter": "وروسته بیلانس",
     "description": "تشریح",
     "empty": "هیڅ معامله ونه موندل شوه",
-    "updating": "معاملې تازه کېږي..."
+    "updating": "معاملې اپډیټ کېږي..."
   },
   "clickToView": "(د لیدلو لپاره کلیک وکړئ)",
   "balance": {
@@ -869,7 +869,7 @@
     "supplierPositive": "تاسو عرضه کوونکي ته پوروړي یاست",
     "supplierNegative": "عرضه کوونکی تاسو ته پوروړی دی",
     "customerPositive": "پېرودونکی تاسو ته پوروړی دی",
-    "customerNegative": "تاسو پېرودونکي ته پوروړي یاست",
+    "customerNegative": "تاسو پیرودونکي ته پوروړي یاست",
     "employeePositive": "کارکوونکی تاسو ته پوروړی دی",
     "employeeNegative": "تاسو کارکوونکي ته پوروړي یاست",
     "default": "بیلانس"
@@ -888,7 +888,7 @@
   "unauthorizedTitle": "لاس رسی نشته",
   "unauthorizedMessage": "مهرباني وکړئ لومړی ننوتل وکړئ",
   "title": "اداري پینل",
-  "subtitle": "عرضه کوونکي، پېرودونکي، کارکوونکي، واحدونه او کټګورۍ اداره کړئ",
+  "subtitle": "عرضه کوونکي، پیرودونکي، کارکوونکي، واحدونه او کټګورۍ اداره کړئ",
   "adminAccess": "د ادمین لاسرسی",
   "sectionsTitle": "د اداري برخې",
   "sections": {
@@ -910,7 +910,7 @@
     },
     "customers": {
       "name": "د پېرودونکو اداره",
-      "description": "پېرودونکي زیات، سم او حذف کړئ"
+      "description": "پیرودونکي زیات، سم او حذف کړئ"
     },
     "employees": {
       "name": "د کارکوونکو اداره",
@@ -930,7 +930,7 @@
     "showing": "کتلو: {{count}}",
     "loading": "بارېدنه...",
     "errorTitle": "د ډاټا بارولو کې ستونزه",
-    "errorHint": "مهرباني وکړئ پاڼه تازه کړئ یا بیا هڅه وکړئ",
+    "errorHint": "مهرباني وکړئ پاڼه اپډیټ کړئ یا بیا هڅه وکړئ",
     "retry": "بیا هڅه",
     "table": {
       "name": "د عرضه کوونکي نوم",
@@ -960,7 +960,7 @@
       "statePlaceholder": "ولایت",
       "cancel": "لغوه",
       "saving": "ثبت روان دی...",
-      "update": "تازه کړئ",
+      "update": "اپډیټ کړئ",
       "add": "زیات کړئ"
     },
     "delete": {
@@ -972,9 +972,9 @@
     }
   },
   "common": {
-    "loading": "بارېدنه...",
-    "errorTitle": "د ډاټا بارولو کې ستونزه",
-    "errorHint": "مهرباني وکړئ پاڼه تازه کړئ یا بیا هڅه وکړئ",
+    "loading": "سرچ روان دی...",
+    "errorTitle": "د ډاټا په ښودلو کې ستونزه",
+    "errorHint": "مهرباني وکړئ پاڼه اپډیټ کړئ یا بیا هڅه وکړئ",
     "retry": "بیا هڅه",
     "total": "ټول: {{count}}",
     "showing": "کتلو: {{count}}",
@@ -989,17 +989,17 @@
     "phone": "تلیفون",
     "defaultRole": "کاروونکی",
     "securityTitle": "امنیتي تنظیمات",
-    "changePassword": "پټنوم بدل کړئ",
+    "changePassword": "پاسورډ بدل کړئ",
     "editProfile": "پروفایل سمول",
-    "passwordTitle": "پټنوم بدلول",
-    "currentPassword": "اوسنی پټنوم",
-    "newPassword": "نوی پټنوم",
-    "currentPasswordRequired": "مهرباني وکړئ اوسنی پټنوم ولیکئ",
-    "newPasswordRequired": "مهرباني وکړئ نوی پټنوم ولیکئ",
-    "currentPasswordPh": "اوسنی پټنوم",
-    "newPasswordPh": "نوی پټنوم",
+    "passwordTitle": "پاسورډ بدلول",
+    "currentPassword": "اوسنی پاسورډ",
+    "newPassword": "نوی پاسورډ",
+    "currentPasswordRequired": "مهرباني وکړئ اوسنی پاسورډ ولیکئ",
+    "newPasswordRequired": "مهرباني وکړئ نوی پاسورډ ولیکئ",
+    "currentPasswordPh": "اوسنی پاسورډ",
+    "newPasswordPh": "نوی پاسورډ",
     "cancel": "لغوه",
-    "changePasswordSubmit": "پټنوم بدل کړئ",
+    "changePasswordSubmit": "پاسورډ بدل کړئ",
     "changingPassword": "ثبت روان دی...",
     "editProfileTitle": "پروفایل سمول",
     "fullNamePh": "بشپړ نوم",
@@ -1015,7 +1015,7 @@
   },
   "categoriesPage": {
     "title": "د کټګورۍ اداره",
-    "subtitle": "کټګورۍ زیاتې، سمې او حذف کړئ",
+    "subtitle": "کټګورۍ زیاتې، تغیر او حذف کړئ",
     "add": "کټګوري زیاته کړئ",
     "searchPlaceholder": "په کټګوریو کې ولټوئ...",
     "filterAll": "ټول ډولونه",
@@ -1027,7 +1027,7 @@
     "tableColor": "رنګ",
     "tableActive": "فعال",
     "tableActions": "عملیات",
-    "empty": "هیڅ پېل ونه موندل شو",
+    "empty": "هیڅ ګټګوري  ونه موندل شو",
     "yes": "هو",
     "no": "نه",
     "modalAdd": "کټګوري زیاته کړئ",
@@ -1041,10 +1041,10 @@
     "saveEdit": "بدلونونه ثبت کړئ",
     "saveNew": "ثبت",
     "toastCreated": "کټګوري جوړه شوه",
-    "toastUpdated": "کټګوري تازه شوه",
+    "toastUpdated": "کټګوري اپډیټ شوه",
     "toastDeleted": "حذف شوه",
     "errCreate": "جوړول ممکن نه شول",
-    "errUpdate": "تازه کول ممکن نه شول",
+    "errUpdate": "اپډیټ کول ممکن نه شول",
     "errDelete": "حذف ممکن نه شو",
     "typeExpenseShort": "لګښت",
     "typeIncomeShort": "عاید",
@@ -1071,25 +1071,25 @@
     "tooltipDelete": "حذف"
   },
   "customersPage": {
-    "pageTitle": "د پېرودونکو اداره",
-    "pageSubtitle": "پېرودونکي زیات، سم او حذف کړئ",
-    "addButton": "پېرودونکی زیات کړئ",
+    "pageTitle": "د پيرودونکو اداره",
+    "pageSubtitle": "پیرودونکي زیات، سم او حذف کړئ",
+    "addButton": "پيرودونکی زیات کړئ",
     "searchPlaceholder": "په پېرودونکو کې ولټوئ...",
     "table": {
-      "name": "د پېرودونکي نوم",
+      "name": "د پیرودونکي نوم",
       "contact": "اړیکه",
       "email": "برېښنالیک",
       "address": "پته",
       "city": "ښار",
       "actions": "عملیات"
     },
-    "empty": "هیڅ پېرودونکی ونه موندل شو",
+    "empty": "هیڅ پيرودونکی ونه موندل شو",
     "tooltipEdit": "سمول",
     "tooltipDelete": "حذف",
-    "modalTitleAdd": "نوی پېرودونکی",
-    "modalTitleEdit": "پېرودونکی سمول",
+    "modalTitleAdd": "نوی پیرودونکی",
+    "modalTitleEdit": "پيرودونکی سمول",
     "closeSr": "تړل",
-    "nameLabel": "د پېرودونکي نوم *",
+    "nameLabel": "د پیرودونکي نوم *",
     "namePlaceholder": "نوم",
     "email": "برېښنالیک",
     "phone": "تلیفون",
@@ -1102,7 +1102,7 @@
     "statePlaceholder": "ولایت",
     "cancel": "لغوه",
     "saving": "ثبت روان دی...",
-    "update": "تازه کړئ",
+    "update": "اپډیټ کړئ",
     "add": "زیات کړئ",
     "delete": {
       "title": "د حذف تایید",
@@ -1143,7 +1143,7 @@
     "addressPlaceholder": "بشپړه پته",
     "cancel": "لغوه",
     "saving": "ثبت روان دی...",
-    "update": "تازه کړئ",
+    "update": "اپډیټ کړئ",
     "add": "زیات کړئ",
     "tooltipEdit": "سمول",
     "tooltipDelete": "حذف",
@@ -1200,7 +1200,7 @@
     "infoBaseBody": "دا واحد د محاسبو لپاره اصلي واحد په توګه کاروي.",
     "cancel": "لغوه",
     "saving": "ثبت روان دی...",
-    "update": "تازه کړئ",
+    "update": "اپډیټ کړئ",
     "add": "زیات کړئ",
     "closeSr": "تړل",
     "tooltipEdit": "سمول",
@@ -1222,7 +1222,7 @@
   "types": {
     "sales": "د خرڅلاو راپورونه",
     "inventory": "د سټاک راپورونه",
-    "purchases": "د پېرود راپورونه",
+    "purchases": "د پیرودلو راپورونه",
     "accounts": "د حسابونو راپورونه",
     "expenses": "د لګښت راپورونه",
     "profit": "ګټه او تاوان"
