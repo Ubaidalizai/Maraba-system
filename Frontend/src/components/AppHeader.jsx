@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 
 import { Link } from "react-router-dom";
 import { useSidebar } from "../contexts/SidebarContext";
-import LanguageSwitcher from "./LanguageSwitcher";
 
 const AppHeader = () => {
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
@@ -78,7 +77,6 @@ const AppHeader = () => {
           <img className=" w-8" src="log.png" alt="Logo" />
         </Link>
         </div>
-        <LanguageSwitcher className="shrink-0 ms-auto" />
       </div>
     </header>
   );

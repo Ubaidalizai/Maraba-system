@@ -6,7 +6,6 @@ import { useAuth } from "../hooks/useAuth";
 import { toast } from "react-toastify";
 import { inputStyle } from "../components/ProductForm";
 import GloableModal from "../components/GloableModal";
-import LanguageSwitcher from "../components/LanguageSwitcher";
 import { useForm } from "react-hook-form";
 import { useForgotPassword } from "../services/useApi";
 
@@ -59,9 +58,6 @@ const Login = () => {
         fontFamily: "var(--font-family)",
       }}
     >
-      <div className="absolute top-4 end-4">
-        <LanguageSwitcher />
-      </div>
       <div className="max-w-md border-2 border-slate-200 rounded-sm bg-white w-full space-y-8 p-8">
         {/* Header */}
         <div className="text-center">
