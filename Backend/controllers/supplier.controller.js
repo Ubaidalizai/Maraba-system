@@ -10,7 +10,7 @@ const createSupplier = asyncHandler(async (req, res, next) => {
 
   const supplierExists = await Supplier.findOne({ name, isDeleted: false });
   if (supplierExists) {
-    throw new AppError('Supplier with this name already exists', 400);
+    throw new AppError('د دې نوم سره عرضه کوونکی دمخه شتون لري', 400);
   }
 
   const supplier = await Supplier.create({ name, contact_info });
@@ -58,7 +58,7 @@ const getSupplier = asyncHandler(async (req, res, next) => {
   });
 
   if (!supplier) {
-    throw new AppError('Supplier not found', 404);
+    throw new AppError('عرضه کوونکی ونه موندل شو', 404);
   }
 
   res.status(200).json({
@@ -78,7 +78,7 @@ const updateSupplier = asyncHandler(async (req, res, next) => {
   );
 
   if (!supplier) {
-    throw new AppError('Supplier not found or already deleted', 404);
+    throw new AppError('عرضه کوونکی ونه موندل شو یا دمخه حذف شوی دی', 404);
   }
 
   res.status(200).json({
@@ -98,12 +98,12 @@ const deleteSupplier = asyncHandler(async (req, res, next) => {
   );
 
   if (!supplier) {
-    throw new AppError('Supplier not found or already deleted', 404);
+    throw new AppError('عرضه کوونکی ونه موندل شو یا دمخه حذف شوی دی', 404);
   }
 
   res.status(200).json({
     status: 'success',
-    message: 'Supplier deleted successfully (soft delete applied)',
+    message: 'عرضه کوونکی په بریالیتوب سره حذف شو',
   });
 });
 

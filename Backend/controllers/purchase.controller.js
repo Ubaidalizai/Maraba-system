@@ -20,7 +20,7 @@ const { getOrCreateAccount } = require('../utils/accountHelper');
 // Helper function to validate account balance
 const validateAccountBalance = async (accountId, requiredAmount, session) => {
   const account = await Account.findById(accountId).session(session);
-  if (!account) throw new AppError('Account not found', 404);
+  if (!account) throw new AppError('حساب ونه موندل شو', 404);
   
   if (requiredAmount > 0) {
     // Only validate cashier and safe accounts - they cannot go negative
@@ -60,7 +60,7 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
     let supplierAccount = null;
     if (req.body.supplierAccount) {
       supplierAccount = await Account.findById(req.body.supplierAccount).session(session);
-      if (!supplierAccount) throw new AppError('Invalid supplier account ID', 400);
+      if (!supplierAccount) throw new AppError('ناسم تاجر حساب ID', 400);
 
       // If the account has a refId pointing to a Supplier, use it
       if (supplierAccount.refId) {
@@ -71,7 +71,7 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
     // If we have a supplier reference id, try to fetch the Supplier doc
     if (supplierRefId) {
       supplierDoc = await Supplier.findById(supplierRefId).session(session);
-      if (!supplierDoc && supplier) throw new AppError('Invalid supplier ID', 400);
+      if (!supplierDoc && supplier) throw new AppError('ناسم تاجر ID', 400);
     }
 
     // Ensure we have a supplier account object (create or use existing)
@@ -117,10 +117,10 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
     // 6️⃣ Process purchase items
     for (const item of items) {
       const product = await Product.findById(item.product).session(session);
-      if (!product) throw new AppError('Invalid product ID', 400);
+      if (!product) throw new AppError('ناسم محصول ID', 400);
 
       const unit = await Unit.findById(item.unit).session(session);
-      if (!unit) throw new AppError('Invalid unit ID', 400);
+      if (!unit) throw new AppError('ناسم واحد ID', 400);
 
       const totalPrice = item.unitPrice * item.quantity;
 
@@ -243,13 +243,13 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Purchase created successfully',
+      message: 'پیرود په بریالیتوب سره جوړ شو',
       purchase: purchase[0],
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to create purchase', 500);
+    throw new AppError(err.message || 'پیرود جوړول ناکام شو', 500);
   }
 });
 
@@ -349,7 +349,7 @@ exports.getPurchaseById = asyncHandler(async (req, res, next) => {
   ).populate('supplierAccount', 'name');
 
   if (!purchase || purchase.isDeleted)
-    throw new AppError('Purchase not found', 404);
+    throw new AppError('پیرود ونه موندل شو', 404);
 
   // Fetch purchase items with populated product and unit
   const items = await PurchaseItem.find({ 
@@ -383,7 +383,7 @@ exports.updatePurchase = asyncHandler(async (req, res, next) => {
     // 1️⃣ Fetch existing purchase and items
     const purchase = await Purchase.findById(req.params.id).session(session);
     if (!purchase || purchase.isDeleted)
-      throw new AppError('Purchase not found', 404);
+      throw new AppError('پیرود ونه موندل شو', 404);
 
     const oldItems = await PurchaseItem.find({
       purchase: purchase._id,
@@ -397,7 +397,7 @@ exports.updatePurchase = asyncHandler(async (req, res, next) => {
     // 2️⃣ Update purchase core fields
     if (supplier) {
       const supplierExists = await Supplier.findById(supplier).session(session);
-      if (!supplierExists) throw new AppError('Invalid supplier ID', 400);
+      if (!supplierExists) throw new AppError('ناسم تاجر ID', 400);
       purchase.supplier = supplier;
 
       // Ensure an account exists for new supplier and store a reference snapshot
@@ -454,10 +454,10 @@ exports.updatePurchase = asyncHandler(async (req, res, next) => {
       // Add new items
       for (const item of items) {
         const product = await Product.findById(item.product).session(session);
-        if (!product) throw new AppError('Invalid product ID', 400);
+        if (!product) throw new AppError('ناسم محصول ID', 400);
 
         const unit = await Unit.findById(item.unit).session(session);
-        if (!unit) throw new AppError('Invalid unit ID', 400);
+        if (!unit) throw new AppError('ناسم واحد ID', 400);
 
         const totalPrice = item.unitPrice * item.quantity;
         newTotalAmount += totalPrice;
@@ -523,7 +523,7 @@ exports.updatePurchase = asyncHandler(async (req, res, next) => {
     const supplierAccount = purchase.supplierAccount
       ? await Account.findById(purchase.supplierAccount).session(session)
       : await getOrCreateAccount({ refId: purchase.supplier, type: 'supplier', name: purchase.supplierName || '', session });
-    if (!supplierAccount) throw new AppError('Supplier account not found', 404);
+    if (!supplierAccount) throw new AppError('د تاجر حساب ونه موندل شو', 404);
 
     const supplierTxn = await AccountTransaction.findOne({
       referenceType: 'purchase',
@@ -613,13 +613,13 @@ exports.updatePurchase = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Purchase updated successfully (transactional)',
+      message: 'پیرود په بریالیتوب سره تازه شو (تراکنش)',
       purchase,
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to update purchase', 500);
+    throw new AppError(err.message || 'پیرود تازه کول ناکام شو', 500);
   }
 });
 
@@ -632,7 +632,7 @@ exports.softDeletePurchase = asyncHandler(async (req, res, next) => {
   try {
     const purchase = await Purchase.findById(req.params.id).session(session);
     if (!purchase || purchase.isDeleted)
-      throw new AppError('Purchase not found', 404);
+      throw new AppError('پیرود ونه موندل شو', 404);
 
     const items = await PurchaseItem.find({ purchase: purchase._id }).session(
       session
@@ -641,7 +641,7 @@ exports.softDeletePurchase = asyncHandler(async (req, res, next) => {
       ? await Account.findById(purchase.supplierAccount).session(session)
       : await Account.findOne({ refId: purchase.supplier, type: 'supplier' }).session(session);
 
-    if (!supplierAccount) throw new AppError('Supplier account not found', 404);
+    if (!supplierAccount) throw new AppError('د تاجر حساب ونه موندل شو', 404);
 
     // 1️⃣ Reverse Stock Quantities
     for (const item of items) {
@@ -694,12 +694,12 @@ exports.softDeletePurchase = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Purchase deleted successfully (rollback-safe)',
+      message: 'پیرود په بریالیتوب سره حذف شو',
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to delete purchase', 500);
+    throw new AppError(err.message || 'پیرود حذفول ناکام شو', 500);
   }
 });
 
@@ -712,7 +712,7 @@ exports.restorePurchase = asyncHandler(async (req, res, next) => {
   try {
     const purchase = await Purchase.findById(req.params.id).session(session);
     if (!purchase || !purchase.isDeleted)
-      throw new AppError('Purchase not found or not deleted', 404);
+      throw new AppError('پیرود ونه موندل شو یا حذف شوی نه دی', 404);
 
     const items = await PurchaseItem.find({ purchase: purchase._id }).session(
       session
@@ -721,13 +721,13 @@ exports.restorePurchase = asyncHandler(async (req, res, next) => {
       ? await Account.findById(purchase.supplierAccount).session(session)
       : await Account.findOne({ refId: purchase.supplier, type: 'supplier' }).session(session);
 
-    if (!supplierAccount) throw new AppError('Supplier account not found', 404);
+    if (!supplierAccount) throw new AppError('د تاجر حساب ونه موندل شو', 404);
 
     // 1️⃣ Restore Stock Quantities
     for (const item of items) {
       const unit = await Unit.findById(item.unit).session(session);
       const product = await Product.findById(item.product).session(session);
-      if (!product) throw new AppError('Product not found', 404);
+      if (!product) throw new AppError('محصول ونه موندل شو', 404);
       
       // Calculate base price for restore
       const basePrice = item.unitPrice / unit.conversion_to_base;
@@ -790,13 +790,13 @@ exports.restorePurchase = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Purchase restored successfully (rollback-safe)',
+      message: 'پیرود په بریالیتوب سره بیرته راستون شو',
       purchase,
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to restore purchase', 500);
+    throw new AppError(err.message || 'پیرود بیرته راستنول ناکام شو', 500);
   }
 });
 
@@ -807,7 +807,7 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
   const purchaseId = req.params.id;
 
   if (!amount || amount <= 0) {
-    throw new AppError('Payment amount must be greater than 0', 400);
+    throw new AppError('د تادیې مبلغ باید له 0 څخه زیات وي', 400);
   }
 
   const session = await mongoose.startSession();
@@ -817,7 +817,7 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
     // 1️⃣ Find the purchase
     const purchase = await Purchase.findById(purchaseId).session(session);
     if (!purchase || purchase.isDeleted) {
-      throw new AppError('Purchase not found', 404);
+      throw new AppError('پیرود ونه موندل شو', 404);
     }
 
     // 2️⃣ Calculate remaining due
@@ -836,7 +836,7 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
       : await Account.findOne({ refId: purchase.supplier, type: 'supplier', isDeleted: false }).session(session);
 
     if (!supplierAccount) {
-      throw new AppError('Supplier account not found', 404);
+      throw new AppError('د تاجر حساب ونه موندل شو', 404);
     }
 
     // 4️⃣ Validate payment account and check balance
@@ -911,7 +911,7 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Payment recorded successfully',
+      message: 'تادیه په بریالیتوب سره ثبت شوه',
       purchase: {
         _id: purchase._id,
         totalAmount: purchase.totalAmount,
@@ -924,7 +924,7 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to record payment', 500);
+    throw new AppError(err.message || 'تادیه ثبتول ناکام شو', 500);
   }
 });
 
@@ -936,7 +936,7 @@ exports.getPurchaseReports = asyncHandler(async (req, res, next) => {
   const { startDate, endDate, groupBy = 'day' } = req.query;
 
   if (!startDate || !endDate) {
-    throw new AppError('Start date and end date are required', 400);
+    throw new AppError('د پیل او پای نیټه اړینه ده', 400);
   }
 
   const matchStage = {
@@ -977,7 +977,7 @@ exports.getPurchaseReports = asyncHandler(async (req, res, next) => {
       break;
     default:
       throw new AppError(
-        'Invalid groupBy parameter. Must be day, week, or month',
+        'ناسم groupBy پیرامیټر. باید ورځ، اونۍ، یا میاشت وي',
         400
       );
   }

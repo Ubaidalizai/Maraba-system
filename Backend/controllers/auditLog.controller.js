@@ -264,7 +264,7 @@ exports.cleanupOldAuditLogs = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: `Deleted ${result.deletedCount} audit logs older than ${daysOld} days`,
+    message: `${result.deletedCount} د تفتیش ثبتونه چې د ${daysOld} ورځو څخه زاړه وو حذف شول`,
     deletedCount: result.deletedCount,
   });
 });

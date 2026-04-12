@@ -96,7 +96,7 @@ exports.getExpensesByCategory = asyncHandler(async (req, res, next) => {
   } = req.query;
 
   if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-    throw new AppError('Invalid category ID', 400);
+    throw new AppError('ناسم کېټګورۍ ID', 400);
   }
 
   const filter = {
@@ -156,7 +156,7 @@ exports.getExpenseById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid expense ID', 400);
+    throw new AppError('ناسم هزینه ID', 400);
   }
 
   const expense = await Expense.findOne({ _id: id, isDeleted: false })
@@ -165,7 +165,7 @@ exports.getExpenseById = asyncHandler(async (req, res, next) => {
     .lean();
 
   if (!expense) {
-    throw new AppError('Expense not found', 404);
+    throw new AppError('هزینه ونه موندل شوه', 404);
   }
 
   res.status(200).json({
@@ -181,15 +181,15 @@ exports.createExpense = asyncHandler(async (req, res, next) => {
   const { category, amount, date, description, paidFromAccount } = req.body;
 
   if (!category || !amount) {
-    throw new AppError('Category and amount are required', 400);
+    throw new AppError('کېټګورۍ او مبلغ اړین دی', 400);
   }
 
   if (amount <= 0) {
-    throw new AppError('Amount must be greater than 0', 400);
+    throw new AppError('مبلغ باید له 0 څخه زیات وي', 400);
   }
 
   if (!paidFromAccount) {
-    throw new AppError('paidFromAccount is required', 400);
+    throw new AppError('د تادیې حساب اړین دی', 400);
   }
 
   const session = await mongoose.startSession();
@@ -208,7 +208,7 @@ exports.createExpense = asyncHandler(async (req, res, next) => {
     );
     if (!categoryDoc) {
       throw new AppError(
-        'Invalid category or category not available for expenses',
+        'ناسم کېټګورۍ یا کېټګورۍ د هزینې لپاره شتون نلري',
         400
       );
     }
@@ -220,11 +220,11 @@ exports.createExpense = asyncHandler(async (req, res, next) => {
       { session }
     );
     if (!moneyAccount) {
-      throw new AppError('Paid from account not found', 404);
+      throw new AppError('د تادیې حساب ونه موندل شو', 404);
     }
     if (!['cashier', 'safe', 'saraf'].includes(moneyAccount.type)) {
       throw new AppError(
-        'Paid from account must be of type cashier, safe, or saraf',
+        'د تادیې حساب باید د صندوق، خزانه، یا صراف ډول وي',
         400
       );
     }
@@ -298,7 +298,7 @@ exports.createExpense = asyncHandler(async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Expense created successfully',
+      message: 'هزینه په بریالیتوب سره جوړه شوه',
       data: createdExpense,
     });
   } catch (err) {
@@ -315,12 +315,12 @@ exports.updateExpense = asyncHandler(async (req, res, next) => {
   const { category, amount, date, description, paidFromAccount } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid expense ID', 400);
+    throw new AppError('ناسم هزینه ID', 400);
   }
 
   // Validate amount if provided
   if (amount !== undefined && amount <= 0) {
-    throw new AppError('Amount must be greater than 0', 400);
+    throw new AppError('مبلغ باید له 0 څخه زیات وي', 400);
   }
 
   // Validate category if provided
@@ -344,7 +344,7 @@ exports.updateExpense = asyncHandler(async (req, res, next) => {
   try {
     const expense = await Expense.findOne({ _id: id, isDeleted: false }, null, { session });
     if (!expense) {
-      throw new AppError('Expense not found', 404);
+      throw new AppError('هزینه ونه موندل شوه', 404);
     }
 
     const oldData = expense.toObject();
@@ -358,15 +358,15 @@ exports.updateExpense = asyncHandler(async (req, res, next) => {
 
     let newPaidFromAccount = paidFromAccount !== undefined ? paidFromAccount : expense.paidFromAccount;
     if (!newPaidFromAccount) {
-      throw new AppError('paidFromAccount is required', 400);
+      throw new AppError('د تادیې حساب اړین دی', 400);
     }
 
     const moneyAccount = await Account.findOne({ _id: newPaidFromAccount, isDeleted: false }, null, { session });
     if (!moneyAccount) {
-      throw new AppError('Paid from account not found', 404);
+      throw new AppError('د تادیې حساب ونه موندل شو', 404);
     }
     if (!['cashier', 'safe', 'saraf'].includes(moneyAccount.type)) {
-      throw new AppError('Paid from account must be of type cashier, safe, or saraf', 400);
+      throw new AppError('د تادیې حساب باید د صندوق، خزانه، یا صراف ډول وي', 400);
     }
 
     // Reverse existing transaction if present
@@ -471,7 +471,7 @@ exports.updateExpense = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Expense updated successfully',
+      message: 'هزینه په بریالیتوب سره تازه شوه',
       data: expense,
     });
   } catch (err) {
@@ -487,7 +487,7 @@ exports.deleteExpense = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid expense ID', 400);
+    throw new AppError('ناسم هزینه ID', 400);
   }
 
   const session = await mongoose.startSession();
@@ -495,7 +495,7 @@ exports.deleteExpense = asyncHandler(async (req, res, next) => {
   try {
     const expense = await Expense.findOne({ _id: id, isDeleted: false }, null, { session });
     if (!expense) {
-      throw new AppError('Expense not found', 404);
+      throw new AppError('هزینه ونه موندل شوه', 404);
     }
 
     const oldData = expense.toObject();
@@ -571,7 +571,7 @@ exports.deleteExpense = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Expense deleted successfully',
+      message: 'هزینه په بریالیتوب سره حذف شوه',
     });
   } catch (err) {
     await session.abortTransaction();
@@ -586,12 +586,12 @@ exports.restoreExpense = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid expense ID', 400);
+    throw new AppError('ناسم هزینه ID', 400);
   }
 
   const expense = await Expense.findOne({ _id: id, isDeleted: true });
   if (!expense) {
-    throw new AppError('Deleted expense not found', 404);
+    throw new AppError('حذف شوې هزینه ونه موندل شوه', 404);
   }
 
   // Validate category still exists and is active
@@ -604,7 +604,7 @@ exports.restoreExpense = asyncHandler(async (req, res, next) => {
 
   if (!categoryDoc) {
     throw new AppError(
-      'Cannot restore expense: Category no longer exists or is inactive',
+      'هزینه بیرته نشي راستنیدلی: کېټګورۍ نور شتون نلري یا غیرفعاله ده',
       400
     );
   }
@@ -634,7 +634,7 @@ exports.restoreExpense = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: 'Expense restored successfully',
+    message: 'هزینه په بریالیتوب سره بیرته راستنه شوه',
     data: expense,
   });
 });
@@ -752,7 +752,7 @@ exports.getExpenseSummary = asyncHandler(async (req, res, next) => {
   const { startDate, endDate, groupBy = 'day', category } = req.query;
 
   if (!startDate || !endDate) {
-    throw new AppError('Start date and end date are required', 400);
+    throw new AppError('د پیل او پای نیټه اړینه ده', 400);
   }
 
   const matchStage = {
@@ -800,7 +800,7 @@ exports.getExpenseSummary = asyncHandler(async (req, res, next) => {
       break;
     default:
       throw new AppError(
-        'Invalid groupBy parameter. Must be day, week, or month',
+        'ناسم groupBy پیرامیټر. باید ورځ، اونۍ، یا میاشت وي',
         400
       );
   }

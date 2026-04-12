@@ -20,13 +20,13 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
       req.body;
 
     if (fromLocation === toLocation)
-      throw new AppError('مکان مبدا و مقصد نمیتواند یکسان باشد', 400);
+      throw new AppError('د سرچینې او منزل ځای یو شان نشي کیدای', 400);
 
     if (quantity <= 0)
-      throw new AppError('تعداد باید بیشتر از صفر باشد', 400);
+      throw new AppError('شمیر باید له صفر څخه زیات وي', 400);
 
     const unitDoc = await Unit.findById(unit).session(session);
-    if (!unitDoc) throw new AppError('واحد نامعتبر است', 400);
+    if (!unitDoc) throw new AppError('واحد ناسم دی', 400);
 
     const baseQuantity = quantity * unitDoc.conversion_to_base;
 
@@ -38,7 +38,7 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
       }).session(session);
 
       if (!empStock || empStock.quantity_in_hand < baseQuantity) {
-        throw new AppError('موجودی کافی در انبار کارمند موجود نیست', 400);
+        throw new AppError('د کارکوونکي په ګودام کې کافي سټاک شتون نلري', 400);
       }
 
       empStock.quantity_in_hand -= baseQuantity;
@@ -52,14 +52,14 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
 
       if (!fromStock) {
         throw new AppError(
-          `موجودی این محصول در ${fromLocation} یافت نشد`,
+          `په ${fromLocation} کې د دې محصول سټاک ونه موندل شو`,
           404
         );
       }
 
       if (fromStock.quantity < baseQuantity) {
         throw new AppError(
-          `موجودی کافی در ${fromLocation} موجود نیست. موجود: ${fromStock.quantity}، درخواستی: ${baseQuantity}`,
+          `په ${fromLocation} کې کافي سټاک شتون نلري. شتون: ${fromStock.quantity}، غوښتل شوی: ${baseQuantity}`,
           400
         );
       }
@@ -117,7 +117,7 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
           const productDoc = await Product.findById(product)
             .populate('unit')
             .session(session);
-          if (!productDoc) throw new AppError('محصول یافت نشد', 404);
+          if (!productDoc) throw new AppError('محصول ونه موندل شو', 404);
           sourceStock = {
             product,
             unit: productDoc.unit._id,
@@ -126,7 +126,7 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
             expiryDate: null,
           };
         } else {
-          throw new AppError(`موجودی مبدا در ${fromLocation} یافت نشد`, 404);
+          throw new AppError(`په ${fromLocation} کې د سرچینې سټاک ونه موندل شو`, 404);
         }
       }
 
@@ -137,7 +137,16 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
       }).session(session);
 
       if (existingToStock) {
-        existingToStock.quantity += baseQuantity;
+        // Calculate weighted average purchase price
+        const existingQty = existingToStock.quantity;
+        const existingPrice = existingToStock.purchasePricePerBaseUnit || 0;
+        const newPrice = sourceStock?.purchasePricePerBaseUnit || 0;
+        
+        const totalQty = existingQty + baseQuantity;
+        const weightedAvgPrice = ((existingQty * existingPrice) + (baseQuantity * newPrice)) / totalQty;
+        
+        existingToStock.quantity = totalQty;
+        existingToStock.purchasePricePerBaseUnit = weightedAvgPrice;
         await existingToStock.save({ session });
       } else {
         await Stock.create(
@@ -180,7 +189,7 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
           operation: 'INSERT',
           oldData: null,
           newData: transfer[0].toObject(),
-          reason: notes || 'انتقال موجودی ایجاد شد',
+          reason: notes || 'د سټاک لیږد جوړ شو',
           changedBy: req.user?.name || 'System',
           recordId: transfer[0]._id,
         },
@@ -193,13 +202,13 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'موجودی با موفقیت انتقال یافت',
+      message: 'سټاک په بریالیتوب سره لیږدول شو',
       transfer: transfer[0],
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'انتقال موجودی ناموفق بود', 500);
+    throw new AppError(err.message || 'د سټاک لیږد ناکام شو', 500);
   }
 });
 
@@ -241,7 +250,7 @@ exports.getStockTransfer = asyncHandler(async (req, res) => {
     .populate('transferredBy', 'name email');
 
   if (!transfer) {
-    throw new AppError('انتقال موجودی یافت نشد', 404);
+    throw new AppError('د سټاک لیږد ونه موندل شو', 404);
   }
 
   res.status(200).json({
@@ -269,7 +278,7 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
       .session(session);
 
     if (!transfer || transfer.isDeleted)
-      throw new AppError('انتقال موجودی یافت نشد', 404);
+      throw new AppError('د سټاک لیږد ونه موندل شو', 404);
 
     const oldData = { ...transfer.toObject() };
     const oldBaseQuantity = transfer.quantity * (transfer.unit?.conversion_to_base || 1);
@@ -341,7 +350,7 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
         product: updatedProduct,
       }).session(session);
       if (!empStock || empStock.quantity_in_hand < newQty) {
-        throw new AppError('موجودی کافی در انبار کارمند برای بروزرسانی موجود نیست', 400);
+        throw new AppError('د تازه کولو لپاره د کارکوونکي په ګودام کې کافي سټاک شتون نلري', 400);
       }
       empStock.quantity_in_hand -= newQty;
       await empStock.save({ session });
@@ -351,7 +360,7 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
         location: newFrom,
       }).session(session);
       if (!srcStock || srcStock.quantity < newQty) {
-        throw new AppError('موجودی کافی در مکان مبدا موجود نیست', 400);
+        throw new AppError('په سرچینه ځای کې کافي سټاک شتون نلري', 400);
       }
       srcStock.quantity -= newQty;
       await srcStock.save({ session });
@@ -394,7 +403,30 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
       }).session(session);
 
       if (existingToStock) {
-        existingToStock.quantity += newQty;
+        // Calculate weighted average purchase price
+        let sourceStock;
+        if (newFrom === 'employee') {
+          sourceStock = await Stock.findOne({
+            product: updatedProduct,
+            isDeleted: false,
+          }).session(session);
+        } else {
+          sourceStock = await Stock.findOne({
+            product: updatedProduct,
+            location: newFrom,
+            isDeleted: false,
+          }).session(session);
+        }
+        
+        const existingQty = existingToStock.quantity;
+        const existingPrice = existingToStock.purchasePricePerBaseUnit || 0;
+        const newPrice = sourceStock?.purchasePricePerBaseUnit || 0;
+        
+        const totalQty = existingQty + newQty;
+        const weightedAvgPrice = ((existingQty * existingPrice) + (newQty * newPrice)) / totalQty;
+        
+        existingToStock.quantity = totalQty;
+        existingToStock.purchasePricePerBaseUnit = weightedAvgPrice;
         await existingToStock.save({ session });
       } else {
         let sourceStock;
@@ -431,7 +463,7 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
             const productDoc = await Product.findById(updatedProduct)
               .populate('unit')
               .session(session);
-            if (!productDoc) throw new AppError('محصول یافت نشد', 404);
+            if (!productDoc) throw new AppError('محصول ونه موندل شو', 404);
             sourceStock = {
               product: updatedProduct,
               unit: productDoc.unit._id,
@@ -481,7 +513,7 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
           operation: 'UPDATE',
           oldData,
           newData: transfer.toObject(),
-          reason: reason || 'انتقال موجودی بروزرسانی شد',
+          reason: reason || 'د سټاک لیږد تازه شو',
           changedBy: req.user?.name || 'System',
         },
       ],
@@ -493,13 +525,13 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'انتقال موجودی با موفقیت بروزرسانی شد',
+      message: 'د سټاک لیږد په بریالیتوب سره تازه شو',
       transfer,
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'بروزرسانی انتقال موجودی ناموفق بود', 500);
+    throw new AppError(err.message || 'د سټاک لیږد تازه کول ناکام شو', 500);
   }
 });
 
@@ -512,7 +544,7 @@ exports.softDeleteStockTransfer = asyncHandler(async (req, res, next) => {
       .populate('unit', 'conversion_to_base')
       .session(session);
     if (!transfer || transfer.isDeleted)
-      throw new AppError('انتقال موجودی یافت نشد', 404);
+      throw new AppError('د سټاک لیږد ونه موندل شو', 404);
 
     const oldData = { ...transfer.toObject() };
     const baseQuantity = transfer.quantity * (transfer.unit?.conversion_to_base || 1);
@@ -533,7 +565,7 @@ exports.softDeleteStockTransfer = asyncHandler(async (req, res, next) => {
 
       if (!empStock || empStock.quantity_in_hand < baseQuantity) {
         throw new AppError(
-          'موجودی کافی در انبار کارمند برای حذف انتقال موجود نیست',
+          'د لیږد د حذف کولو لپاره د کارکوونکي په ګودام کې کافي سټاک شتون نلري',
           400
         );
       }
@@ -547,7 +579,7 @@ exports.softDeleteStockTransfer = asyncHandler(async (req, res, next) => {
 
       if (!destStock || destStock.quantity < baseQuantity) {
         throw new AppError(
-          'موجودی کافی در مقصد برای حذف انتقال موجود نیست',
+          'د لیږد د حذف کولو لپاره په منزل کې کافي سټاک شتون نلري',
           400
         );
       }
@@ -595,7 +627,7 @@ exports.softDeleteStockTransfer = asyncHandler(async (req, res, next) => {
           operation: 'DELETE',
           oldData,
           newData: null,
-          reason: req.body.reason || 'انتقال موجودی حذف شد',
+          reason: req.body.reason || 'د سټاک لیږد حذف شو',
           changedBy: req.user?.name || 'System',
         },
       ],
@@ -607,12 +639,12 @@ exports.softDeleteStockTransfer = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'انتقال موجودی با موفقیت حذف شد',
+      message: 'د سټاک لیږد په بریالیتوب سره حذف شو',
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'حذف انتقال موجودی ناموفق بود', 500);
+    throw new AppError(err.message || 'د سټاک لیږد حذف کول ناکام شو', 500);
   }
 });
 
@@ -625,7 +657,7 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
       .populate('unit', 'conversion_to_base')
       .session(session);
     if (!transfer || !transfer.isDeleted)
-      throw new AppError('انتقال موجودی یافت نشد یا حذف نشده است', 404);
+      throw new AppError('د سټاک لیږد ونه موندل شو یا حذف شوی نه دی', 404);
 
     const oldData = { ...transfer.toObject() };
     const { product, fromLocation, toLocation, quantity, employee } = transfer;
@@ -639,7 +671,7 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
 
       if (!empStock || empStock.quantity_in_hand < baseQuantity) {
         throw new AppError(
-          'موجودی کافی در انبار کارمند برای بازیابی انتقال موجود نیست',
+          'د لیږد د بیرته راستنیدو لپاره د کارکوونکي په ګودام کې کافي سټاک شتون نلري',
           400
         );
       }
@@ -654,7 +686,7 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
 
       if (!sourceStock || sourceStock.quantity < baseQuantity) {
         throw new AppError(
-          'موجودی کافی در مبدا برای بازیابی انتقال موجود نیست',
+          'د لیږد د بیرته راستنیدو لپاره په سرچینه کې کافي سټاک شتون نلري',
           400
         );
       }
@@ -692,7 +724,22 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
       }).session(session);
 
       if (existingToStock) {
-        existingToStock.quantity += baseQuantity;
+        // Calculate weighted average purchase price
+        const sourceStock = await Stock.findOne({
+          product,
+          location: fromLocation,
+          isDeleted: false,
+        }).session(session);
+        
+        const existingQty = existingToStock.quantity;
+        const existingPrice = existingToStock.purchasePricePerBaseUnit || 0;
+        const newPrice = sourceStock?.purchasePricePerBaseUnit || 0;
+        
+        const totalQty = existingQty + baseQuantity;
+        const weightedAvgPrice = ((existingQty * existingPrice) + (baseQuantity * newPrice)) / totalQty;
+        
+        existingToStock.quantity = totalQty;
+        existingToStock.purchasePricePerBaseUnit = weightedAvgPrice;
         await existingToStock.save({ session });
       } else {
         const sourceStock = await Stock.findOne({
@@ -737,7 +784,7 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
           operation: 'UPDATE',
           oldData: null,
           newData: transfer.toObject(),
-          reason: 'انتقال موجودی بازیابی شد',
+          reason: 'د سټاک لیږد بیرته راستون شو',
           changedBy: req.user?.name || 'System',
         },
       ],
@@ -749,13 +796,13 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'انتقال موجودی با موفقیت بازیابی شد',
+      message: 'د سټاک لیږد په بریالیتوب سره بیرته راستون شو',
       transfer,
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'بازیابی انتقال موجودی ناموفق بود', 500);
+    throw new AppError(err.message || 'د سټاک لیږد بیرته راستنیدل ناکام شو', 500);
   }
 });
 
@@ -768,7 +815,7 @@ exports.rollbackStockTransfer = asyncHandler(async (req, res, next) => {
       .populate('unit', 'conversion_to_base')
       .session(session);
     if (!transfer || transfer.isDeleted)
-      throw new AppError('انتقال یافت نشد', 404);
+      throw new AppError('لیږد ونه موندل شو', 404);
 
     const { product, fromLocation, toLocation, quantity, employee } = transfer;
     const baseQuantity = quantity * (transfer.unit?.conversion_to_base || 1);
@@ -782,7 +829,7 @@ exports.rollbackStockTransfer = asyncHandler(async (req, res, next) => {
 
       if (!empStock || empStock.quantity_in_hand < baseQuantity) {
         throw new AppError(
-          'امکان برگشت وجود ندارد - موجودی کافی در انبار کارمند موجود نیست',
+          'د بیرته راګرځیدو امکان نشته - د کارکوونکي په ګودام کې کافي سټاک شتون نلري',
           400
         );
       }
@@ -798,7 +845,7 @@ exports.rollbackStockTransfer = asyncHandler(async (req, res, next) => {
 
       if (!toStock || toStock.quantity < baseQuantity) {
         throw new AppError(
-          `امکان برگشت وجود ندارد - موجودی کافی در ${toLocation} موجود نیست`,
+          `د بیرته راګرځیدو امکان نشته - په ${toLocation} کې کافي سټاک شتون نلري`,
           400
         );
       }
@@ -881,7 +928,7 @@ exports.rollbackStockTransfer = asyncHandler(async (req, res, next) => {
           operation: 'DELETE',
           oldData: transfer,
           newData: null,
-          reason: 'انتقال موجودی برگشت داده شد',
+          reason: 'د سټاک لیږد بیرته واړول شو',
           changedBy: req.user?.name || 'System',
         },
       ],
@@ -893,11 +940,11 @@ exports.rollbackStockTransfer = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'انتقال موجودی با موفقیت برگشت داده شد',
+      message: 'د سټاک لیږد په بریالیتوب سره بیرته واړول شو',
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'برگشت انتقال ناموفق بود', 500);
+    throw new AppError(err.message || 'د لیږد بیرته راګرځول ناکام شو', 500);
   }
 });

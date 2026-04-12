@@ -18,7 +18,9 @@ const unitSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Unit',
       required: function() {
-        return !this.is_base_unit;
+        // Only required if is_base_unit is explicitly false
+        // During updates, if is_base_unit is not being changed, don't enforce
+        return this.is_base_unit === false;
       }
     },
     is_base_unit: {

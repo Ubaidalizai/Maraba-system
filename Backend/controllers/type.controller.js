@@ -10,7 +10,7 @@ const createType = asyncHandler(async (req, res, next) => {
 
   const typeExists = await Type.findOne({ name, isDeleted: false });
   if (typeExists) {
-    throw new AppError("Type with this name already exists", 400);
+    throw new AppError("د دې نوم سره ډول دمخه شتون لري", 400);
   }
 
   const type = await Type.create({ name, address, contactNumber, email });
@@ -58,7 +58,7 @@ const getType = asyncHandler(async (req, res, next) => {
   });
 
   if (!type) {
-    throw new AppError("Type not found", 404);
+    throw new AppError("ډول ونه موندل شو", 404);
   }
 
   res.status(200).json({
@@ -78,7 +78,7 @@ const updateType = asyncHandler(async (req, res, next) => {
   );
 
   if (!type) {
-    throw new AppError("Type not found or already deleted", 404);
+    throw new AppError("ډول ونه موندل شو یا دمخه حذف شوی دی", 404);
   }
 
   res.status(200).json({
@@ -98,12 +98,12 @@ const deleteType = asyncHandler(async (req, res, next) => {
   );
 
   if (!type) {
-    throw new AppError("Type not found or already deleted", 404);
+    throw new AppError("ډول ونه موندل شو یا دمخه حذف شوی دی", 404);
   }
 
   res.status(200).json({
     status: "success",
-    message: "Type deleted successfully (soft delete applied)",
+    message: "ډول په بریالیتوب سره حذف شو",
   });
 });
 

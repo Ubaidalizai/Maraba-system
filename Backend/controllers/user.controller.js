@@ -36,7 +36,7 @@ const registerUser = asyncHandler(async (req, res) => {
   if (userExists) {
     return res.status(409).send({
       success: false,
-      message: 'کاربر با این ایمیل آدرس از قبل موجود است',
+      message: 'د دې برېښنا پتې سره کاروونکی دمخه شتون لري',
     });
   }
 
@@ -54,7 +54,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'کاربر جدید با موفقیت اضافه شد',
+      message: 'نوی کاروونکی په بریالیتوب سره زیات شو',
       user: {
         _id: newUser._id,
         name: newUser.name,
@@ -69,7 +69,7 @@ const registerUser = asyncHandler(async (req, res) => {
     console.error('Error saving user:', error);
     res.status(500).send({
       success: false,
-      message: 'خطا در ذخیره کاربر، لطفاً بعداً دوباره تلاش کنید',
+      message: 'د کاروونکي د ذخیره کولو کې ستونزه، مهرباني وروسته بیا هڅه وکړئ',
     });
   }
 });
@@ -96,13 +96,13 @@ const updateUserPhoto = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(404).json({
       success: false,
-      message: 'کاربر یافت نشد',
+      message: 'کاروونکی ونه موندل شو',
     });
   }
 
   res.status(200).json({
     success: true,
-    message: 'عکس کاربر با موفقیت بروزرسانی شد',
+    message: 'د کاروونکي انځور په بریالیتوب سره تازه شو',
     data: user,
   });
 });
@@ -131,7 +131,7 @@ const loginUser = asyncHandler(async (req, res) => {
   } else {
     res.status(401).json({
       success: false,
-      message: 'ایمیل یا رمز عبور نادرست است!',
+      message: 'برېښنا پته یا پاسورډ ناسم دی!',
     });
   }
 });
@@ -140,7 +140,7 @@ const logout = (req, res) => {
   clearAuthCookies(res);
   res.status(200).json({
     success: true,
-    message: 'با موفقیت خارج شدید',
+    message: 'په بریالیتوب سره وځی شوئ',
   });
 };
 
@@ -149,7 +149,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   if (!token) {
     return res
       .status(401)
-      .json({ success: false, message: 'توکن تازه سازی موجود نیست' });
+      .json({ success: false, message: 'د تازه کولو ټوکن شتون نلري' });
   }
 
   try {
@@ -158,13 +158,13 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     if (!currentUser) {
       return res
         .status(401)
-        .json({ success: false, message: 'کاربر دیگر وجود ندارد' });
+        .json({ success: false, message: 'کاروونکی نور شتون نلري' });
     }
 
     if (currentUser.changedPasswordAfter(decoded.iat)) {
       return res
         .status(401)
-        .json({ success: false, message: 'کاربر اخیراً رمز عبور را تغییر داده است' });
+        .json({ success: false, message: 'کاروونکي په وروستي کې پاسورډ بدل کړی دی' });
     }
 
     const newAccessToken = generateAccessToken(currentUser._id);
@@ -173,7 +173,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   } catch (err) {
     return res
       .status(401)
-      .json({ success: false, message: 'توکن تازه سازی نامعتبر یا منقضی شده است' });
+      .json({ success: false, message: 'د تازه کولو ټوکن ناسم یا مهال تیر شوی دی' });
   }
 });
 
@@ -183,7 +183,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(404).json({
       success: false,
-      message: 'کاربر یافت نشد',
+      message: 'کاروونکی ونه موندل شو',
     });
   }
 
@@ -222,7 +222,7 @@ const updateUserById = asyncHandler(async (req, res) => {
       if (emailExists) {
         return res.status(409).send({
           success: false,
-          message: 'کاربر با این ایمیل آدرس از قبل موجود است',
+          message: 'د دې برېښنا پتې سره کاروونکی دمخه شتون لري',
         });
       }
     }
@@ -253,7 +253,7 @@ const updateUserById = asyncHandler(async (req, res) => {
   } else {
     return res.status(404).json({
       success: false,
-      message: 'کاربر یافت نشد!',
+      message: 'کاروونکی ونه موندل شو!',
     });
   }
 });
@@ -280,7 +280,7 @@ const updateCurrentUserProfile = asyncHandler(async (req, res) => {
       if (emailExists) {
         return res.status(409).send({
           success: false,
-          message: 'کاربر با این ایمیل آدرس از قبل موجود است',
+          message: 'د دې برېښنا پتې سره کاروونکی دمخه شتون لري',
         });
       }
     }
@@ -311,7 +311,7 @@ const updateCurrentUserProfile = asyncHandler(async (req, res) => {
   } else {
     return res.status(404).json({
       success: false,
-      message: 'کاربر یافت نشد',
+      message: 'کاروونکی ونه موندل شو',
     });
   }
 });
@@ -342,7 +342,7 @@ const findUserByID = asyncHandler(async (req, res, next) => {
   } else {
     return res.status(404).json({
       success: false,
-      message: 'کاربر یافت نشد',
+      message: 'کاروونکی ونه موندل شو',
     });
   }
 });
@@ -355,7 +355,7 @@ const deleteUserByID = asyncHandler(async (req, res, next) => {
     if (user.isAdmin) {
       return res.status(400).json({
         success: false,
-        message: 'نمیتوان کاربر را به عنوان ادمین حذف کرد!',
+        message: 'د ادمین په توګه کاروونکی حذف کیدای نشي!',
       });
     }
 
@@ -364,11 +364,11 @@ const deleteUserByID = asyncHandler(async (req, res, next) => {
     }
 
     await User.deleteOne({ _id: user._id });
-    res.status(204).json({ message: 'کاربر با موفقیت حذف شد' });
+    res.status(204).json({ message: 'کاروونکی په بریالیتوب سره حذف شو' });
   } else {
     return res.status(404).json({
       success: false,
-      message: 'کاربر یافت نشد!',
+      message: 'کاروونکی ونه موندل شو!',
     });
   }
 });
@@ -381,7 +381,7 @@ const updatePassword = asyncHandler(async (req, res, next) => {
   if (!currentPassword || !newPassword) {
     return res.status(400).send({
       success: false,
-      message: 'رمز عبور فعلی و جدید الزامی است',
+      message: 'اوسنی پاسورډ او نوی پاسورډ اړین دی',
     });
   }
 
@@ -390,7 +390,7 @@ const updatePassword = asyncHandler(async (req, res, next) => {
   if (!user) {
     return res.status(404).send({
       success: false,
-      message: 'کاربر یافت نشد',
+      message: 'کاروونکی ونه موندل شو',
     });
   }
 
@@ -398,7 +398,7 @@ const updatePassword = asyncHandler(async (req, res, next) => {
   if (!isMatch) {
     return res.status(401).send({
       success: false,
-      message: 'رمز عبور فعلی شما نادرست است',
+      message: 'ستاسو اوسنی پاسورډ ناسم دی',
     });
   }
 
@@ -407,7 +407,7 @@ const updatePassword = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     status: 'success',
-    message: 'رمز عبور شما با موفقیت بروزرسانی شد',
+    message: 'ستاسو پاسورډ په بریالیتوب سره تازه شو',
   });
 });
 
@@ -416,7 +416,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
   if (!user) {
     return res.status(404).send({
       success: false,
-      message: 'هیچ کاربری با این ایمیل آدرس وجود ندارد.',
+      message: 'د دې برېښنا پتې سره هیڅ کاروونکی شتون نلري.',
     });
   }
 
@@ -430,7 +430,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       status: 'success',
-      message: 'توکن به ایمیل ارسال شد، به ایمیل خود بروید و روی لینک ارسالی کلیک کنید!',
+      message: 'ټوکن برېښنا پتې ته ولیږل شو، خپلې برېښنا پتې ته لاړ شئ او د لیږل شوي لینک په کلیک وکړئ!',
     });
   } catch (err) {
     user.passwordResetToken = undefined;
@@ -440,7 +440,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
     console.error(err);
     return res.status(500).send({
       success: false,
-      message: 'خطا در ارسال ایمیل رخ داد. لطفاً بعداً دوباره تلاش کنید!',
+      message: 'د برېښنا پتې د لیږلو کې ستونزه رامنځته شوه. مهرباني وروسته بیا هڅه وکړئ!',
     });
   }
 });
@@ -459,7 +459,7 @@ const resetPassword = asyncHandler(async (req, res, next) => {
   if (!user) {
     return res.status(400).send({
       success: false,
-      message: 'توکن نامعتبر یا منقضی شده است!',
+      message: 'ټوکن ناسم یا مهال تیر شوی دی!',
     });
   }
   user.password = req.body.password;
@@ -472,7 +472,7 @@ const resetPassword = asyncHandler(async (req, res, next) => {
   setAuthCookies(res, accessToken, refreshToken);
   res.status(200).json({
     status: 'success',
-    message: 'رمز عبور شما با موفقیت بازنشانی شد',
+    message: 'ستاسو پاسورډ په بریالیتوب سره بیرته تنظیم شو',
     accessToken,
   });
 });

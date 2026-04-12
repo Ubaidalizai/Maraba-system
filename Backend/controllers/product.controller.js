@@ -27,10 +27,10 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
     isDeleted: false,
   });
   if (existing)
-    throw new AppError('Product with this name already exists', 400);
+    throw new AppError('د دې نوم سره محصول دمخه شتون لري', 400);
 
   const unit = await Unit.findById(baseUnit);
-  if (!unit) throw new AppError('Invalid base unit ID', 400);
+  if (!unit) throw new AppError('ناسم اساسي واحد ID', 400);
 
   const product = await Product.create({
     name: name.trim(),
@@ -43,7 +43,7 @@ exports.createProduct = asyncHandler(async (req, res, next) => {
 
   res.status(201).json({
     success: true,
-    message: 'Product created successfully',
+    message: 'محصول په بریالیتوب سره جوړ شو',
     product,
   });
 });
@@ -90,7 +90,7 @@ exports.getProductById = asyncHandler(async (req, res, next) => {
   );
 
   if (!product || product.isDeleted)
-    throw new AppError('Product not found', 404);
+    throw new AppError('محصول ونه موندل شو', 404);
 
   res.status(200).json({ success: true, product });
 });
@@ -103,13 +103,13 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
 
   const product = await Product.findById(req.params.id);
   if (!product || product.isDeleted)
-    throw new AppError('Product not found', 404);
+    throw new AppError('محصول ونه موندل شو', 404);
 
   const { name, description, minLevel, baseUnit } = req.body;
 
   if (baseUnit) {
     const unit = await Unit.findById(baseUnit);
-    if (!unit) throw new AppError('Invalid base unit ID', 400);
+    if (!unit) throw new AppError('ناسم اساسي واحد ID', 400);
   }
 
   product.name = name ?? product.name;
@@ -121,7 +121,7 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: 'Product updated successfully',
+    message: 'محصول په بریالیتوب سره تازه شو',
     product,
   });
 });
@@ -131,14 +131,14 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
 exports.softDeleteProduct = asyncHandler(async (req, res, next) => {
   const product = await Product.findById(req.params.id);
   if (!product || product.isDeleted)
-    throw new AppError('Product not found', 404);
+    throw new AppError('محصول ونه موندل شو', 404);
 
   product.isDeleted = true;
   await product.save();
 
   res.status(200).json({
     success: true,
-    message: 'Product deleted successfully',
+    message: 'محصول په بریالیتوب سره حذف شو',
   });
 });
 
@@ -147,14 +147,14 @@ exports.softDeleteProduct = asyncHandler(async (req, res, next) => {
 exports.restoreProduct = asyncHandler(async (req, res, next) => {
   const product = await Product.findById(req.params.id);
   if (!product || !product.isDeleted)
-    throw new AppError('Product not found or not deleted', 404);
+    throw new AppError('محصول ونه موندل شو یا حذف شوی نه دی', 404);
 
   product.isDeleted = false;
   await product.save();
 
   res.status(200).json({
     success: true,
-    message: 'Product restored successfully',
+    message: 'محصول په بریالیتوب سره بیرته راستون شو',
     product,
   });
 });

@@ -22,14 +22,14 @@ const { getOrCreateAccount } = require('../utils/accountHelper');
 // Helper function to validate account balance
 const validateAccountBalance = async (accountId, requiredAmount, session) => {
   const account = await Account.findById(accountId).session(session);
-  if (!account) throw new AppError('Account not found', 404);
+  if (!account) throw new AppError('حساب ونه موندل شو', 404);
   
   if (requiredAmount > 0) {
     // Only validate cashier and safe accounts - they cannot go negative
     if (account.type === 'cashier' || account.type === 'safe') {
       if (account.currentBalance < requiredAmount) {
         throw new AppError(
-          `موجودی ناکافی! در حساب ${account.name} موجودی: ${account.currentBalance.toLocaleString()} افغانی، مبلغ مورد نیاز: ${requiredAmount.toLocaleString()} افغانی`,
+          `ناکافي موجودي! په ${account.name} حساب کې موجودي: ${account.currentBalance.toLocaleString()} افغانۍ، اړین مقدار: ${requiredAmount.toLocaleString()} افغانۍ`,
           400
         );
       }
@@ -63,14 +63,14 @@ exports.createSale = asyncHandler(async (req, res, next) => {
     // validate placedIn account
     const account = await Account.findById(placedIn).session(session);
     if (!account)
-      throw new AppError('Invalid account for money placement (placedIn)', 400);
+      throw new AppError('د پیسو د ځای په ځای کولو لپاره ناسم حساب (placedIn)', 400);
 
     // Prepare customer account (if provided) before creating sale so it participates in the transaction
     let customerAccount = null;
     let customerNameSnapshot = '';
     if (customer) {
       const customerDoc = await Customer.findById(customer).session(session);
-      if (!customerDoc) throw new AppError('Invalid customer ID', 400);
+      if (!customerDoc) throw new AppError('ناسم پیرودونکی ID', 400);
       customerNameSnapshot = customerDoc.name;
       customerAccount = await getOrCreateAccount({
         refId: customer,
@@ -110,10 +110,10 @@ exports.createSale = asyncHandler(async (req, res, next) => {
         .populate('baseUnit', 'name')
         .session(session);
       if (!product)
-        throw new AppError(`Invalid product ID: ${item.product}`, 400);
+        throw new AppError(`ناسم محصول ID: ${item.product}`, 400);
 
       const unit = await Unit.findById(item.unit).session(session);
-      if (!unit) throw new AppError('Invalid unit ID', 400);
+      if (!unit) throw new AppError('ناسم واحد ID', 400);
 
       const baseQty = item.quantity * unit.conversion_to_base;
       let remainingQty = baseQty;
@@ -133,7 +133,7 @@ exports.createSale = asyncHandler(async (req, res, next) => {
 
         if (!empStock || empStock.quantity_in_hand < baseQty) {
           throw new AppError(
-            `Employee has insufficient stock for ${product.name} in batch ${targetBatch}`,
+            `کارکوونکی د ${product.name} لپاره په ${targetBatch} بیچ کې ناکافي سټاک لري`,
             400
           );
         }
@@ -165,7 +165,7 @@ exports.createSale = asyncHandler(async (req, res, next) => {
 
             if (!batchStock || batchStock.quantity < remainingQty) {
               throw new AppError(
-                `Insufficient stock in batch ${item.batchNumber} for ${product.name}`,
+                `د ${product.name} لپاره په ${item.batchNumber} بیچ کې ناکافي سټاک`,
                 400
               );
             }
@@ -205,7 +205,7 @@ exports.createSale = asyncHandler(async (req, res, next) => {
               .session(session);
 
             if (availableBatches.length === 0)
-              throw new AppError(`No stock available for ${product.name}`, 400);
+              throw new AppError(`د ${product.name} لپاره سټاک شتون نلري`, 400);
 
             for (const batch of availableBatches) {
               if (remainingQty <= 0) break;
@@ -237,7 +237,7 @@ exports.createSale = asyncHandler(async (req, res, next) => {
 
             if (remainingQty > 0)
               throw new AppError(
-                `Insufficient total stock for ${product.name}`,
+                `د ${product.name} لپاره ټول سټاک ناکافي دی`,
                 400
               );
           }
@@ -250,7 +250,7 @@ exports.createSale = asyncHandler(async (req, res, next) => {
           }).session(session);
 
           if (!defaultBatch || defaultBatch.quantity < remainingQty)
-            throw new AppError(`Insufficient stock for ${product.name}`, 400);
+            throw new AppError(`د ${product.name} لپاره ناکافي سټاک`, 400);
 
           // Ensure required fields are present (for legacy stock records)
           if (!defaultBatch.unit) {
@@ -348,7 +348,7 @@ exports.createSale = asyncHandler(async (req, res, next) => {
         type: 'employee',
       }).session(session);
       if (!employeeAccountDoc)
-        throw new AppError('Employee account not found', 404);
+        throw new AppError('د کارکوونکي حساب ونه موندل شو', 404);
 
       await AccountTransaction.create(
         [
@@ -455,7 +455,7 @@ exports.createSale = asyncHandler(async (req, res, next) => {
     // Respond with sale (populate if desired on client)
     res.status(201).json({
       success: true,
-      message: 'Sale created successfully',
+      message: 'پلور په بریالیتوب سره جوړ شو',
       sale: saleDoc,
       totalProfit,
     });
@@ -463,7 +463,7 @@ exports.createSale = asyncHandler(async (req, res, next) => {
     await session.abortTransaction();
     session.endSession();
     // prefer rethrowing known AppError messages
-    throw new AppError(err.message || 'Failed to create sale', 500);
+    throw new AppError(err.message || 'د پلور په جوړولو کې ناکامي', 500);
   }
 });
 
@@ -569,7 +569,7 @@ exports.getSale = asyncHandler(async (req, res) => {
     .populate('soldBy', 'name email')
     .populate('placedIn', 'name type');
   
-  if (!sale) throw new AppError('Sale not found', 404);
+  if (!sale) throw new AppError('پلور ونه موندل شو', 404);
 
   const items = await SaleItem.find({
     sale: sale._id,
@@ -599,7 +599,7 @@ exports.updateSale = asyncHandler(async (req, res, next) => {
 
   try {
     const sale = await Sale.findById(req.params.id).session(session);
-    if (!sale || sale.isDeleted) throw new AppError('Sale not found', 404);
+    if (!sale || sale.isDeleted) throw new AppError('پلور ونه موندل شو', 404);
 
     const oldItems = await SaleItem.find({ sale: sale._id }).session(session);
     const oldSaleSnapshot = {
@@ -621,7 +621,7 @@ exports.updateSale = asyncHandler(async (req, res, next) => {
     // 1️⃣ Validate placedIn account (Dakhal/Tajri/Saraf)
     if (placedIn) {
       const acc = await Account.findById(placedIn).session(session);
-      if (!acc) throw new AppError('Invalid account for money placement', 400);
+      if (!acc) throw new AppError('د پیسو د ځای په ځای کولو لپاره ناسم حساب', 400);
       sale.placedIn = placedIn;
     }
 
@@ -631,7 +631,7 @@ exports.updateSale = asyncHandler(async (req, res, next) => {
     if (paidAmount !== undefined) sale.paidAmount = paidAmount;
     if (customer) {
       const customerExists = await Customer.findById(customer).session(session);
-      if (!customerExists) throw new AppError('Invalid customer ID', 400);
+      if (!customerExists) throw new AppError('ناسم پیرودونکی ID', 400);
       sale.customer = customer;
 
       // Ensure account exists for this customer and store reference
@@ -668,10 +668,10 @@ exports.updateSale = asyncHandler(async (req, res, next) => {
 
     for (const item of items) {
       const product = await Product.findById(item.product).session(session);
-      if (!product) throw new AppError('Invalid product ID', 400);
+      if (!product) throw new AppError('ناسم محصول ID', 400);
 
       const unit = await Unit.findById(item.unit).session(session);
-      if (!unit) throw new AppError('Invalid unit ID', 400);
+      if (!unit) throw new AppError('ناسم واحد ID', 400);
 
       const baseQty = item.quantity * unit.conversion_to_base;
       const stockLoc = sale.employee ? 'employee' : 'store';
@@ -681,7 +681,7 @@ exports.updateSale = asyncHandler(async (req, res, next) => {
       }).session(session);
 
       if (!stock || stock.quantity < baseQty) {
-        throw new AppError(`Insufficient stock for ${product.name}`, 400);
+        throw new AppError(`د ${product.name} لپاره ناکافي سټاک`, 400);
       }
 
       // Deduct new stock
@@ -722,7 +722,7 @@ exports.updateSale = asyncHandler(async (req, res, next) => {
       const customerAcc = sale.customerAccount
         ? await Account.findById(sale.customerAccount).session(session)
         : await getOrCreateAccount({ refId: sale.customer, type: 'customer', name: sale.customerName || '', session });
-      if (!customerAcc) throw new AppError('Customer account not found', 404);
+      if (!customerAcc) throw new AppError('د پیرودونکي حساب ونه موندل شو', 404);
 
       const saleTxn = await AccountTransaction.findOne({
         referenceType: 'sale',
@@ -784,14 +784,14 @@ exports.updateSale = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Sale updated successfully (rollback-safe)',
+      message: 'پلور په بریالیتوب سره تازه شو',
       sale,
       totalProfit,
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to update sale', 500);
+    throw new AppError(err.message || 'د پلور په تازه کولو کې ناکامي', 500);
   }
 });
 
@@ -803,7 +803,7 @@ exports.deleteSale = asyncHandler(async (req, res) => {
 
   try {
     const sale = await Sale.findById(req.params.id).session(session);
-    if (!sale || sale.isDeleted) throw new AppError('Sale not found', 404);
+    if (!sale || sale.isDeleted) throw new AppError('پلور ونه موندل شو', 404);
 
     const saleItems = await SaleItem.find({ sale: sale._id }).session(session);
 
@@ -872,12 +872,12 @@ exports.deleteSale = asyncHandler(async (req, res) => {
     res.status(200).json({
       success: true,
       message:
-        'Sale soft-deleted successfully. Stock and accounts rolled back.',
+        'پلور په بریالیتوب سره حذف شو',
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to delete sale', 500);
+    throw new AppError(err.message || 'د پلور په حذف کولو کې ناکامي', 500);
   }
 });
 
@@ -890,7 +890,7 @@ exports.restoreSale = asyncHandler(async (req, res, next) => {
   try {
     const sale = await Sale.findById(req.params.id).session(session);
     if (!sale || !sale.isDeleted)
-      throw new AppError('Sale not found or not deleted', 404);
+      throw new AppError('پلور ونه موندل شو یا حذف شوی نه دی', 404);
 
     const saleItems = await SaleItem.find({ sale: sale._id }).session(session);
 
@@ -910,7 +910,7 @@ exports.restoreSale = asyncHandler(async (req, res, next) => {
         
         if (!empStock || empStock.quantity_in_hand < baseQty) {
           throw new AppError(
-            `Insufficient employee stock to restore sale for product ${item.product} in batch ${targetBatch}`,
+            `د ${item.product} محصول لپاره په ${targetBatch} بیچ کې د کارکوونکي ناکافي سټاک د پلور بیرته راستنیدو لپاره`,
             400
           );
         }
@@ -927,7 +927,7 @@ exports.restoreSale = asyncHandler(async (req, res, next) => {
         
         if (!stock || stock.quantity < baseQty) {
           throw new AppError(
-            `Insufficient stock to restore sale for ${item.product}`,
+            `د ${item.product} لپاره د پلور بیرته راستنیدو لپاره ناکافي سټاک`,
             400
           );
         }
@@ -1016,12 +1016,12 @@ exports.restoreSale = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Sale restored successfully and transactions reapplied.',
+      message: 'پلور په بریالیتوب سره بیرته راستون شو',
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to restore sale', 500);
+    throw new AppError(err.message || 'د پلور په بیرته راستنیدو کې ناکامي', 500);
   }
 });
 
@@ -1043,10 +1043,10 @@ exports.returnSaleItem = asyncHandler(async (req, res, next) => {
 
   try {
     const sale = await Sale.findById(saleId).session(session);
-    if (!sale || sale.isDeleted) throw new AppError('Sale not found', 404);
+    if (!sale || sale.isDeleted) throw new AppError('پلور ونه موندل شو', 404);
 
     const unit = await Unit.findById(unitId).session(session);
-    if (!unit) throw new AppError('Invalid unit ID', 400);
+    if (!unit) throw new AppError('ناسم واحد ID', 400);
     const baseQty = quantity * unit.conversion_to_base;
 
     const item = await SaleItem.findOne({
@@ -1054,7 +1054,7 @@ exports.returnSaleItem = asyncHandler(async (req, res, next) => {
       product: productId,
     }).session(session);
     if (!item || item.quantity < quantity)
-      throw new AppError('Invalid return quantity', 400);
+      throw new AppError('ناسم بیرته راستنیدونکی مقدار', 400);
 
     const oldItemSnapshot = { ...item.toObject() };
     const oldSaleSnapshot = { ...sale.toObject() };
@@ -1083,7 +1083,7 @@ exports.returnSaleItem = asyncHandler(async (req, res, next) => {
       // Riding man sale → return to his employee stock
       // Get the product to fetch latest purchase price
       const product = await Product.findById(productId).session(session);
-      if (!product) throw new AppError('Product not found', 404);
+      if (!product) throw new AppError('محصول ونه موندل شو', 404);
       
       // Determine target batch (use item's batchNumber or DEFAULT)
       const targetBatch = item.batchNumber || 'DEFAULT';
@@ -1108,7 +1108,7 @@ exports.returnSaleItem = asyncHandler(async (req, res, next) => {
         const originalBatch = item.batchNumber || 'DEFAULT';
         if (originalBatch === 'MULTI') {
           throw new AppError(
-            'Batch number is required to return items sold from multiple batches',
+            'د څو بیچونو څخه پلورل شوي توکو بیرته راستنیدو لپاره د بیچ شمیره اړینه ده',
             400
           );
         }
@@ -1131,7 +1131,7 @@ exports.returnSaleItem = asyncHandler(async (req, res, next) => {
       } else {
         // Need to create new stock with all required fields
         const product = await Product.findById(productId).session(session);
-        if (!product) throw new AppError('Product not found', 404);
+        if (!product) throw new AppError('محصول ونه موندل شو', 404);
 
         await Stock.create(
           [
@@ -1206,13 +1206,13 @@ exports.returnSaleItem = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Product returned successfully',
+      message: 'محصول په بریالیتوب سره بیرته راستون شو',
       saleReturn: saleReturn[0],
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to process sale return', 500);
+    throw new AppError(err.message || 'د پلور بیرته راستنیدو په پروسس کولو کې ناکامي', 500);
   }
 });
 
@@ -1261,7 +1261,7 @@ exports.getSaleReturn = asyncHandler(async (req, res, next) => {
     .populate('unit', 'name conversion_to_base')
     .populate('handledBy', 'name email');
 
-  if (!saleReturn) throw new AppError('Sale return not found', 404);
+  if (!saleReturn) throw new AppError('د پلور بیرته راستنیدنه ونه موندل شوه', 404);
 
   res.status(200).json({
     success: true,
@@ -1281,11 +1281,11 @@ exports.updateSaleReturn = asyncHandler(async (req, res, next) => {
 
     const saleReturn = await SaleReturn.findById(returnId).session(session);
     if (!saleReturn || saleReturn.isDeleted)
-      throw new AppError('Sale return not found', 404);
+      throw new AppError('د پلور بیرته راستنیدنه ونه موندل شوه', 404);
 
     const sale = await Sale.findById(saleReturn.sale).session(session);
     if (!sale || sale.isDeleted)
-      throw new AppError('Parent sale not found', 404);
+      throw new AppError('اصلي پلور ونه موندل شو', 404);
 
     const oldReturnSnapshot = { ...saleReturn.toObject() };
 
@@ -1346,7 +1346,7 @@ exports.updateSaleReturn = asyncHandler(async (req, res, next) => {
     const newUnit = unitId ?? saleReturn.unit;
 
     const unitDoc = await Unit.findById(newUnit).session(session);
-    if (!unitDoc) throw new AppError('Invalid unit ID', 400);
+    if (!unitDoc) throw new AppError('ناسم واحد ID', 400);
     const newBaseQty = newQuantity * unitDoc.conversion_to_base;
 
     // ➕ Restore stock for new values
@@ -1374,7 +1374,7 @@ exports.updateSaleReturn = asyncHandler(async (req, res, next) => {
         const product = await Product.findById(saleReturn.product).session(
           session
         );
-        if (!product) throw new AppError('Product not found', 404);
+        if (!product) throw new AppError('محصول ونه موندل شو', 404);
 
         await Stock.create(
           [
@@ -1450,13 +1450,13 @@ exports.updateSaleReturn = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Sale return updated successfully',
+      message: 'د پلور بیرته راستنیدنه په بریالیتوب سره تازه شوه',
       saleReturn,
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to update sale return', 500);
+    throw new AppError(err.message || 'د پلور بیرته راستنیدنې په تازه کولو کې ناکامي', 500);
   }
 });
 
@@ -1471,11 +1471,11 @@ exports.deleteSaleReturn = asyncHandler(async (req, res, next) => {
       session
     );
     if (!saleReturn || saleReturn.isDeleted)
-      throw new AppError('Sale return not found', 404);
+      throw new AppError('د پلور بیرته راستنیدنه ونه موندل شوه', 404);
 
     const sale = await Sale.findById(saleReturn.sale).session(session);
     if (!sale || sale.isDeleted)
-      throw new AppError('Parent sale not found', 404);
+      throw new AppError('اصلي پلور ونه موندل شو', 404);
 
     const oldReturnSnapshot = { ...saleReturn.toObject() };
 
@@ -1560,12 +1560,12 @@ exports.deleteSaleReturn = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Sale return soft deleted successfully',
+      message: 'د پلور بیرته راستنیدنه په بریالیتوب سره حذف شوه',
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to delete sale return', 500);
+    throw new AppError(err.message || 'د پلور بیرته راستنیدنې په حذف کولو کې ناکامي', 500);
   }
 });
 
@@ -1578,11 +1578,11 @@ exports.restoreSaleReturn = asyncHandler(async (req, res, next) => {
       session
     );
     if (!saleReturn || !saleReturn.isDeleted)
-      throw new AppError('Sale return not found or not deleted', 404);
+      throw new AppError('د پلور بیرته راستنیدنه ونه موندل شوه یا حذف شوې نه ده', 404);
 
     const sale = await Sale.findById(saleReturn.sale).session(session);
     if (!sale || sale.isDeleted)
-      throw new AppError('Parent sale not found', 404);
+      throw new AppError('اصلي پلور ونه موندل شو', 404);
 
     const unit = await Unit.findById(saleReturn.unit).session(session);
     const baseQty = saleReturn.quantity * unit.conversion_to_base;
@@ -1627,7 +1627,7 @@ exports.restoreSaleReturn = asyncHandler(async (req, res, next) => {
         const product = await Product.findById(saleReturn.product).session(
           session
         );
-        if (!product) throw new AppError('Product not found', 404);
+        if (!product) throw new AppError('محصول ونه موندل شو', 404);
 
         await Stock.create(
           [
@@ -1672,13 +1672,13 @@ exports.restoreSaleReturn = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Sale return restored successfully',
+      message: 'د پلور بیرته راستنیدنه په بریالیتوب سره بیرته راستونه شوه',
       saleReturn,
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to restore sale return', 500);
+    throw new AppError(err.message || 'د پلور بیرته راستنیدنې په بیرته راستنیدو کې ناکامي', 500);
   }
 });
 
@@ -1688,8 +1688,13 @@ exports.recordSalePayment = asyncHandler(async (req, res, next) => {
   const { amount, paymentAccount, description } = req.body;
   const saleId = req.params.id;
 
+  // Validate saleId
+  if (!saleId || saleId === 'null' || saleId === 'undefined') {
+    throw new AppError('سم د پلور ID اړین دی', 400);
+  }
+
   if (!amount || amount <= 0) {
-    throw new AppError('Payment amount must be greater than 0', 400);
+    throw new AppError('د تادیې مقدار باید له 0 څخه زیات وي', 400);
   }
 
   const session = await mongoose.startSession();
@@ -1699,7 +1704,7 @@ exports.recordSalePayment = asyncHandler(async (req, res, next) => {
     // 1️⃣ Find the sale
     const sale = await Sale.findById(saleId).session(session);
     if (!sale || sale.isDeleted) {
-      throw new AppError('Sale not found', 404);
+      throw new AppError('پلور ونه موندل شو', 404);
     }
 
     // 2️⃣ Calculate remaining due
@@ -1707,7 +1712,7 @@ exports.recordSalePayment = asyncHandler(async (req, res, next) => {
     
     if (amount > remainingDue) {
       throw new AppError(
-        `Payment amount (${amount}) exceeds remaining due (${remainingDue})`,
+        `د تادیې مقدار (${amount}) له پاتې پور (${remainingDue}) څخه زیات دی`,
         400
       );
     }
@@ -1720,14 +1725,14 @@ exports.recordSalePayment = asyncHandler(async (req, res, next) => {
         : await Account.findOne({ refId: sale.customer, type: 'customer', isDeleted: false }).session(session);
 
       if (!customerAccount) {
-        throw new AppError('Customer account not found', 404);
+        throw new AppError('د پیرودونکي حساب ونه موندل شو', 404);
       }
     }
 
     // 4️⃣ Validate payment account
     const payAccount = await Account.findById(paymentAccount).session(session);
     if (!payAccount || payAccount.isDeleted) {
-      throw new AppError('Payment account not found', 404);
+      throw new AppError('د تادیې حساب ونه موندل شو', 404);
     }
 
     // 5️⃣ Create payment transactions
@@ -1797,7 +1802,7 @@ exports.recordSalePayment = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Payment recorded successfully',
+      message: 'تادیه په بریالیتوب سره ثبت شوه',
       sale: {
         _id: sale._id,
         totalAmount: sale.totalAmount,
@@ -1813,7 +1818,7 @@ exports.recordSalePayment = asyncHandler(async (req, res, next) => {
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to record payment', 500);
+    throw new AppError(err.message || 'د تادیې په ثبتولو کې ناکامي', 500);
   }
 });
 
@@ -1825,7 +1830,7 @@ exports.getSalesReports = asyncHandler(async (req, res, next) => {
   const { startDate, endDate, groupBy = 'day', includeProfit = 'false' } = req.query;
 
   if (!startDate || !endDate) {
-    throw new AppError('Start date and end date are required', 400);
+    throw new AppError('د پیل او پای نیټه اړینه ده', 400);
   }
 
   const matchStage = {
@@ -1870,7 +1875,7 @@ exports.getSalesReports = asyncHandler(async (req, res, next) => {
       break;
     default:
       throw new AppError(
-        'Invalid groupBy parameter. Must be day, week, or month',
+        'ناسم groupBy پیرامیټر. باید ورځ، اونۍ، یا میاشت وي',
         400
       );
   }

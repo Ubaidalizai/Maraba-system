@@ -426,7 +426,7 @@ exports.getProfitSummary = asyncHandler(async (req, res, next) => {
   const { startDate, endDate, groupBy = 'day' } = req.query;
 
   if (!startDate || !endDate) {
-    throw new AppError('Start date and end date are required', 400);
+    throw new AppError('د پیل او پای نیټه اړینه ده', 400);
   }
 
   const start = new Date(startDate);
@@ -503,7 +503,7 @@ exports.getProfitSummary = asyncHandler(async (req, res, next) => {
       break;
     default:
       throw new AppError(
-        'Invalid groupBy parameter. Must be day, week, or month',
+        'ناسم groupBy پیرامیټر. باید ورځ، اونۍ، یا میاشت وي',
         400
       );
   }

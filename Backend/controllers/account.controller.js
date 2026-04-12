@@ -60,7 +60,7 @@ exports.createAccount = asyncHandler(async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Account created successfully',
+      message: 'حساب په بریالیتوب سره جوړ شو',
       account: account[0],
     });
   } catch (err) {
@@ -163,7 +163,7 @@ exports.updateAccount = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Account updated successfully',
+      message: 'حساب په بریالیتوب سره تازه شو',
       account,
     });
   } catch (err) {
@@ -209,7 +209,7 @@ exports.deleteAccount = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Account soft deleted successfully',
+      message: 'حساب په بریالیتوب سره حذف شو',
     });
   } catch (err) {
     await session.abortTransaction();
@@ -255,7 +255,7 @@ exports.restoreAccount = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Account restored successfully',
+      message: 'حساب په بریالیتوب سره بیرته راستون شو',
       account,
     });
   } catch (err) {

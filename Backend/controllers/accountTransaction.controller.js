@@ -181,7 +181,7 @@ exports.getAllTransactions = asyncHandler(async (req, res, next) => {
           .populate('supplier', 'name');
         if (purchase) {
           tx.referenceData = purchase;
-          tx.referenceData.reference = `خرید ${purchase.purchaseNumber} - ${purchase.supplier?.name || 'Unknown'}`;
+          tx.referenceData.reference = `پیرود ${purchase.purchaseNumber} - ${purchase.supplier?.name || 'Unknown'}`;
         }
       } else if (tx.referenceType === 'sale') {
         const sale = await Sale.findById(tx.referenceId)
@@ -189,7 +189,7 @@ exports.getAllTransactions = asyncHandler(async (req, res, next) => {
           .populate('customer', 'name');
         if (sale) {
           tx.referenceData = sale;
-          tx.referenceData.reference = `فروش ${sale.saleNumber} - ${sale.customer?.name || 'Unknown'}`;
+          tx.referenceData.reference = `پلور ${sale.saleNumber} - ${sale.customer?.name || 'Unknown'}`;
         }
       } else if (tx.referenceType) {
         // For any other referenceType, attempt to populate name if the model has it
@@ -355,7 +355,7 @@ const validateAccountBalance = async (accountId, requiredAmount, session) => {
     if (account.type === 'cashier' || account.type === 'safe') {
       if (account.currentBalance < requiredAmount) {
         throw new AppError(
-          `موجودی ناکافی! در حساب ${account.name} موجودی: ${account.currentBalance.toLocaleString()} افغانی، مبلغ مورد نیاز: ${requiredAmount.toLocaleString()} افغانی`,
+          `ناکافي موجودي! د ${account.name} په حساب کې موجودي: ${account.currentBalance.toLocaleString()} افغانۍ، اړتیا مقدار: ${requiredAmount.toLocaleString()} افغانۍ`,
           400
         );
       }
@@ -430,7 +430,7 @@ exports.createManualTransaction = asyncHandler(async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Transaction added successfully',
+      message: 'معامله په بریالیتوب سره زیاته شوه',
       transaction: transaction[0],
     });
   } catch (err) {
@@ -467,7 +467,7 @@ exports.transferBetweenAccounts = asyncHandler(async (req, res, next) => {
     if (fromAccount.type === 'cashier' || fromAccount.type === 'safe') {
       if (fromAccount.currentBalance < amount) {
         throw new AppError(
-          `موجودی ناکافی! در حساب ${fromAccount.name} موجودی: ${fromAccount.currentBalance.toLocaleString()} افغانی، مبلغ مورد نیاز: ${amount.toLocaleString()} افغانی`,
+          `ناکافي موجودي! د ${fromAccount.name} په حساب کې موجودي: ${fromAccount.currentBalance.toLocaleString()} افغانۍ، اړتیا مقدار: ${amount.toLocaleString()} افغانۍ`,
           400
         );
       }
@@ -554,7 +554,7 @@ exports.transferBetweenAccounts = asyncHandler(async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Transfer completed successfully',
+      message: 'لیږد په بریالیتوب سره بشپړ شو',
       transfer: {
         from: fromAccount.name,
         to: toAccount.name,
@@ -697,7 +697,7 @@ exports.reverseTransaction = asyncHandler(async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Transaction reversed successfully',
+      message: 'معامله په بریالیتوب سره بیرته شوه',
       reversals,
     });
   } catch (err) {

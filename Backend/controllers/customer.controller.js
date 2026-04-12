@@ -103,7 +103,7 @@ const deleteCustomer = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     status: 'success',
-    message: 'Customer deleted successfully (soft delete applied)',
+    message: 'پیرودونکی په بریالیتوب سره حذف شو',
   });
 });
 

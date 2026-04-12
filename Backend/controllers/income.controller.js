@@ -119,7 +119,7 @@ exports.getIncomeByCategory = asyncHandler(async (req, res, next) => {
   } = req.query;
 
   if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-    throw new AppError('Invalid category ID', 400);
+    throw new AppError('ناسم کېټګورۍ ID', 400);
   }
 
   const filter = {
@@ -243,7 +243,7 @@ exports.getIncomeById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid income ID', 400);
+    throw new AppError('ناسم عاید ID', 400);
   }
 
   const income = await Income.findOne({ _id: id, isDeleted: false })
@@ -253,7 +253,7 @@ exports.getIncomeById = asyncHandler(async (req, res, next) => {
     .lean();
 
   if (!income) {
-    throw new AppError('Income record not found', 404);
+    throw new AppError('د عاید ریکارډ ونه موندل شو', 404);
   }
 
   res.status(200).json({
@@ -269,15 +269,15 @@ exports.createIncome = asyncHandler(async (req, res, next) => {
   const { category, amount, date, description, source, placedInAccount } = req.body;
 
   if (!category || !amount) {
-    throw new AppError('Category and amount are required', 400);
+    throw new AppError('کېټګورۍ او مبلغ اړین دی', 400);
   }
 
   if (amount <= 0) {
-    throw new AppError('Amount must be greater than 0', 400);
+    throw new AppError('مبلغ باید له 0 څخه زیات وي', 400);
   }
 
   if (!placedInAccount) {
-    throw new AppError('placedInAccount is required', 400);
+    throw new AppError('د ځای پرځای کولو حساب اړین دی', 400);
   }
 
   const session = await mongoose.startSession();
@@ -298,7 +298,7 @@ exports.createIncome = asyncHandler(async (req, res, next) => {
 
     if (!categoryDoc) {
       throw new AppError(
-        'Invalid category or category not available for income',
+        'ناسم کېټګورۍ یا کېټګورۍ د عاید لپاره شتون نلري',
         400
       );
     }
@@ -311,11 +311,11 @@ exports.createIncome = asyncHandler(async (req, res, next) => {
     );
 
     if (!moneyAccount) {
-      throw new AppError('Placed in account not found', 404);
+      throw new AppError('د ځای پرځای کولو حساب ونه موندل شو', 404);
     }
     if (!['cashier', 'safe', 'saraf'].includes(moneyAccount.type)) {
       throw new AppError(
-        'Placed in account must be of type cashier, safe, or saraf',
+        'د ځای پرځای کولو حساب باید د صندوق، خزانه، یا صراف ډول وي',
         400
       );
     }
@@ -396,7 +396,7 @@ exports.createIncome = asyncHandler(async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Income record created successfully',
+      message: 'د عاید ریکارډ په بریالیتوب سره جوړ شو',
       data: createdIncome,
     });
   } catch (err) {
@@ -413,12 +413,12 @@ exports.updateIncome = asyncHandler(async (req, res, next) => {
   const { category, amount, date, description, source, placedInAccount } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid income ID', 400);
+    throw new AppError('ناسم عاید ID', 400);
   }
 
   // Validate amount if provided
   if (amount !== undefined && amount <= 0) {
-    throw new AppError('Amount must be greater than 0', 400);
+    throw new AppError('مبلغ باید له 0 څخه زیات وي', 400);
   }
 
   // Validate category if provided
@@ -444,7 +444,7 @@ exports.updateIncome = asyncHandler(async (req, res, next) => {
   try {
     const income = await Income.findOne({ _id: id, isDeleted: false }, null, { session });
     if (!income) {
-      throw new AppError('Income record not found', 404);
+      throw new AppError('د عاید ریکارډ ونه موندل شو', 404);
     }
 
     const oldData = income.toObject();
@@ -458,15 +458,15 @@ exports.updateIncome = asyncHandler(async (req, res, next) => {
 
     let newPlacedInAccount = placedInAccount !== undefined ? placedInAccount : income.placedInAccount;
     if (!newPlacedInAccount) {
-      throw new AppError('placedInAccount is required', 400);
+      throw new AppError('د ځای پرځای کولو حساب اړین دی', 400);
     }
 
     const moneyAccount = await Account.findOne({ _id: newPlacedInAccount, isDeleted: false }, null, { session });
     if (!moneyAccount) {
-      throw new AppError('Placed in account not found', 404);
+      throw new AppError('د ځای پرځای کولو حساب ونه موندل شو', 404);
     }
     if (!['cashier', 'safe', 'saraf'].includes(moneyAccount.type)) {
-      throw new AppError('Placed in account must be of type cashier, safe, or saraf', 400);
+      throw new AppError('د ځای پرځای کولو حساب باید د صندوق، خزانه، یا صراف ډول وي', 400);
     }
 
     // Reverse existing transaction if present
@@ -581,7 +581,7 @@ exports.updateIncome = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Income record updated successfully',
+      message: 'د عاید ریکارډ په بریالیتوب سره تازه شو',
       data: income,
     });
   } catch (err) {
@@ -597,7 +597,7 @@ exports.deleteIncome = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid income ID', 400);
+    throw new AppError('ناسم عاید ID', 400);
   }
 
   const session = await mongoose.startSession();
@@ -606,7 +606,7 @@ exports.deleteIncome = asyncHandler(async (req, res, next) => {
   try {
     const income = await Income.findOne({ _id: id, isDeleted: false }, null, { session });
     if (!income) {
-      throw new AppError('Income record not found', 404);
+      throw new AppError('د عاید ریکارډ ونه موندل شو', 404);
     }
 
     const oldData = income.toObject();
@@ -682,7 +682,7 @@ exports.deleteIncome = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Income record deleted successfully',
+      message: 'د عاید ریکارډ په بریالیتوب سره حذف شو',
     });
   } catch (err) {
     await session.abortTransaction();
@@ -697,12 +697,12 @@ exports.restoreIncome = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid income ID', 400);
+    throw new AppError('ناسم عاید ID', 400);
   }
 
   const income = await Income.findOne({ _id: id, isDeleted: true });
   if (!income) {
-    throw new AppError('Deleted income record not found', 404);
+    throw new AppError('حذف شوی عاید ریکارډ ونه موندل شو', 404);
   }
 
   // Validate category still exists and is active
@@ -715,7 +715,7 @@ exports.restoreIncome = asyncHandler(async (req, res, next) => {
 
   if (!categoryDoc) {
     throw new AppError(
-      'Cannot restore income: Category no longer exists or is inactive',
+      'عاید بیرته نشي راستنیدلی: کېټګورۍ نور شتون نلري یا غیرفعاله ده',
       400
     );
   }
@@ -745,7 +745,7 @@ exports.restoreIncome = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: 'Income record restored successfully',
+    message: 'د عاید ریکارډ په بریالیتوب سره بیرته راستون شو',
     data: income,
   });
 });
@@ -881,7 +881,7 @@ exports.getIncomeSummary = asyncHandler(async (req, res, next) => {
   const { startDate, endDate, groupBy = 'day' } = req.query;
 
   if (!startDate || !endDate) {
-    throw new AppError('Start date and end date are required', 400);
+    throw new AppError('د پیل او پای نیټه اړینه ده', 400);
   }
 
   const matchStage = {
@@ -921,7 +921,7 @@ exports.getIncomeSummary = asyncHandler(async (req, res, next) => {
       break;
     default:
       throw new AppError(
-        'Invalid groupBy parameter. Must be day, week, or month',
+        'ناسم groupBy پیرامیټر. باید ورځ، اونۍ، یا میاشت وي',
         400
       );
   }

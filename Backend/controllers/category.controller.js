@@ -162,7 +162,7 @@ exports.createCategory = asyncHandler(async (req, res, next) => {
 
   res.status(201).json({
     success: true,
-    message: 'Category created successfully',
+    message: 'کېټګورۍ په بریالیتوب سره جوړه شوه',
     data: category,
   });
 });
@@ -226,7 +226,7 @@ exports.updateCategory = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: 'Category updated successfully',
+    message: 'کېټګورۍ په بریالیتوب سره تازه شوه',
     data: category,
   });
 });
@@ -266,7 +266,7 @@ exports.deleteCategory = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: 'Category deleted successfully',
+    message: 'کېټګورۍ په بریالیتوب سره حذف شوه',
   });
 });
 

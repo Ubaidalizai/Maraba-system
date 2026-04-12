@@ -21,6 +21,15 @@ const unitValidationSchema = Joi.object({
   is_base_unit: Joi.boolean().default(false).messages({
     'boolean.base': 'is_base_unit must be a boolean value',
   }),
+
+  base_unit: Joi.string().allow('', null).optional().messages({
+    'string.base': 'base_unit must be a valid ID',
+  }),
+
+  unit_type: Joi.string().valid('weight', 'count', 'volume', 'length').required().messages({
+    'any.only': 'unit_type must be one of: weight, count, volume, length',
+    'any.required': 'Unit type is required',
+  }),
 });
 
 // Unit update validation schema
@@ -41,6 +50,14 @@ const updateUnitValidationSchema = Joi.object({
 
   is_base_unit: Joi.boolean().optional().messages({
     'boolean.base': 'is_base_unit must be a boolean value',
+  }),
+
+  base_unit: Joi.string().allow('', null).optional().messages({
+    'string.base': 'base_unit must be a valid ID',
+  }),
+
+  unit_type: Joi.string().valid('weight', 'count', 'volume', 'length').optional().messages({
+    'any.only': 'unit_type must be one of: weight, count, volume, length',
   }),
 })
   .min(1)

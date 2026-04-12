@@ -103,7 +103,7 @@ const deleteEmployee = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     status: 'success',
-    message: 'Employee deleted successfully (soft delete applied)',
+    message: 'کارکوونکی په بریالیتوب سره حذف شو',
   });
 });
 

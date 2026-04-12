@@ -75,7 +75,7 @@ exports.returnEmployeeStock = asyncHandler(async (req, res, next) => {
     }).session(session);
 
     if (!empStock || empStock.quantity_in_hand < quantity) {
-      throw new AppError('Invalid or insufficient employee stock', 400);
+      throw new AppError('د کارکوونکي سټاک ناسم یا ناکافي دی', 400);
     }
 
     empStock.quantity_in_hand -= quantity;
@@ -92,7 +92,7 @@ exports.returnEmployeeStock = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Returned employee stock to store successfully',
+      message: 'د کارکوونکي سټاک په بریالیتوب سره پلورنځي ته بیرته ورکړل شو',
       employeeStock: empStock,
       storeStock,
     });

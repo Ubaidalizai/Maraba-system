@@ -1,7 +1,7 @@
 const AppError = require("../utils/appError");
 
 const handleCastErrorDB = (err) => {
-  const message = `Invalid ${err.path}: ${err.value}.`;
+  const message = `ناسم ${err.path}: ${err.value}.`;
   return new AppError(message, 400);
 };
 
@@ -9,21 +9,21 @@ const handleDuplicateFieldDB = (err) => {
   const regex = /name: "(.*?)"/;
   const name = err.message.match(regex);
   const message = name
-    ? `Duplicate field value ${name[1]}. Please use another value.`
-    : "Duplicate field value. Please use another value.";
+    ? `تکراري ارزښت ${name[1]}. مهرباني وکړئ بل ارزښت وکاروئ.`
+    : "تکراري ارزښت. مهرباني وکړئ بل ارزښت وکاروئ.";
   return new AppError(message, 400);
 };
 
 const handleValidationErrorDB = (err) => {
   const errors = Object.values(err.errors).map((el) => el.message);
-  const message = `Invalid input data. ${errors.join(". ")}`;
+  const message = `ناسم معلومات. ${errors.join(". ")}`;
   return new AppError(message, 400);
 };
 
 const handleJWTError = () =>
-  new AppError("Invalid token. Please log in again!", 401);
+  new AppError("ناسم ټوکن. مهرباني وکړئ بیرته ننوځئ!", 401);
 const handleJWTExpired = () =>
-  new AppError("Your token has expired. Please log in again!", 401);
+  new AppError("ستاسو ټوکن پای ته رسیدلی. مهرباني وکړئ بیرته ننوځئ!", 401);
 
 const sendErrorDev = (err, req, res) => {
   res.status(err.statusCode).json({
@@ -46,7 +46,7 @@ const sendErrorProd = (err, req, res) => {
   console.error("Error:", err);
   return res.status(500).json({
     status: "error",
-    message: "Something went very wrong!",
+    message: "یوه ستونزه رامنځته شوه!",
   });
 };
 
