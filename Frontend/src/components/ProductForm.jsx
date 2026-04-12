@@ -1,4 +1,5 @@
 import { Controller } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { useUnits } from "../services/useApi";
 import Button from "./Button";
 import Spinner from "./Spinner";
@@ -8,11 +9,20 @@ import Spinner from "./Spinner";
  * Props:
  * - register, handleSubmit, formState, control (from react-hook-form)
  * - onClose: optional close callback
+ * - variant: "create" | "edit" (modal title)
  */
 export const inputStyle =
   "w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm  px-3 py-2.5 transition duration-300 ease focus:outline-none  hover:border-slate-300 focus:border-slate-300  shadow-sm";
 
-function ProductForm({ register, handleSubmit, formState, control, onClose }) {
+function ProductForm({
+  register,
+  handleSubmit,
+  formState,
+  control,
+  onClose,
+  variant = "create",
+}) {
+  const { t } = useTranslation();
   const { errors } = formState || {};
   const { data: units, isLoading: isUnitLoading } = useUnits();
 
@@ -25,8 +35,9 @@ function ProductForm({ register, handleSubmit, formState, control, onClose }) {
       className=" bg-white p-8 rounded-lg shadow-lg w-[400px]  lg:w-[500px]"
     >
       <div className=" w-full py-2 border-b border-slate-300 my-4 text-md font-semibold">
-        {" "}
-        اضافه کردن محصول جدید
+        {variant === "edit"
+          ? t("inventory.product.form.titleEdit")
+          : t("inventory.product.form.titleCreate")}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Product Name */}
@@ -35,14 +46,16 @@ function ProductForm({ register, handleSubmit, formState, control, onClose }) {
             htmlFor="name"
             className="block text-sm font-medium text-slate-700 mb-2"
           >
-            نام محصول
+            {t("inventory.product.form.nameLabel")}
           </label>
           <input
             id="name"
-            {...register("name", { required: "نام محصول الزامی است" })}
+            {...register("name", {
+              required: t("inventory.product.form.nameRequired"),
+            })}
             type="text"
             className={inputStyle}
-            placeholder="نام محصول را وارد کنید"
+            placeholder={t("inventory.product.form.namePlaceholder")}
           />
           {errors?.name && (
             <p className="text-red-600 text-sm mt-1">{errors.name.message}</p>
@@ -55,15 +68,17 @@ function ProductForm({ register, handleSubmit, formState, control, onClose }) {
             htmlFor="baseUnit"
             className="block text-sm font-medium text-slate-700 mb-2"
           >
-            واحد پایه
+            {t("inventory.product.table.baseUnit")}
           </label>
           <Controller
             control={control}
             name="baseUnit"
-            rules={{ required: "واحد پایه الزامی است" }}
+            rules={{
+              required: t("inventory.product.form.baseUnitRequired"),
+            }}
             render={({ field }) => (
               <select {...field} id="baseUnit" className={inputStyle}>
-                <option value="">انتخاب واحد</option>
+                <option value="">{t("inventory.product.form.selectUnit")}</option>
                 {units?.data?.map((u) => (
                   <option key={u._id} value={u._id}>
                     {u.name}
@@ -89,7 +104,7 @@ function ProductForm({ register, handleSubmit, formState, control, onClose }) {
               className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
             />
             <label htmlFor="trackByBatch" className="text-sm text-slate-700">
-              ردیابی بر اساس بچ
+              {t("inventory.product.form.trackByBatch")}
             </label>
           </div>
         </div>
@@ -101,15 +116,15 @@ function ProductForm({ register, handleSubmit, formState, control, onClose }) {
           <Button
             type="button"
             className="px-6 py-2 bg-transparent   border border-slate-500 text-black rounded-md"
-            onClick={() => onClose()}
+            onClick={() => onClose?.()}
           >
-            انصراف
+            {t("inventory.product.form.cancel")}
           </Button>
           <Button
             type="submit"
             className="px-6 py-2 bg-[#A0522D] hover:bg-[#a0522d]/90 text-white rounded-md transition duration-200"
           >
-            ذخیره
+            {t("inventory.product.form.save")}
           </Button>
         </div>
       </div>

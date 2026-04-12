@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ChartBarIcon,
   DocumentArrowDownIcon,
@@ -117,6 +118,7 @@ const getJalaliYearIsoRange = (jalaliYearString) => {
 };
 
 const Reports = () => {
+  const { t } = useTranslation();
   const [selectedReport, setSelectedReport] = useState("sales");
   const [reportFilters, setReportFilters] = useState(() => {
     const initial = {};
@@ -130,14 +132,29 @@ const Reports = () => {
   const [selectedStockLocation, setSelectedStockLocation] = useState("all"); // "all", "warehouse", or "store"
   const [selectedStockLevel, setSelectedStockLevel] = useState("low"); // "all", "low", "critical", or "out"
 
-  const reportTypes = [
-    { id: "sales", name: "گزارشات فروش", icon: ShoppingBagIcon },
-    { id: "inventory", name: "گزارشات موجودی", icon: CubeIcon },
-    { id: "purchases", name: "گزارشات خرید", icon: ShoppingCartIcon },
-    { id: "accounts", name: "گزارشات حساب", icon: BanknotesIcon },
-    { id: "expenses", name: "گزارشات هزینه", icon: ReceiptPercentIcon },
-    { id: "profit", name: "سود و زیان", icon: ChartPieIcon },
-  ];
+  const reportTypes = useMemo(
+    () => [
+      { id: "sales", name: t("reports.types.sales"), icon: ShoppingBagIcon },
+      {
+        id: "inventory",
+        name: t("reports.types.inventory"),
+        icon: CubeIcon,
+      },
+      {
+        id: "purchases",
+        name: t("reports.types.purchases"),
+        icon: ShoppingCartIcon,
+      },
+      { id: "accounts", name: t("reports.types.accounts"), icon: BanknotesIcon },
+      {
+        id: "expenses",
+        name: t("reports.types.expenses"),
+        icon: ReceiptPercentIcon,
+      },
+      { id: "profit", name: t("reports.types.profit"), icon: ChartPieIcon },
+    ],
+    [t]
+  );
 
   const updateReportFilter = (reportId, updater) => {
     if (!dateEnabledReports.has(reportId)) {
@@ -799,17 +816,15 @@ const Reports = () => {
       {/* Page header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">گزارشات وتحلیل ها</h1>
-          <p className="text-gray-600 mt-1">
-            گزارشات تجاری را تولید و مشاهده کنید
-          </p>
+          <h1 className="text-xl font-bold text-gray-900">{t("reports.title")}</h1>
+          <p className="text-gray-600 mt-1">{t("reports.subtitle")}</p>
         </div>
       </div>
 
       {/* Report type selector */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          نوع گزارش را انتخاب کنید
+          {t("reports.selectType")}
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {reportTypes.map((report) => {

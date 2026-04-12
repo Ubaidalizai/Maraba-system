@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BiTrashAlt } from "react-icons/bi";
 import { CgClose } from "react-icons/cg";
 import { ShoppingCartIcon, PlusIcon } from "@heroicons/react/24/outline";
@@ -23,17 +24,6 @@ import TableHeader from "./TableHeader";
 import TableRow from "./TableRow";
 import { toast } from "react-toastify";
 
-const productHeader = [
-  { title: "محصول" },
-  { title: "تعداد (واحد)" },
-  { title: "نمبر بچ" },
-  { title: "تاریخ انقضا" },
-  { title: "تعداد کارتن" },
-  { title: "قیمت واحد" },
-  { title: "قیمت مجموعی" },
-  { title: "عملیات" },
-];
-
 function SaleForm({
   register,
   handleSubmit,
@@ -44,10 +34,20 @@ function SaleForm({
   editMode = false,
   saleToEdit = null,
 }) {
-  // Default values for Select components
-  const DEFAULT_CUSTOMER_SELECTED = "انتخاب مشتری (حساب)";
-  const DEFAULT_EMPLOYEE_SELECTED = "انتخاب کارمند (حساب)";
-  const DEFAULT_ACCOUNT_SELECTED = "انتخاب حساب";
+  const { t } = useTranslation();
+  const productHeader = useMemo(
+    () => [
+      { title: t("saleForm.table.product") },
+      { title: t("saleForm.table.qtyWithUnit") },
+      { title: t("saleForm.table.batchNo") },
+      { title: t("saleForm.table.expiry") },
+      { title: t("saleForm.table.carton") },
+      { title: t("saleForm.table.unitPrice") },
+      { title: t("saleForm.table.lineTotal") },
+      { title: t("saleForm.table.actions") },
+    ],
+    [t]
+  );
   const [items, setItems] = useState([]);
   const [currentItem, setCurrentItem] = useState({
     product: "",
@@ -268,10 +268,12 @@ function SaleForm({
 
   const handleAddItem = () => {
     const errors = {};
-    if (!currentItem.product) errors.product = "محصول الزامی است";
-    if (!currentItem.unit) errors.unit = "واحد الزامی است";
-    if (!currentItem.quantity || currentItem.quantity <= 0) errors.quantity = "تعداد الزامی است";
-    if (!currentItem.unitPrice || currentItem.unitPrice <= 0) errors.unitPrice = "قیمت الزامی است";
+    if (!currentItem.product) errors.product = t("saleForm.errors.productRequired");
+    if (!currentItem.unit) errors.unit = t("saleForm.errors.unitRequired");
+    if (!currentItem.quantity || currentItem.quantity <= 0)
+      errors.quantity = t("saleForm.errors.quantityRequired");
+    if (!currentItem.unitPrice || currentItem.unitPrice <= 0)
+      errors.unitPrice = t("saleForm.errors.priceRequired");
     
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -312,7 +314,12 @@ function SaleForm({
     // Validate paid amount before submission
     const total = calculateTotal();
     if (data.paidAmount > total) {
-      toast.error(`مبلغ پرداخت شده (${data.paidAmount}) نمیتواند بیشتر از مجموع (${total.toFixed(2)}) باشد`);
+      toast.error(
+        t("saleForm.validation.paidExceedsTotal", {
+          paid: data.paidAmount,
+          total: total.toFixed(2),
+        })
+      );
       return;
     }
 
@@ -363,7 +370,7 @@ function SaleForm({
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto flex justify-center items-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">در حال بارگذاری...</p>
+          <p className="text-gray-600">{t("saleForm.loading")}</p>
         </div>
       </div>
     );
@@ -381,7 +388,7 @@ function SaleForm({
             <ShoppingCartIcon className="h-5 w-5 text-white" />
           </div>
           <h2 className="text-lg font-bold text-gray-900">
-            {editMode ? "ویرایش فروش" : "اضافه کردن فروش جدید"}
+            {editMode ? t("saleForm.titleEdit") : t("saleForm.titleNew")}
           </h2>
         </div>
         <button type="button" onClick={onClose} className="p-1.5 hover:bg-white/50 rounded-lg transition-colors">
@@ -392,7 +399,7 @@ function SaleForm({
         {/* Sale Type Selection */}
         <div className="bg-gray-50 rounded-lg p-2 border border-gray-200">
           <label className="block text-xs font-semibold text-gray-700 mb-2">
-            نوع فروش
+            {t("saleForm.saleType")}
           </label>
           <div className="flex gap-4">
             <label className="flex items-center cursor-pointer">
@@ -403,7 +410,9 @@ function SaleForm({
                 onChange={(e) => setSaleType(e.target.value)}
                 className="ml-1.5 w-3.5 h-3.5 text-amber-600 focus:ring-amber-500"
               />
-              <span className="mr-1.5 text-xs font-medium">مشتری</span>
+              <span className="mr-1.5 text-xs font-medium">
+                {t("saleForm.typeCustomer")}
+              </span>
             </label>
             <label className="flex items-center cursor-pointer">
               <input
@@ -413,7 +422,9 @@ function SaleForm({
                 onChange={(e) => setSaleType(e.target.value)}
                 className="ml-1.5 w-3.5 h-3.5 text-amber-600 focus:ring-amber-500"
               />
-              <span className="mr-1.5 text-xs font-medium">کارمند</span>
+              <span className="mr-1.5 text-xs font-medium">
+                {t("saleForm.typeEmployee")}
+              </span>
             </label>
             <label className="flex items-center cursor-pointer">
               <input
@@ -423,7 +434,9 @@ function SaleForm({
                 onChange={(e) => setSaleType(e.target.value)}
                 className="ml-1.5 w-3.5 h-3.5 text-amber-600 focus:ring-amber-500"
               />
-              <span className="mr-1.5 text-xs font-medium">مشتری عابر</span>
+              <span className="mr-1.5 text-xs font-medium">
+                {t("saleForm.typeWalkIn")}
+              </span>
             </label>
           </div>
         </div>
@@ -433,10 +446,10 @@ function SaleForm({
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
               {saleType === "customer"
-                ? "مشتری"
+                ? t("saleForm.typeCustomer")
                 : saleType === "employee"
-                ? "کارمند"
-                : "مشتری عابر"}
+                ? t("saleForm.typeEmployee")
+                : t("saleForm.typeWalkIn")}
             </label>
             {saleType === "customer" && (
               <div>
@@ -448,10 +461,12 @@ function SaleForm({
                   }))}
                   value={watch("customer")}
                   onChange={(value) => setValue("customer", value)}
-                  defaultSelected="انتخاب مشتری (حساب)"
+                  defaultSelected={t("saleForm.selectCustomerAccount")}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  {customerAccounts.length} حساب
+                  {t("saleForm.accountCount", {
+                    count: customerAccounts.length,
+                  })}
                 </p>
               </div>
             )}
@@ -465,16 +480,18 @@ function SaleForm({
                   }))}
                   value={watch("employee")}
                   onChange={(value) => setValue("employee", value)}
-                  defaultSelected="انتخاب کارمند (حساب)"
+                  defaultSelected={t("saleForm.selectEmployeeAccount")}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  {employeeAccounts.length} حساب
+                  {t("saleForm.accountCount", {
+                    count: employeeAccounts.length,
+                  })}
                 </p>
               </div>
             )}
             {saleType === "walkin" && (
               <div className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-sm text-gray-500 text-center">
-                مشتری عابر
+                {t("saleForm.walkInHint")}
               </div>
             )}
           </div>
@@ -482,26 +499,26 @@ function SaleForm({
           {/* Invoice Type */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-              نوعیت فاکتور
+              {t("saleForm.invoiceType")}
             </label>
             <Select
               label=""
               options={[
-                { value: "small", label: "کوچک" },
-                { value: "large", label: "بزرگ" },
+                { value: "small", label: t("saleForm.invoiceSmall") },
+                { value: "large", label: t("saleForm.invoiceLarge") },
               ]}
               value={watch("invoiceType")}
               onChange={(value) => setValue("invoiceType", value)}
               register={register}
               name="invoiceType"
-              defaultSelected="انتخاب نوع فاکتور"
+              defaultSelected={t("saleForm.selectInvoiceType")}
             />
           </div>
 
           {/* Account Selection */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-              حساب دریافت
+              {t("saleForm.receiptAccount")}
             </label>
             <Select
               label=""
@@ -511,14 +528,14 @@ function SaleForm({
               }))}
               value={watch("placedIn")}
               onChange={(value) => setValue("placedIn", value)}
-              defaultSelected="انتخاب حساب"
+              defaultSelected={t("saleForm.selectAccount")}
             />
           </div>
 
           {/* Paid Amount */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-              مبلغ پرداخت شده
+              {t("saleForm.paidAmount")}
             </label>
             <input
               type="number"
@@ -528,13 +545,15 @@ function SaleForm({
                 validate: (value) => {
                   const total = calculateTotal();
                   if (value > total) {
-                    return `مبلغ پرداخت شده نمی‌تواند بیشتر از مجموع (${total.toFixed(2)}) باشد`;
+                    return t("saleForm.validation.paidExceedsTotalField", {
+                      total: total.toFixed(2),
+                    });
                   }
                   return true;
                 }
               })}
               className="w-full font-custom dark:text-slate-500 bg-transparent placeholder:text-slate-400 text-slate-700 text-xs border border-slate-200 pr-2 pl-2 py-2 transition duration-300 ease focus:outline-none focus:border-slate-300 hover:border-slate-300 shadow-sm focus:shadow rounded-sm"
-              placeholder="0.00"
+              placeholder={t("saleForm.paidPlaceholder")}
               min="0"
               max={calculateTotal()}
             />
@@ -543,7 +562,7 @@ function SaleForm({
           {/* Sale Date */}
           <div>
             <JalaliDatePicker
-              label="تاریخ فروش"
+              label={t("saleForm.saleDate")}
               value={saleDateValue}
               onChange={(nextValue) =>
                 setValue(
@@ -556,7 +575,7 @@ function SaleForm({
                   }
                 )
               }
-              placeholder="انتخاب تاریخ"
+              placeholder={t("saleForm.datePlaceholder")}
               clearable={false}
             />
             <input
@@ -564,7 +583,7 @@ function SaleForm({
               value={saleDateValue}
               readOnly
               {...register("saleDate", {
-                required: "تاریخ فروش الزامی است",
+                required: t("saleForm.saleDateRequired"),
               })}
             />
           </div>
@@ -579,7 +598,7 @@ function SaleForm({
               <span className="bg-amber-100 p-1 rounded">
                 📦
               </span>
-              اجناس فروش
+              {t("saleForm.itemsTitle")}
             </h3>
             <button
               type="button"
@@ -592,7 +611,7 @@ function SaleForm({
               }`}
             >
               <PlusIcon className="h-3.5 w-3.5" />
-              {isSaving ? "در حال اضافه..." : "اضافه کردن"}
+              {isSaving ? t("saleForm.addItemSaving") : t("saleForm.addItem")}
             </button>
           </div>
 
@@ -600,7 +619,14 @@ function SaleForm({
             <div className="flex-1 min-w-[200px]">
               <Select
                 id={"product"}
-                label={<span>اسم محصول <span className="text-red-500">*</span></span>}
+                label={
+                  <span>
+                    {t("saleForm.productName")}{" "}
+                    <span className="text-red-500">
+                      {t("saleForm.requiredStar")}
+                    </span>
+                  </span>
+                }
                 value={currentItem?.product}
                 onChange={(value) => {
                   const selectedProduct = productsData?.data?.find(
@@ -637,7 +663,8 @@ function SaleForm({
                 if (priceDisplay) {
                   return (
                     <p className="text-blue-600 text-[10px] mt-0.5">
-                      💰 {priceDisplay}
+                      {t("saleForm.purchaseHintPrefix")}
+                      {priceDisplay}
                     </p>
                   );
                 }
@@ -645,7 +672,10 @@ function SaleForm({
               })()}
             </div>
             <div className="flex-1 min-w-[80px]">
-              <label className="block text-[11px] font-medium text-gray-700 mb-1.5">واحد <span className="text-red-500">*</span></label>
+              <label className="block text-[11px] font-medium text-gray-700 mb-1.5">
+                {t("saleForm.unitLabel")}{" "}
+                <span className="text-red-500">{t("saleForm.requiredStar")}</span>
+              </label>
               <select
                 value={currentItem?.unit}
                 onChange={(e) => {
@@ -658,7 +688,9 @@ function SaleForm({
                 disabled={!currentItem?.product || availableUnits.length === 0}
               >
                 <option value="">
-                  {!currentItem?.product ? "محصول" : "واحد"}
+                  {!currentItem?.product
+                    ? t("saleForm.unitPlaceholderNoProduct")
+                    : t("saleForm.unitPlaceholderSelect")}
                 </option>
                 {availableUnits.map((u) => (
                   <option key={u._id} value={u._id}>
@@ -672,7 +704,7 @@ function SaleForm({
             </div>
             <div className="flex-1 min-w-[80px]">
               <Select
-                label="نمبر بچ"
+                label={t("saleForm.batchNumber")}
                 id="batch"
                 value={currentItem?.batchNumber || ""}
                 onChange={(value) =>
@@ -685,14 +717,17 @@ function SaleForm({
                   value: batch.batchNumber,
                   label: batch.batchNumber,
                 }))}
-                placeholder="بچ"
+                placeholder={t("saleForm.batchPlaceholder")}
               />
             </div>
             <div className="flex-1 min-w-[70px]">
-              <label className="block text-[11px] font-medium text-gray-700 mb-1.5">تعداد <span className="text-red-500">*</span></label>
+              <label className="block text-[11px] font-medium text-gray-700 mb-1.5">
+                {t("saleForm.quantityLabel")}{" "}
+                <span className="text-red-500">{t("saleForm.requiredStar")}</span>
+              </label>
               <input
                 type="number"
-                placeholder="تعداد"
+                placeholder={t("saleForm.quantityPlaceholder")}
                 value={currentItem?.quantity}
                 min="0"
                 onChange={(e) => {
@@ -708,10 +743,12 @@ function SaleForm({
               )}
             </div>
             <div className="flex-1 min-w-[70px]">
-              <label className="block text-[11px] font-medium text-gray-700 mb-1.5">کارتن</label>
+              <label className="block text-[11px] font-medium text-gray-700 mb-1.5">
+                {t("saleForm.carton")}
+              </label>
               <input
                 type="number"
-                placeholder="کارتن"
+                placeholder={t("saleForm.cartonPlaceholder")}
                 value={currentItem?.cartonCount || ""}
                 min="0"
                 onChange={(e) =>
@@ -721,9 +758,12 @@ function SaleForm({
               />
             </div>
             <div className="flex-1 min-w-[90px]">
-              <label className="block text-[11px] font-medium text-gray-700 mb-1.5">قیمت <span className="text-red-500">*</span></label>
+              <label className="block text-[11px] font-medium text-gray-700 mb-1.5">
+                {t("saleForm.priceLabel")}{" "}
+                <span className="text-red-500">{t("saleForm.requiredStar")}</span>
+              </label>
               <input
-                placeholder="قیمت"
+                placeholder={t("saleForm.pricePlaceholder")}
                 type="number"
                 step="0.01"
                 min="0"
@@ -758,7 +798,7 @@ function SaleForm({
                 if (!validation.isValid && validation.purchasePrice > 0) {
                   return (
                     <p className="text-red-600 text-[10px] mt-0.5">
-                      ⚠️ کمتر از خرید
+                      {t("saleForm.belowPurchaseWarning")}
                     </p>
                   );
                 }
@@ -767,12 +807,12 @@ function SaleForm({
             </div>
             <div className="flex-1 min-w-[140px]">
               <JalaliDatePicker
-                label="تاریخ انقضا"
+                label={t("saleForm.expiryDate")}
                 value={currentItem?.expiryDate}
                 onChange={(date) =>
                   setCurrentItem((s) => ({ ...s, expiryDate: date }))
                 }
-                placeholder="انتخاب تاریخ"
+                placeholder={t("saleForm.datePlaceholder")}
                 clearable={true}
               />
             </div>
@@ -827,19 +867,25 @@ function SaleForm({
           <div className="md:col-span-2 bg-gray-50 rounded p-2">
             <div className="flex items-center justify-around">
               <div className="text-center">
-                <span className="text-[10px] text-gray-600 block">مجموع نهایی</span>
+                <span className="text-[10px] text-gray-600 block">
+                  {t("saleForm.summaryFinal")}
+                </span>
                 <span className="text-lg font-bold text-amber-600">
                   {totalAmountValue.toFixed(2)}
                 </span>
               </div>
               <div className="text-center">
-                <span className="text-[10px] text-gray-600 block">پرداخت شده</span>
+                <span className="text-[10px] text-gray-600 block">
+                  {t("saleForm.summaryPaid")}
+                </span>
                 <span className="text-lg font-bold text-blue-600">
                   {paidAmountValue.toFixed(2)}
                 </span>
               </div>
               <div className="text-center">
-                <span className="text-[10px] text-gray-600 block">باقی مانده</span>
+                <span className="text-[10px] text-gray-600 block">
+                  {t("saleForm.summaryDue")}
+                </span>
                 <span className={`text-lg font-bold ${
                   remainingAmount > 0 ? "text-orange-600" : "text-green-600"
                 }`}>
@@ -850,13 +896,13 @@ function SaleForm({
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-              توضیحات (اختیاری)
+              {t("saleForm.notesLabel")}
             </label>
             <textarea
               {...register("description")}
               rows={3}
               className="w-full font-custom dark:text-slate-500 bg-transparent placeholder:text-slate-400 text-slate-700 text-xs border border-slate-200 pr-2 pl-2 py-2 transition duration-300 ease focus:outline-none focus:border-amber-500 hover:border-slate-300 shadow-sm focus:shadow rounded-sm resize-none"
-              placeholder="توضیحات فروش را وارد کنید..."
+              placeholder={t("saleForm.notesPlaceholder")}
             />
           </div>
         </div>
@@ -867,7 +913,7 @@ function SaleForm({
           onClick={onClose}
           className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 font-medium text-gray-700 text-xs transition-colors"
         >
-          لغو
+          {t("saleForm.cancel")}
         </button>
         <button
           type="submit"
@@ -875,10 +921,10 @@ function SaleForm({
           disabled={isSaving}
         >
           {isSaving
-            ? "در حال بارگذاری..."
+            ? t("saleForm.submitting")
             : editMode
-            ? "ویرایش فروش"
-            : "ثبت فروش"}
+            ? t("saleForm.submitEdit")
+            : t("saleForm.submitNew")}
         </button>
       </div>
     </form>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   PlusIcon,
@@ -31,6 +32,7 @@ import { formatNumber } from "../utilies/helper";
 import { useSubmitLock } from "../hooks/useSubmitLock.js";
 
 const Accounts = () => {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [type, setType] = useState(searchParams.get("type") || "supplier");
@@ -157,7 +159,10 @@ const Accounts = () => {
         transactionType: data.transactionType,
         amount: parseFloat(data.amount),
         description:
-          data.description || `Manual ${data.transactionType} transaction`,
+          data.description ||
+          t("accounts.transaction.defaultDescription", {
+            type: data.transactionType,
+          }),
       };
 
       await runMutation(createTransaction, transactionData);
@@ -171,13 +176,21 @@ const Accounts = () => {
     }
   });
 
+  const formatCreatedAt = (iso) => {
+    if (!iso) return "—";
+    const lang = (i18n.language || "ps").split("-")[0];
+    const localeTag =
+      lang === "ps" ? "ps-AF" : "fa-IR";
+    return new Date(iso).toLocaleDateString(localeTag);
+  };
+
   return (
     <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Page header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">مدیریت حسابات</h1>
-          <p className="text-gray-600 mt-1">ایجاد و مدیریت حساب های سیستم</p>
+          <h1 className="text-xl font-bold text-gray-900">{t("accounts.title")}</h1>
+          <p className="text-gray-600 mt-1">{t("accounts.subtitle")}</p>
         </div>
         <button
           onClick={() => {
@@ -194,7 +207,7 @@ const Accounts = () => {
           className="bg-amber-600 text-white px-4 py-2 rounded-sm hover:bg-amber-700 flex items-center gap-2"
         >
           <PlusIcon className="h-5 w-5" />
-          حساب جدید
+          {t("accounts.newAccount")}
         </button>
       </div>
 
@@ -203,28 +216,28 @@ const Accounts = () => {
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="flex flex-wrap gap-2">
             {[
-              { id: "supplier", label: "تهیه‌کننده", icon: BuildingOfficeIcon },
-              { id: "customer", label: "مشتری", icon: UserIcon },
-              { id: "employee", label: "کارمند", icon: UserIcon },
-              { id: "cashier", label: "صندوق", icon: BanknotesIcon },
-              { id: "safe", label: "صندوق امانات", icon: CurrencyDollarIcon },
-              { id: "saraf", label: "صراف", icon: CurrencyDollarIcon },
-            ].map((t) => (
+              { id: "supplier", icon: BuildingOfficeIcon },
+              { id: "customer", icon: UserIcon },
+              { id: "employee", icon: UserIcon },
+              { id: "cashier", icon: BanknotesIcon },
+              { id: "safe", icon: CurrencyDollarIcon },
+              { id: "saraf", icon: CurrencyDollarIcon },
+            ].map((typeOption) => (
               <button
-                key={t.id}
+                key={typeOption.id}
                 onClick={() => {
-                  setType(t.id);
-                  setSearchParams({ type: t.id });
+                  setType(typeOption.id);
+                  setSearchParams({ type: typeOption.id });
                   setPage(1);
                 }}
                 className={`px-4 py-2 rounded-sm flex items-center gap-2 transition-colors ${
-                  type === t.id
+                  type === typeOption.id
                     ? "bg-amber-600 text-white"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
-                <t.icon className="h-4 w-4" />
-                {t.label}
+                <typeOption.icon className="h-4 w-4" />
+                {t(`accounts.types.${typeOption.id}`)}
               </button>
             ))}
           </div>
@@ -235,7 +248,7 @@ const Accounts = () => {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="جستجو بر اساس نام حساب..."
+              placeholder={t("accounts.searchPlaceholder")}
               className={inputStyle}
             />
           </div>
@@ -249,25 +262,25 @@ const Accounts = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  نام
+                  {t("accounts.table.name")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  نوع
+                  {t("accounts.table.type")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  موجودی اولیه
+                  {t("accounts.table.openingBalance")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  موجودی فعلی
+                  {t("accounts.table.currentBalance")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  ارز
+                  {t("accounts.table.currency")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  تاریخ ایجاد
+                  {t("accounts.table.createdAt")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  عملیات
+                  {t("accounts.table.actions")}
                 </th>
               </tr>
             </thead>
@@ -278,7 +291,7 @@ const Accounts = () => {
                     colSpan={7}
                     className="px-6 py-8 text-center text-gray-500"
                   >
-                    در حال بارگذاری...
+                    {t("accounts.table.loading")}
                   </td>
                 </tr>
               ) : accounts.length === 0 ? (
@@ -287,7 +300,7 @@ const Accounts = () => {
                     colSpan={7}
                     className="px-6 py-8 text-center text-gray-500"
                   >
-                    حسابی یافت نشد
+                    {t("accounts.table.empty")}
                   </td>
                 </tr>
               ) : (
@@ -311,28 +324,28 @@ const Accounts = () => {
                       {acc.currency || "AFN"}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(acc.createdAt).toLocaleDateString("fa-IR")}
+                      {formatCreatedAt(acc.createdAt)}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <div className="flex items-center gap-2">
                         <button
                           className="text-blue-600 hover:text-blue-900"
                           onClick={() => navigate(`/accounts/${acc._id}`)}
-                          title="مشاهده جزئیات"
+                          title={t("accounts.actions.viewDetails")}
                         >
                           <EyeIcon className="h-4 w-4" />
                         </button>
                         <button
                           className="text-green-600 hover:text-green-900"
                           onClick={() => handleAddTransaction(acc)}
-                          title="افزودن تراکنش"
+                          title={t("accounts.actions.addTransaction")}
                         >
                           <ArrowUpIcon className="h-4 w-4" />
                         </button>
                         <button
                           className="text-indigo-600 hover:text-indigo-900"
                           onClick={() => handleEdit(acc)}
-                          title="ویرایش"
+                          title={t("accounts.actions.edit")}
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
@@ -342,7 +355,7 @@ const Accounts = () => {
                             setDeletedId(acc._id);
                             setDeleteModal(true);
                           }}
-                          title="حذف"
+                          title={t("accounts.actions.delete")}
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
@@ -359,7 +372,11 @@ const Accounts = () => {
         {totalPages > 1 && (
           <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200">
             <div className="text-sm text-gray-600">
-              صفحه {page} از {totalPages} (مجموع {total} حساب)
+              {t("accounts.pagination.pageOf", {
+                page,
+                totalPages,
+                total,
+              })}
             </div>
             <div className="flex gap-2">
               <button
@@ -367,14 +384,14 @@ const Accounts = () => {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                قبلی
+                {t("accounts.prev")}
               </button>
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
                 className="px-3 py-1 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                بعدی
+                {t("accounts.next")}
               </button>
             </div>
           </div>
@@ -387,18 +404,17 @@ const Accounts = () => {
               <div className="bg-red-100 p-2 rounded-full mr-3">
                 <TrashIcon className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">تأیید حذف</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t("accounts.delete.title")}
+              </h3>
             </div>
-            <p className="text-gray-600 mb-6">
-              آیا مطمئن هستید که می‌خواهید این را حذف کنید؟ این عمل قابل بازگشت
-              نیست.
-            </p>
+            <p className="text-gray-600 mb-6">{t("accounts.delete.message")}</p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDeleteModal(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
-                لغو
+                {t("accounts.delete.cancel")}
               </button>
               <button
                 onClick={() => {
@@ -408,7 +424,9 @@ const Accounts = () => {
                 disabled={isDeleting}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
-                {isDeleting ? "در حال حذف..." : "حذف"}
+                {isDeleting
+                  ? t("accounts.delete.deleting")
+                  : t("accounts.delete.confirm")}
               </button>
             </div>
           </div>
@@ -424,7 +442,9 @@ const Accounts = () => {
           <div className="bg-white rounded-md">
             <div className="p-3 border-b border-slate-200 flex justify-between items-center">
               <h2 className="text-xl font-bold text-gray-900">
-                {editingAccount ? "ویرایش حساب" : "ایجاد حساب جدید"}
+                {editingAccount
+                  ? t("accounts.modal.editTitle")
+                  : t("accounts.modal.createTitle")}
               </h2>
               <button
                 onClick={() => {
@@ -442,19 +462,19 @@ const Accounts = () => {
             >
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  نوع حساب *
+                  {t("accounts.modal.accountType")}
                 </label>
                 <select
                   className={inputStyle}
                   defaultValue={type}
                   {...register("type", { required: true })}
                 >
-                  <option value="supplier">تهیه‌کننده</option>
-                  <option value="customer">مشتری</option>
-                  <option value="employee">کارمند</option>
-                  <option value="cashier">صندوق</option>
-                  <option value="safe">صندوق امانات</option>
-                  <option value="saraf">صراف</option>
+                  <option value="supplier">{t("accounts.types.supplier")}</option>
+                  <option value="customer">{t("accounts.types.customer")}</option>
+                  <option value="employee">{t("accounts.types.employee")}</option>
+                  <option value="cashier">{t("accounts.types.cashier")}</option>
+                  <option value="safe">{t("accounts.types.safe")}</option>
+                  <option value="saraf">{t("accounts.types.saraf")}</option>
                 </select>
               </div>
 
@@ -462,7 +482,7 @@ const Accounts = () => {
               {!isSystemAccount(watch("type") || type) && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    مرجع *
+                    {t("accounts.modal.reference")}
                   </label>
                   <select
                     className={inputStyle}
@@ -470,7 +490,7 @@ const Accounts = () => {
                       required: !isSystemAccount(watch("type") || type),
                     })}
                   >
-                    <option value="">انتخاب مرجع</option>
+                    <option value="">{t("accounts.modal.selectReference")}</option>
                     {getReferenceOptions(watch("type") || type).map((entity) => (
                       <option key={entity._id} value={entity._id}>
                         {entity.name}
@@ -481,17 +501,17 @@ const Accounts = () => {
               )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  نام حساب *
+                  {t("accounts.modal.accountName")}
                 </label>
                 <input
                   className={inputStyle}
-                  placeholder="نام حساب"
+                  placeholder={t("accounts.modal.accountNamePlaceholder")}
                   {...register("name", { required: true })}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  موجودی اولیه
+                  {t("accounts.modal.openingBalance")}
                 </label>
                 <input
                   type="number"
@@ -501,13 +521,12 @@ const Accounts = () => {
                   {...register("openingBalance", { valueAsNumber: true })}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  (موجودی فعلی به صورت خودکار برابر با موجودی اولیه تنظیم
-                  می‌شود)
+                  {t("accounts.modal.openingBalanceHint")}
                 </p>
               </div>
               <div className=" col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ارز
+                  {t("accounts.modal.currency")}
                 </label>
                 <input
                   className={inputStyle}
@@ -524,7 +543,7 @@ const Accounts = () => {
                   }}
                   className="px-4 py-2  border border-gray-300 rounded-sm cursor-pointer hover:bg-gray-50"
                 >
-                  انصراف
+                  {t("accounts.modal.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -536,10 +555,10 @@ const Accounts = () => {
                   }`}
                 >
                   {isAccountActionPending
-                    ? "در حال ذخیره..."
+                    ? t("accounts.modal.saving")
                     : editingAccount
-                    ? "ذخیره تغییرات"
-                    : "ایجاد حساب"}
+                    ? t("accounts.modal.saveChanges")
+                    : t("accounts.modal.create")}
                 </button>
               </div>
             </form>
@@ -557,7 +576,7 @@ const Accounts = () => {
             <div className="bg-white rounded-lg shadow-xl">
               <div className="p-6 border-b border-slate-200 flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  افزودن تراکنش دستی
+                  {t("accounts.transaction.title")}
                 </h2>
                 <button
                   onClick={() => {
@@ -575,79 +594,56 @@ const Accounts = () => {
               >
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <h3 className="font-semibold text-blue-900 mb-2">
-                    حساب: {selectedAccount.name}
+                    {t("accounts.transaction.account")}: {selectedAccount.name}
                   </h3>
                   <p className="text-sm text-blue-700">
-                    موجودی فعلی:{" "}
+                    {t("accounts.transaction.currentBalance")}:{" "}
                     {formatNumber(selectedAccount.currentBalance ?? 0)} AFN
                   </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    نوع تراکنش *
+                    {t("accounts.transaction.transactionType")}
                   </label>
                   <select
                     className={inputStyle}
                     {...register("transactionType", { required: true })}
                   >
                     <option value="Credit">
-                      اعتبار (موجودی حساب افزایش می‌یابد)
+                      {t("accounts.transaction.optionCredit")}
                     </option>
                     <option value="Debit">
-                      بدهی (موجودی حساب کاهش می‌یابد)
+                      {t("accounts.transaction.optionDebit")}
                     </option>
                     <option value="Expense">
-                      مصرف (هزینه - موجودی کاهش می‌یابد)
+                      {t("accounts.transaction.optionExpense")}
                     </option>
                   </select>
                   <div className="mt-2 p-3 rounded-lg bg-gray-50">
                     <p className="text-sm font-medium text-gray-700 mb-2">
-                      مثال‌های کاربردی:
+                      {t("accounts.transaction.examplesTitle")}
                     </p>
                     <div className="text-xs text-gray-600 space-y-1">
                       {watchedTransactionType === "Credit" && (
                         <>
-                          <p>
-                            • مشتری پول پرداخت کرد → موجودی حساب مشتری افزایش
-                            می‌یابد
-                          </p>
-                          <p>
-                            • شما به تهیه‌کننده پول پرداخت کردید → موجودی حساب
-                            تهیه‌کننده کاهش می‌یابد (بدهی شما کم شد)
-                          </p>
-                          <p>
-                            • حقوق کارمند پرداخت شد → موجودی حساب کارمند افزایش
-                            می‌یابد
-                          </p>
+                          <p>{t("accounts.transaction.creditEx1")}</p>
+                          <p>{t("accounts.transaction.creditEx2")}</p>
+                          <p>{t("accounts.transaction.creditEx3")}</p>
                         </>
                       )}
                       {watchedTransactionType === "Debit" && (
                         <>
-                          <p>
-                            • شما به مشتری پول پرداخت کردید → موجودی حساب مشتری
-                            کاهش می‌یابد
-                          </p>
-                          <p>
-                            • تهیه‌کننده پول برگشت داد → موجودی حساب تهیه‌کننده
-                            کاهش می‌یابد
-                          </p>
-                          <p>
-                            • کارمند پول برگشت داد → موجودی حساب کارمند کاهش
-                            می‌یابد
-                          </p>
+                          <p>{t("accounts.transaction.debitEx1")}</p>
+                          <p>{t("accounts.transaction.debitEx2")}</p>
+                          <p>{t("accounts.transaction.debitEx3")}</p>
                         </>
                       )}
                       {watchedTransactionType === "Expense" && (
                         <>
-                          <p>
-                            • خرید ملزومات اداری → موجودی حساب صندوق کاهش
-                            می‌یابد
-                          </p>
-                          <p>• پرداخت اجاره → موجودی حساب صندوق کاهش می‌یابد</p>
-                          <p>
-                            • هزینه تعمیرات → موجودی حساب صندوق کاهش می‌یابد
-                          </p>
+                          <p>{t("accounts.transaction.expenseEx1")}</p>
+                          <p>{t("accounts.transaction.expenseEx2")}</p>
+                          <p>{t("accounts.transaction.expenseEx3")}</p>
                         </>
                       )}
                     </div>
@@ -656,39 +652,41 @@ const Accounts = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    مبلغ *
+                    {t("accounts.transaction.amount")}
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     className={inputStyle}
-                    placeholder="مبلغ به AFN"
+                    placeholder={t("accounts.transaction.amountPlaceholder")}
                     {...register("amount", { required: true, min: 0.01 })}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    توضیحات
+                    {t("accounts.transaction.description")}
                   </label>
                   <textarea
                     className={inputStyle}
                     rows={3}
-                    placeholder="توضیح کوتاه در مورد این تراکنش..."
+                    placeholder={t(
+                      "accounts.transaction.descriptionPlaceholder"
+                    )}
                     {...register("description")}
                   />
                 </div>
 
                 <div className="bg-yellow-50 p-3 rounded-lg">
                   <p className="text-sm text-yellow-800">
-                    <strong>نکته:</strong>
+                    <strong>{t("accounts.transaction.noteLabel")}</strong>
                     {watchedTransactionType === "Credit" &&
-                      " این تراکنش موجودی حساب را افزایش می‌دهد."}
+                      t("accounts.transaction.noteCredit")}
                     {watchedTransactionType === "Debit" &&
-                      " این تراکنش موجودی حساب را کاهش می‌دهد."}
+                      t("accounts.transaction.noteDebit")}
                     {watchedTransactionType === "Expense" &&
-                      " این تراکنش موجودی حساب را کاهش می‌دهد."}
+                      t("accounts.transaction.noteExpense")}
                   </p>
                 </div>
 
@@ -701,7 +699,7 @@ const Accounts = () => {
                     }}
                     className="px-4 py-2 border border-gray-300 rounded-sm hover:bg-gray-50"
                   >
-                    انصراف
+                    {t("accounts.transaction.cancel")}
                   </button>
                   <button
                     type="submit"
@@ -713,8 +711,8 @@ const Accounts = () => {
                     }`}
                   >
                     {isTransactionActionPending
-                      ? "در حال افزودن..."
-                      : "افزودن تراکنش"}
+                      ? t("accounts.transaction.adding")
+                      : t("accounts.transaction.submit")}
                   </button>
                 </div>
               </form>

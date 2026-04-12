@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   useUnits,
   useCreateUnit,
@@ -18,6 +19,7 @@ import GloableModal from "./GloableModal";
 import { inputStyle } from "./ProductForm";
 
 const UnitManagement = () => {
+  const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -112,6 +114,14 @@ const UnitManagement = () => {
     setIsModalOpen(true);
   };
 
+  const unitTypeLabel = (type) => {
+    if (type === "weight") return t("admin.unitsPage.typeWeight");
+    if (type === "count") return t("admin.unitsPage.typeCount");
+    if (type === "volume") return t("admin.unitsPage.typeVolume");
+    if (type === "length") return t("admin.unitsPage.typeLength");
+    return type || "—";
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -120,7 +130,7 @@ const UnitManagement = () => {
           style={{ borderColor: "var(--primary-brown)" }}
         ></div>
         <span className="mr-4 text-lg" style={{ color: "var(--text-medium)" }}>
-          در حال بارگذاری...
+          {t("admin.common.loading")}
         </span>
       </div>
     );
@@ -131,13 +141,13 @@ const UnitManagement = () => {
       <div className="text-center py-12">
         <ExclamationTriangleIcon className="h-16 w-16 mx-auto text-red-500 mb-4" />
         <h3 className="text-lg font-medium text-red-600 mb-2">
-          خطا در بارگذاری داده‌ها
+          {t("admin.common.errorTitle")}
         </h3>
         <p className="text-gray-600 mb-4">
-          {error.message || "لطفاً صفحه را رفرش کنید یا دوباره تلاش کنید"}
+          {error.message || t("admin.common.errorHint")}
         </p>
         <button onClick={() => refetch()} className="btn-primary">
-          تلاش مجدد
+          {t("admin.common.retry")}
         </button>
       </div>
     );
@@ -152,10 +162,10 @@ const UnitManagement = () => {
             className="text-2xl font-bold"
             style={{ color: "var(--primary-brown)" }}
           >
-            مدیریت واحدها
+            {t("admin.unitsPage.pageTitle")}
           </h2>
           <p className="text-gray-600 mt-1">
-            افزودن، ویرایش و حذف واحدهای اندازه‌گیری
+            {t("admin.unitsPage.pageSubtitle")}
           </p>
         </div>
         <button
@@ -163,7 +173,7 @@ const UnitManagement = () => {
           className={`bg-amber-600 cursor-pointer group  text-white hover:bg-amber-600/90  duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in `}
         >
           <PlusIcon className="h-5 w-5" />
-          <span>افزودن واحد</span>
+          <span>{t("admin.unitsPage.addButton")}</span>
         </button>
       </div>
 
@@ -174,18 +184,23 @@ const UnitManagement = () => {
             <MagnifyingGlassIcon className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="جستجو در واحدها..."
+              placeholder={t("admin.unitsPage.searchPlaceholder")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className={`${inputStyle} pr-10`}
             />
           </div>
           <div className="flex items-center space-x-4 space-x-reverse text-sm text-gray-600">
-            <span>کل: {units?.data?.length || 0}</span>
-            <span>نمایش: {filteredUnits.length}</span>
             <span>
-              واحد پایه:{" "}
-              {units?.data?.filter((u) => u.is_base_unit).length || 0}
+              {t("admin.common.total", { count: units?.data?.length || 0 })}
+            </span>
+            <span>
+              {t("admin.common.showing", { count: filteredUnits.length })}
+            </span>
+            <span>
+              {t("admin.unitsPage.baseCount", {
+                count: units?.data?.filter((u) => u.is_base_unit).length || 0,
+              })}
             </span>
           </div>
         </div>
@@ -198,22 +213,22 @@ const UnitManagement = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  نام واحد
+                  {t("admin.unitsPage.colName")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  نوع واحد
+                  {t("admin.unitsPage.colType")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  واحد پایه
+                  {t("admin.unitsPage.colBase")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ضریب تبدیل
+                  {t("admin.unitsPage.colFactor")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  حالت
+                  {t("admin.unitsPage.colState")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  عملیات
+                  {t("admin.unitsPage.actions")}
                 </th>
               </tr>
             </thead>
@@ -225,7 +240,7 @@ const UnitManagement = () => {
                     className="px-6 py-12 text-center text-gray-500"
                   >
                     <ScaleIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>هیچ واحدی یافت نشد</p>
+                    <p>{t("admin.unitsPage.empty")}</p>
                   </td>
                 </tr>
               ) : (
@@ -251,13 +266,12 @@ const UnitManagement = () => {
                         unit.unit_type === 'volume' ? 'bg-purple-100 text-purple-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
-                        {unit.unit_type === 'weight' ? 'وزن' :
-                         unit.unit_type === 'count' ? 'تعداد' :
-                         unit.unit_type === 'volume' ? 'حجم' : unit.unit_type || '-'}
+                        {unitTypeLabel(unit.unit_type)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      {unit.base_unit?.name || (unit.is_base_unit ? 'خودش' : '-')}
+                      {unit.base_unit?.name ||
+                        (unit.is_base_unit ? t("admin.unitsPage.selfBase") : "-")}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -267,11 +281,11 @@ const UnitManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {unit.is_base_unit ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          واحد پایه
+                          {t("admin.unitsPage.badgeBase")}
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          واحد فرعی
+                          {t("admin.unitsPage.badgeDerived")}
                         </span>
                       )}
                     </td>
@@ -280,7 +294,7 @@ const UnitManagement = () => {
                         <button
                           onClick={() => handleEdit(unit)}
                           className="text-indigo-600 hover:text-indigo-900 p-1 rounded"
-                          title="ویرایش"
+                          title={t("admin.unitsPage.tooltipEdit")}
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
@@ -290,7 +304,7 @@ const UnitManagement = () => {
                             setDeleteConfirm(true);
                           }}
                           className="text-red-600 hover:text-red-900 p-1 rounded"
-                          title="حذف"
+                          title={t("admin.unitsPage.tooltipDelete")}
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
@@ -311,13 +325,15 @@ const UnitManagement = () => {
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {editingUnit ? "ویرایش واحد" : "افزودن واحد جدید"}
+                  {editingUnit
+                    ? t("admin.unitsPage.modalTitleEdit")
+                    : t("admin.unitsPage.modalTitleAdd")}
                 </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <span className="sr-only">بستن</span>
+                  <span className="sr-only">{t("admin.unitsPage.closeSr")}</span>
                   <svg
                     className="h-6 w-6"
                     fill="none"
@@ -341,7 +357,7 @@ const UnitManagement = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      نام واحد *
+                      {t("admin.unitsPage.nameLabel")}
                     </label>
                     <input
                       type="text"
@@ -350,13 +366,13 @@ const UnitManagement = () => {
                       onChange={handleInputChange}
                       required
                       className={inputStyle}
-                      placeholder="مثال: کیلوگرم، کارتن، بسته"
+                      placeholder={t("admin.unitsPage.namePlaceholder")}
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      نوع واحد *
+                      {t("admin.unitsPage.unitTypeLabel")}
                     </label>
                     <select
                       name="unit_type"
@@ -365,11 +381,21 @@ const UnitManagement = () => {
                       required
                       className={inputStyle}
                     >
-                      <option value="">انتخاب نوع واحد</option>
-                      <option value="weight">وزن</option>
-                      <option value="count">تعداد</option>
-                      <option value="volume">حجم</option>
-                      <option value="length">طول</option>
+                      <option value="">
+                        {t("admin.unitsPage.selectUnitType")}
+                      </option>
+                      <option value="weight">
+                        {t("admin.unitsPage.typeWeight")}
+                      </option>
+                      <option value="count">
+                        {t("admin.unitsPage.typeCount")}
+                      </option>
+                      <option value="volume">
+                        {t("admin.unitsPage.typeVolume")}
+                      </option>
+                      <option value="length">
+                        {t("admin.unitsPage.typeLength")}
+                      </option>
                     </select>
                   </div>
                 </div>
@@ -383,7 +409,7 @@ const UnitManagement = () => {
                     className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
                   <label className="mr-2 block text-sm text-gray-700">
-                    این واحد، واحد پایه است
+                    {t("admin.unitsPage.isBaseLabel")}
                   </label>
                 </div>
 
@@ -391,7 +417,7 @@ const UnitManagement = () => {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        واحد پایه *
+                        {t("admin.unitsPage.baseUnitLabel")}
                       </label>
                       <select
                         name="base_unit"
@@ -400,21 +426,30 @@ const UnitManagement = () => {
                         required={!formData.is_base_unit}
                         className={inputStyle}
                       >
-                        <option value="">انتخاب واحد پایه</option>
+                        <option value="">
+                          {t("admin.unitsPage.selectBaseUnit")}
+                        </option>
                         {units?.data?.filter(u => u.is_base_unit && u.unit_type === formData.unit_type).map(unit => (
                           <option key={unit._id} value={unit._id}>{unit.name}</option>
                         ))}
                       </select>
                       {formData.unit_type && (
                         <p className="text-xs text-gray-500 mt-1">
-                          واحدهای پایه موجود: {units?.data?.filter(u => u.is_base_unit && u.unit_type === formData.unit_type).length}
+                          {t("admin.unitsPage.baseUnitsAvailable", {
+                            count:
+                              units?.data?.filter(
+                                (u) =>
+                                  u.is_base_unit &&
+                                  u.unit_type === formData.unit_type
+                              ).length || 0,
+                          })}
                         </p>
                       )}
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        ضریب تبدیل *
+                        {t("admin.unitsPage.conversionLabel")}
                       </label>
                       <input
                         type="number"
@@ -428,7 +463,7 @@ const UnitManagement = () => {
                         placeholder="10"
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        مثال: 1 کارتن = 10 قطعه
+                        {t("admin.unitsPage.conversionHint")}
                       </p>
                     </div>
                   </div>
@@ -436,7 +471,7 @@ const UnitManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    توضیحات
+                    {t("admin.unitsPage.descriptionLabel")}
                   </label>
                   <textarea
                     name="description"
@@ -444,7 +479,7 @@ const UnitManagement = () => {
                     onChange={handleInputChange}
                     rows={2}
                     className={inputStyle}
-                    placeholder="توضیحات واحد (اختیاری)"
+                    placeholder={t("admin.unitsPage.descriptionPlaceholder")}
                   />
                 </div>
 
@@ -453,11 +488,10 @@ const UnitManagement = () => {
                     <div className="flex">
                       <InformationCircleIcon className="h-5 w-5 text-blue-400 ml-2" />
                       <div className="text-sm text-blue-700">
-                        <p className="font-medium">واحد پایه</p>
-                        <p>
-                          این واحد به عنوان واحد اصلی برای محاسبات استفاده خواهد
-                          شد.
+                        <p className="font-medium">
+                          {t("admin.unitsPage.infoBaseTitle")}
                         </p>
+                        <p>{t("admin.unitsPage.infoBaseBody")}</p>
                       </div>
                     </div>
                   </div>
@@ -469,7 +503,7 @@ const UnitManagement = () => {
                     onClick={() => setIsModalOpen(false)}
                     className={` bg-transparent border border-slate-600 cursor-pointer group  text-slate-700  duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in `}
                   >
-                    انصراف
+                    {t("admin.unitsPage.cancel")}
                   </button>
                   <button
                     type="submit"
@@ -481,10 +515,10 @@ const UnitManagement = () => {
                   >
                     {createUnitMutation.isPending ||
                     updateUnitMutation.isPending
-                      ? "در حال ذخیره..."
+                      ? t("admin.unitsPage.saving")
                       : editingUnit
-                      ? "به‌روزرسانی"
-                      : "افزودن"}
+                      ? t("admin.unitsPage.update")
+                      : t("admin.unitsPage.add")}
                   </button>
                 </div>
               </form>
@@ -503,18 +537,19 @@ const UnitManagement = () => {
               <div className="bg-red-100 p-2 rounded-full mr-3">
                 <TrashIcon className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">تأیید حذف</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t("admin.unitsPage.delete.title")}
+              </h3>
             </div>
             <p className="text-gray-600 mb-6">
-              آیا مطمئن هستید که می‌خواهید این خرید را حذف کنید؟ این عمل قابل
-              بازگشت نیست.
+              {t("admin.unitsPage.delete.message")}
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDeleteConfirm(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
-                لغو
+                {t("admin.unitsPage.delete.cancel")}
               </button>
               <button
                 onClick={() => {
@@ -524,7 +559,9 @@ const UnitManagement = () => {
                 disabled={deleteUnitMutation.isPending}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
-                {deleteUnitMutation.isPending ? "در حال حذف..." : "حذف"}
+                {deleteUnitMutation.isPending
+                  ? t("admin.unitsPage.delete.deleting")
+                  : t("admin.unitsPage.delete.confirm")}
               </button>
             </div>
           </div>

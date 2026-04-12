@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   useCustomers,
   useCreateCustomer,
@@ -22,6 +23,7 @@ import GloableModal from "./GloableModal";
 import { useSubmitLock } from "../hooks/useSubmitLock.js";
 
 const CustomerManagement = () => {
+  const { t } = useTranslation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -161,7 +163,7 @@ const CustomerManagement = () => {
           style={{ borderColor: "var(--primary-brown)" }}
         ></div>
         <span className="mr-4 text-lg" style={{ color: "var(--text-medium)" }}>
-          در حال بارگذاری...
+          {t("admin.common.loading")}
         </span>
       </div>
     );
@@ -172,17 +174,19 @@ const CustomerManagement = () => {
       <div className="text-center py-12">
         <ExclamationTriangleIcon className="h-16 w-16 mx-auto text-red-500 mb-4" />
         <h3 className="text-lg font-medium text-red-600 mb-2">
-          خطا در بارگذاری داده‌ها
+          {t("admin.common.errorTitle")}
         </h3>
         <p className="text-gray-600 mb-4">
-          {error.message || "لطفاً صفحه را رفرش کنید یا دوباره تلاش کنید"}
+          {error.message || t("admin.common.errorHint")}
         </p>
         <button onClick={() => refetch()} className="btn-primary">
-          تلاش مجدد
+          {t("admin.common.retry")}
         </button>
       </div>
     );
   }
+
+  const totalCount = customers?.data?.length ?? 0;
 
   return (
     <div className="space-y-6">
@@ -193,16 +197,18 @@ const CustomerManagement = () => {
             className="text-2xl font-bold"
             style={{ color: "var(--primary-brown)" }}
           >
-            مدیریت مشتریان
+            {t("admin.customersPage.pageTitle")}
           </h2>
-          <p className="text-gray-600 mt-1">افزودن، ویرایش و حذف مشتریان</p>
+          <p className="text-gray-600 mt-1">
+            {t("admin.customersPage.pageSubtitle")}
+          </p>
         </div>
         <button
           onClick={handleAddNew}
           className={`bg-amber-600 cursor-pointer group  text-white hover:bg-amber-600/90  duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in `}
         >
           <PlusIcon className="h-5 w-5" />
-          <span>افزودن مشتری</span>
+          <span>{t("admin.customersPage.addButton")}</span>
         </button>
       </div>
 
@@ -213,15 +219,19 @@ const CustomerManagement = () => {
             <MagnifyingGlassIcon className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="جستجو در مشتریان..."
+              placeholder={t("admin.customersPage.searchPlaceholder")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className={`${inputStyle} pr-10`}
             />
           </div>
           <div className="flex items-center space-x-4 space-x-reverse text-sm text-gray-600">
-            <span>کل: {customers?.length || 0}</span>
-            <span>نمایش: {filteredCustomers.length}</span>
+            <span>{t("admin.common.total", { count: totalCount })}</span>
+            <span>
+              {t("admin.common.showing", {
+                count: filteredCustomers.length,
+              })}
+            </span>
           </div>
         </div>
       </div>
@@ -233,22 +243,22 @@ const CustomerManagement = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  نام مشتری
+                  {t("admin.customersPage.table.name")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  تماس
+                  {t("admin.customersPage.table.contact")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ایمیل
+                  {t("admin.customersPage.table.email")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  آدرس
+                  {t("admin.customersPage.table.address")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  شهر
+                  {t("admin.customersPage.table.city")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  عملیات
+                  {t("admin.customersPage.table.actions")}
                 </th>
               </tr>
             </thead>
@@ -260,7 +270,7 @@ const CustomerManagement = () => {
                     className="px-6 py-12 text-center text-gray-500"
                   >
                     <UserGroupIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>هیچ مشتری‌ای یافت نشد</p>
+                    <p>{t("admin.customersPage.empty")}</p>
                   </td>
                 </tr>
               ) : (
@@ -308,7 +318,7 @@ const CustomerManagement = () => {
                         <button
                           onClick={() => handleEdit(customer)}
                           className="text-indigo-600 hover:text-indigo-900 p-1 rounded"
-                          title="ویرایش"
+                          title={t("admin.customersPage.tooltipEdit")}
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
@@ -318,7 +328,7 @@ const CustomerManagement = () => {
                             setDeleteConfirm(true);
                           }}
                           className="text-red-600 hover:text-red-900 p-1 rounded"
-                          title="حذف"
+                          title={t("admin.customersPage.tooltipDelete")}
                         >
                           <TrashIcon className="h-4 w-4" />
                         </button>
@@ -339,13 +349,17 @@ const CustomerManagement = () => {
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {editingCustomer ? "ویرایش مشتری" : "افزودن مشتری جدید"}
+                  {editingCustomer
+                    ? t("admin.customersPage.modalTitleEdit")
+                    : t("admin.customersPage.modalTitleAdd")}
                 </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <span className="sr-only">بستن</span>
+                  <span className="sr-only">
+                    {t("admin.customersPage.closeSr")}
+                  </span>
                   <svg
                     className="h-6 w-6"
                     fill="none"
@@ -368,7 +382,7 @@ const CustomerManagement = () => {
               >
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    نام مشتری *
+                    {t("admin.customersPage.nameLabel")}
                   </label>
                   <input
                     type="text"
@@ -377,13 +391,13 @@ const CustomerManagement = () => {
                     onChange={handleInputChange}
                     required
                     className={inputStyle}
-                    placeholder="نام مشتری"
+                    placeholder={t("admin.customersPage.namePlaceholder")}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ایمیل
+                    {t("admin.customersPage.email")}
                   </label>
                   <input
                     type="email"
@@ -397,7 +411,7 @@ const CustomerManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    تلفن
+                    {t("admin.customersPage.phone")}
                   </label>
                   <input
                     type="tel"
@@ -410,7 +424,7 @@ const CustomerManagement = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    کد پستی
+                    {t("admin.customersPage.zip")}
                   </label>
                   <input
                     type="text"
@@ -423,7 +437,7 @@ const CustomerManagement = () => {
                 </div>
                 <div className=" col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    آدرس
+                    {t("admin.customersPage.address")}
                   </label>
                   <textarea
                     name="contact_info.address"
@@ -431,14 +445,14 @@ const CustomerManagement = () => {
                     onChange={handleInputChange}
                     rows={2}
                     className={inputStyle}
-                    placeholder="آدرس کامل"
+                    placeholder={t("admin.customersPage.addressPlaceholder")}
                   />
                 </div>
 
                 <div className=" col-span-2  grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      شهر
+                      {t("admin.customersPage.city")}
                     </label>
                     <input
                       type="text"
@@ -446,12 +460,12 @@ const CustomerManagement = () => {
                       value={formData.contact_info.city}
                       onChange={handleInputChange}
                       className={inputStyle}
-                      placeholder="شهر"
+                      placeholder={t("admin.customersPage.cityPlaceholder")}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      استان
+                      {t("admin.customersPage.state")}
                     </label>
                     <input
                       type="text"
@@ -459,7 +473,7 @@ const CustomerManagement = () => {
                       value={formData.contact_info.state}
                       onChange={handleInputChange}
                       className={inputStyle}
-                      placeholder="استان"
+                      placeholder={t("admin.customersPage.statePlaceholder")}
                     />
                   </div>
                 </div>
@@ -470,7 +484,7 @@ const CustomerManagement = () => {
                     onClick={() => setIsModalOpen(false)}
                     className={`bg-transparent border border-slate-500 cursor-pointer group  text-slate-600  duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in `}
                   >
-                    انصراف
+                    {t("admin.customersPage.cancel")}
                   </button>
                   <button
                     type="submit"
@@ -480,10 +494,10 @@ const CustomerManagement = () => {
                   }`}
                   >
                   {isSavingCustomer
-                      ? "در حال ذخیره..."
+                      ? t("admin.customersPage.saving")
                       : editingCustomer
-                      ? "به‌روزرسانی"
-                      : "افزودن"}
+                      ? t("admin.customersPage.update")
+                      : t("admin.customersPage.add")}
                   </button>
                 </div>
               </form>
@@ -502,18 +516,19 @@ const CustomerManagement = () => {
               <div className="bg-red-100 p-2 rounded-full mr-3">
                 <TrashIcon className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">تأیید حذف</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t("admin.customersPage.delete.title")}
+              </h3>
             </div>
             <p className="text-gray-600 mb-6">
-              آیا مطمئن هستید که می‌خواهید این خرید را حذف کنید؟ این عمل قابل
-              بازگشت نیست.
+              {t("admin.customersPage.delete.message")}
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDeleteConfirm(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
-                لغو
+                {t("admin.customersPage.delete.cancel")}
               </button>
               <button
                 onClick={() => {
@@ -523,7 +538,9 @@ const CustomerManagement = () => {
                 disabled={isDeletingCustomer}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isDeletingCustomer ? "در حال حذف..." : "حذف"}
+                {isDeletingCustomer
+                  ? t("admin.customersPage.delete.deleting")
+                  : t("admin.customersPage.delete.confirm")}
               </button>
             </div>
           </div>

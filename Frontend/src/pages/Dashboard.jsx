@@ -3,7 +3,14 @@ import {
   BuildingOffice2Icon,
   DocumentTextIcon,
 } from "@heroicons/react/24/outline";
-import React, { Fragment, useEffect, useState } from "react";
+import React, {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useTranslation } from "react-i18next";
 import Table from "../components/Table";
 import TableBody from "../components/TableBody";
 import TableColumn from "../components/TableColumn";
@@ -19,51 +26,74 @@ import Select from "../components/Select";
 import Pagination from "../components/Pagination";
 import GloableModal from "../components/GloableModal";
 
-const Dashboard = () => {
-  const headers = [
-    { title: "حساب" },
-    { title: "نوع" },
-    { title: "تاریخ" },
-    { title: "مبلغ" },
-    { title: "مرجع" },
-    { title: "عملیات" },
-  ];
+const TABLE_FILTER_VALUES = [
+  "all",
+  "Account",
+  "AccountTransaction",
+  "AuditLog",
+  "Brand",
+  "Category",
+  "Company",
+  "Customer",
+  "Employee",
+  "EmployeeStock",
+  "Expense",
+  "Income",
+  "Product",
+  "Purchase",
+  "PurchaseItem",
+  "Sale",
+  "SaleItem",
+  "SaleReturn",
+  "Stock",
+  "StockTransfer",
+  "Supplier",
+  "Type",
+  "Unit",
+  "User",
+];
 
-  // Helper function to translate field names to Dari
-  const translateFieldName = (fieldName) => {
-    const fieldTranslations = {
-      name: "نام",
-      quantity: "مقدار",
-      price: "قیمت",
-      totalAmount: "مجموع مبلغ",
-      dueAmount: "مبلغ بدهی",
-      paidAmount: "مبلغ پرداخت شده",
-      date: "تاریخ",
-      description: "توضیحات",
-      status: "وضعیت",
-      type: "نوع",
-      category: "دسته‌بندی",
-      brand: "برند",
-      supplier: "تامین‌کننده",
-      customer: "مشتری",
-      employee: "کارمند",
-      product: "محصول",
-      purchase: "خرید",
-      sale: "فروش",
-      account: "حساب",
-      transactionType: "نوع تراکنش",
-      amount: "مبلغ",
-      reason: "دلیل",
-      changedBy: "تغییر دهنده",
-      changedAt: "تاریخ تغییر",
-      tableName: "نام جدول",
-      operation: "عملیات",
-      created_by: "ایجاد کننده",
-      updated_by: "به‌روزرسانی کننده",
-      // Add more translations as needed
-    };
-    return fieldTranslations[fieldName] || fieldName;
-  };
+const Dashboard = () => {
+  const { t, i18n } = useTranslation();
+
+  const headers = useMemo(
+    () => [
+      { title: t("dashboard.headers.account") },
+      { title: t("dashboard.headers.type") },
+      { title: t("dashboard.headers.date") },
+      { title: t("dashboard.headers.amount") },
+      { title: t("dashboard.headers.reference") },
+      { title: t("dashboard.headers.actions") },
+    ],
+    [t]
+  );
+
+  const auditLogHeaders = useMemo(
+    () => [
+      { title: t("dashboard.auditHeaders.changedAt") },
+      { title: t("dashboard.auditHeaders.table") },
+      { title: t("dashboard.auditHeaders.reason") },
+      { title: t("dashboard.auditHeaders.changedBy") },
+      { title: t("dashboard.auditHeaders.operationType") },
+      { title: t("dashboard.auditHeaders.details") },
+    ],
+    [t]
+  );
+
+  const tableOptions = useMemo(
+    () =>
+      TABLE_FILTER_VALUES.map((value) => ({
+        value,
+        label: t(`dashboard.tables.${value}`),
+      })),
+    [t]
+  );
+
+  const translateFieldName = useCallback(
+    (fieldName) =>
+      t(`dashboard.fields.${fieldName}`, { defaultValue: fieldName }),
+    [t]
+  );
 
   // Helper function to filter out ID fields
   const filterDataFields = (data) => {
@@ -81,30 +111,39 @@ const Dashboard = () => {
     return filtered;
   };
 
-  // Helper function to render values nicely
-  const renderValue = (value, depth = 0) => {
-    if (value === null || value === undefined) {
-      return <span className="text-gray-500">خالی</span>;
-    }
-    if (typeof value === "object") {
-      if (Array.isArray(value)) {
+  const renderValue = useCallback(
+    (value, depth = 0) => {
+      if (value === null || value === undefined) {
+        return (
+          <span className="text-gray-500">
+            {t("dashboard.render.emptyValue")}
+          </span>
+        );
+      }
+      if (typeof value === "object") {
+        if (Array.isArray(value)) {
+          return (
+            <div className={`ml-${depth * 4} mt-1`}>
+              <div className="text-xs text-gray-600 mb-1">
+                {t("dashboard.render.arrayLabel", { count: value.length })}
+              </div>
+              {value.map((item, index) => (
+                <div
+                  key={index}
+                  className="border-l-2 border-gray-200 pl-2 mb-1"
+                >
+                  <span className="text-xs text-gray-500">[{index}]:</span>
+                  {renderValue(item, depth + 1)}
+                </div>
+              ))}
+            </div>
+          );
+        }
         return (
           <div className={`ml-${depth * 4} mt-1`}>
             <div className="text-xs text-gray-600 mb-1">
-              آرایه ({value.length} آیتم):
+              {t("dashboard.render.objectLabel")}
             </div>
-            {value.map((item, index) => (
-              <div key={index} className="border-l-2 border-gray-200 pl-2 mb-1">
-                <span className="text-xs text-gray-500">[{index}]:</span>
-                {renderValue(item, depth + 1)}
-              </div>
-            ))}
-          </div>
-        );
-      } else {
-        return (
-          <div className={`ml-${depth * 4} mt-1`}>
-            <div className="text-xs text-gray-600 mb-1">شیء:</div>
             {Object.entries(value).map(([key, val]) => (
               <div key={key} className="border-l-2 border-gray-200 pl-2 mb-1">
                 <span className="font-medium text-xs">
@@ -116,10 +155,10 @@ const Dashboard = () => {
           </div>
         );
       }
-    } else {
       return <span className="text-sm">{String(value)}</span>;
-    }
-  };
+    },
+    [t, translateFieldName]
+  );
   const getTypeColor = (type) => {
     switch (type) {
       case "Sale":
@@ -143,41 +182,16 @@ const Dashboard = () => {
     }
   };
 
-  const getTransactionTypePersian = (type) => {
-    switch (type) {
-      case "Sale":
-        return "فروش";
-      case "Purchase":
-        return "خرید";
-      case "Payment":
-        return "پرداخت";
-      case "Transfer":
-        return "انتقال";
-      case "Expense":
-        return "هزینه";
-      case "Credit":
-        return "اعتبار";
-      case "Debit":
-        return "بدهی";
-      case "SaleReturn":
-        return "بازگشت فروش";
-      default:
-        return type;
-    }
-  };
+  const getTransactionTypeLabel = useCallback(
+    (type) => t(`dashboard.transactionTypes.${type}`, { defaultValue: type }),
+    [t]
+  );
 
-  const getOperationPersian = (operation) => {
-    switch (operation) {
-      case "INSERT":
-        return "درج";
-      case "UPDATE":
-        return "بروزرسانی";
-      case "DELETE":
-        return "حذف";
-      default:
-        return operation;
-    }
-  };
+  const getOperationLabel = useCallback(
+    (operation) =>
+      t(`dashboard.operations.${operation}`, { defaultValue: operation }),
+    [t]
+  );
 
   const getOperationColor = (operation) => {
     switch (operation) {
@@ -217,33 +231,6 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
-
-  const tableOptions = [
-    { value: "all", label: "همه" },
-    { value: "Account", label: "حساب" },
-    { value: "AccountTransaction", label: "تراکنش حساب" },
-    { value: "AuditLog", label: "لاگ حسابرسی" },
-    { value: "Brand", label: "برند" },
-    { value: "Category", label: "دسته‌بندی" },
-    { value: "Company", label: "شرکت" },
-    { value: "Customer", label: "مشتری" },
-    { value: "Employee", label: "کارمند" },
-    { value: "EmployeeStock", label: "موجودی کارمند" },
-    { value: "Expense", label: "هزینه" },
-    { value: "Income", label: "درآمد" },
-    { value: "Product", label: "محصول" },
-    { value: "Purchase", label: "خرید" },
-    { value: "PurchaseItem", label: "آیتم خرید" },
-    { value: "Sale", label: "فروش" },
-    { value: "SaleItem", label: "آیتم فروش" },
-    { value: "SaleReturn", label: "بازگشت فروش" },
-    { value: "Stock", label: "موجودی" },
-    { value: "StockTransfer", label: "انتقال موجودی" },
-    { value: "Supplier", label: "تامین‌کننده" },
-    { value: "Type", label: "نوع" },
-    { value: "Unit", label: "واحد" },
-    { value: "User", label: "کاربر" },
-  ];
 
   const allAuditLogs = useAuditLogs({
     page: auditPage,
@@ -286,24 +273,29 @@ const Dashboard = () => {
 
   // Format recent transactions from API data
 
-  // Helper function to format time ago
-  const formatTimeAgo = (dateString) => {
-    if (!dateString) return "زمان نامشخص";
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+  const formatTimeAgo = useCallback(
+    (dateString) => {
+      if (!dateString) return t("dashboard.time.unknown");
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
 
-    if (diffInHours < 1) return "همین الان";
-    if (diffInHours < 24) return `${diffInHours} ساعت پیش`;
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays} روز پیش`;
-    // For older dates, show the date in Dari format
-    return date.toLocaleDateString("fa-IR");
-  };
+      if (diffInHours < 1) return t("dashboard.time.justNow");
+      if (diffInHours < 24)
+        return t("dashboard.time.hoursAgo", { count: diffInHours });
+      const diffInDays = Math.floor(diffInHours / 24);
+      if (diffInDays < 7)
+        return t("dashboard.time.daysAgo", { count: diffInDays });
+      const lang = (i18n.language || "ps").split("-")[0];
+      const localeTag = lang === "ps" ? "ps-AF" : "fa-IR";
+      return date.toLocaleDateString(localeTag);
+    },
+    [t, i18n.language]
+  );
 
   return (
     <div
-      dir="rtl"
+      dir={i18n.dir()}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -318,7 +310,7 @@ const Dashboard = () => {
             color: "var(--text-dark)",
           }}
         >
-          داشبورد
+          {t("dashboard.title")}
         </h1>
         <p
           style={{
@@ -326,7 +318,7 @@ const Dashboard = () => {
             fontSize: "var(--body-regular)",
           }}
         >
-          خوش آمدید! اینجا وضعیت کسب‌وکار شما نمایش داده می‌شود.
+          {t("dashboard.subtitle")}
         </p>
       </div>
 
@@ -342,7 +334,7 @@ const Dashboard = () => {
               }`}
             >
               <BuildingOffice2Icon className="h-5 w-5" />
-              لاگ های سیستم
+              {t("dashboard.tabs.logs")}
             </button>
             <button
               onClick={() => setActiveTab("transaction")}
@@ -352,7 +344,7 @@ const Dashboard = () => {
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
-              انتقالات اخیر
+              {t("dashboard.tabs.transactions")}
             </button>
           </nav>
         </div>
@@ -364,7 +356,7 @@ const Dashboard = () => {
             <div className="relative pr-3">
               <input
                 type="text"
-                placeholder="جستجو در تراکنش‌ها..."
+                placeholder={t("dashboard.searchTransactions")}
                 value={transactionSearch}
                 onChange={(e) => setTransactionSearch(e.target.value)}
                 className={`w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm px-3 py-2 transition duration-300 ease focus:outline-none focus:border-slate-300 hover:border-slate-300 shadow-sm pr-10`}
@@ -393,7 +385,7 @@ const Dashboard = () => {
                 {statsLoading ? (
                   <TableRow>
                     <TableColumn>
-                      <p className="">در حال بارگیری...</p>
+                      <p className="">{t("dashboard.loading")}</p>
                     </TableColumn>
                   </TableRow>
                 ) : recentTransactions?.data?.transactions?.length > 0 ? (
@@ -404,11 +396,13 @@ const Dashboard = () => {
                           {transaction.transactionType === "Transfer" ? (
                             <div className="flex flex-col gap-1">
                               <span className="text-red-600 font-semibold">
-                                From: {transaction.account?.name || "Unknown"}
+                                {t("dashboard.from")}{" "}
+                                {transaction.account?.name || t("dashboard.unknown")}
                               </span>
                               <span className="text-green-600 font-semibold">
-                                To:{" "}
-                                {transaction.pairedAccount?.name || "Unknown"}
+                                {t("dashboard.to")}{" "}
+                                {transaction.pairedAccount?.name ||
+                                  t("dashboard.unknown")}
                               </span>
                             </div>
                           ) : (
@@ -419,7 +413,7 @@ const Dashboard = () => {
                                   : "text-red-600"
                               }`}
                             >
-                              {transaction.account?.name || "Unknown"}
+                              {transaction.account?.name || t("dashboard.unknown")}
                             </span>
                           )}
                         </TableColumn>
@@ -428,7 +422,7 @@ const Dashboard = () => {
                             transaction.transactionType
                           )}`}
                         >
-                          {getTransactionTypePersian(
+                          {getTransactionTypeLabel(
                             transaction.transactionType
                           )}
                         </TableColumn>
@@ -449,13 +443,14 @@ const Dashboard = () => {
                             <div className="text-sm">
                               {transaction.referenceData.purchaseNumber && (
                                 <span className="text-blue-600">
-                                  خرید:{" "}
+                                  {t("dashboard.refPurchase")}{" "}
                                   {transaction.referenceData.purchaseNumber}
                                 </span>
                               )}
                               {transaction.referenceData.saleNumber && (
                                 <span className="text-green-600">
-                                  فروش: {transaction.referenceData.saleNumber}
+                                  {t("dashboard.refSale")}{" "}
+                                  {transaction.referenceData.saleNumber}
                                 </span>
                               )}
                             </div>
@@ -468,7 +463,7 @@ const Dashboard = () => {
                             onClick={() => handleReverseClick(transaction)}
                             disabled={reverseLoading}
                             className="text-red-500 transition-all duration-200 hover:bg-red-100 p-0.5 rounded-full  hover:text-red-700 disabled:opacity-50"
-                            title="برگشت"
+                            title={t("dashboard.reverseTitle")}
                           >
                             <ArrowUturnLeftIcon className="h-5 w-5" />
                           </button>
@@ -479,7 +474,7 @@ const Dashboard = () => {
                 ) : (
                   <tr>
                     <td colSpan={6} className="text-center py-4 text-gray-500">
-                      هیچ تراکنش اخیر یافت نشد
+                      {t("dashboard.noTransactions")}
                     </td>
                   </tr>
                 )}
@@ -520,7 +515,7 @@ const Dashboard = () => {
               <div className="relative flex-1">
                 <input
                   type="text"
-                  placeholder="جستجو بر اساس دلیل، تغییر دهنده یا عملیات..."
+                  placeholder={t("dashboard.searchAudit")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className={`w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm px-3 py-2.5 transition duration-300 ease focus:outline-none focus:border-slate-300 hover:border-slate-300 shadow-sm pr-10`}
@@ -545,21 +540,12 @@ const Dashboard = () => {
           </div>
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader
-                headerData={[
-                  { title: "تاریخ تغییر" },
-                  { title: "جدول" },
-                  { title: "دلیل" },
-                  { title: "تغییر دهنده" },
-                  { title: "نوعیت عملیات" },
-                  { title: "جزئیات" },
-                ]}
-              />
+              <TableHeader headerData={auditLogHeaders} />
               <TableBody>
                 {auditLoading ? (
                   <TableRow>
                     <TableColumn>
-                      <p className="">در حال بارگیری...</p>
+                      <p className="">{t("dashboard.loading")}</p>
                     </TableColumn>
                   </TableRow>
                 ) : auditLogs?.data?.length > 0 ? (
@@ -572,7 +558,7 @@ const Dashboard = () => {
                         {log.tableName || "-"}
                       </TableColumn>
                       <TableColumn className="px-4">
-                        {log.reason || "بدون دلیل"}
+                        {log.reason || t("dashboard.noReason")}
                       </TableColumn>
                       <TableColumn className="px-4">
                         {log.changedBy || "-"}
@@ -582,7 +568,7 @@ const Dashboard = () => {
                           log.operation
                         )}`}
                       >
-                        {getOperationPersian(log.operation)}
+                        {getOperationLabel(log.operation)}
                       </TableColumn>
                       <TableColumn className="px-4">
                         <button
@@ -591,7 +577,7 @@ const Dashboard = () => {
                             setShowDetailsModal(true);
                           }}
                           className="text-blue-500 hover:bg-blue-100 p-1 rounded transition-colors"
-                          title="مشاهده جزئیات"
+                          title={t("dashboard.viewDetailsTitle")}
                         >
                           <DocumentTextIcon className="h-5 w-5" />
                         </button>
@@ -601,7 +587,7 @@ const Dashboard = () => {
                 ) : (
                   <tr>
                     <td colSpan={6} className="text-center py-4 text-gray-500">
-                      هیچ لاگ حسابرسی یافت نشد
+                      {t("dashboard.noAuditLogs")}
                     </td>
                   </tr>
                 )}
@@ -626,28 +612,32 @@ const Dashboard = () => {
 
       <GloableModal open={showModal} setOpen={setShowModal} isClose={true}>
         <div className="bg-white p-6 rounded-lg shadow-lg  lg:w-[500px] w-[350px] mx-4">
-          <h3 className="text-lg font-semibold mb-4">تأیید برگشت تراکنش</h3>
-          <p className="mb-4">لطفاً دلیل برگشت این تراکنش را وارد کنید:</p>
+          <h3 className="text-lg font-semibold mb-4">
+            {t("dashboard.confirmReverseTitle")}
+          </h3>
+          <p className="mb-4">{t("dashboard.confirmReverseHint")}</p>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             className="w-full p-2 border border-gray-300 rounded mb-4"
             rows="3"
-            placeholder="دلیل برگشت..."
+            placeholder={t("dashboard.reasonPlaceholder")}
           />
           <div className="flex justify-end space-x-2">
             <button
               onClick={() => setShowModal(false)}
               className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
             >
-              لغو
+              {t("dashboard.cancel")}
             </button>
             <button
               onClick={handleConfirmReverse}
               disabled={!reason.trim() || reverseLoading}
               className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
             >
-              {reverseLoading ? "در حال پردازش..." : "تأیید برگشت"}
+              {reverseLoading
+                ? t("dashboard.processing")
+                : t("dashboard.confirmReverse")}
             </button>
           </div>
         </div>
@@ -661,12 +651,14 @@ const Dashboard = () => {
         {selectedLog && (
           <div className=" w-[550px] px-5 mx-auto rounded-lg lg:w-[800px] bg-white overflow-y-auto ">
             <div className=" bg-transparent    w-full  max-h-[80vh] overflow-y-auto">
-              <h3 className="text-lg font-semibold mb-4">جزئیات لاگ حسابرسی</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                {t("dashboard.auditDetailTitle")}
+              </h3>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      جدول
+                      {t("dashboard.labelTable")}
                     </label>
                     <p className="mt-1 text-sm text-gray-900">
                       {selectedLog.tableName || "-"}
@@ -674,19 +666,19 @@ const Dashboard = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      نوع عملیات
+                      {t("dashboard.labelOperationType")}
                     </label>
                     <p
                       className={`mt-1 text-sm font-semibold ${getOperationColor(
                         selectedLog.operation
                       )}`}
                     >
-                      {getOperationPersian(selectedLog.operation)}
+                      {getOperationLabel(selectedLog.operation)}
                     </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      تغییر دهنده
+                      {t("dashboard.labelChangedBy")}
                     </label>
                     <p className="mt-1 text-sm text-gray-900">
                       {selectedLog.changedBy || "-"}
@@ -694,7 +686,7 @@ const Dashboard = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
-                      تاریخ تغییر
+                      {t("dashboard.labelChangedAt")}
                     </label>
                     <p className="mt-1 text-sm text-gray-900">
                       {formatTimeAgo(selectedLog.changedAt)}
@@ -703,26 +695,26 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    دلیل
+                    {t("dashboard.labelReason")}
                   </label>
                   <p className="mt-1 text-sm text-gray-900">
-                    {selectedLog.reason || "بدون دلیل"}
+                    {selectedLog.reason || t("dashboard.noReason")}
                   </p>
                 </div>
                 {selectedLog.operation === "INSERT" && selectedLog.newData && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      داده‌های جدید اضافه شده
+                      {t("dashboard.newRowsTitle")}
                     </label>
                     <div className="bg-green-50 p-4 rounded border border-slate-200 overflow-x-auto">
                       <table className="min-w-full table-auto">
                         <thead>
                           <tr className="bg-green-100">
                             <th className="px-4 py-2 text-left text-green-800 font-semibold">
-                              فیلد
+                              {t("dashboard.thField")}
                             </th>
                             <th className="px-4 py-2 text-left text-green-800 font-semibold">
-                              مقدار
+                              {t("dashboard.thValue")}
                             </th>
                           </tr>
                         </thead>
@@ -753,22 +745,22 @@ const Dashboard = () => {
                   (selectedLog.oldData || selectedLog.newData) && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        مقایسه داده‌ها: قبل و بعد از تغییر
+                        {t("dashboard.compareTitle")}
                       </label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {selectedLog.oldData && (
                           <div className="bg-red-50 p-4 rounded border rounded-slate-500 overflow-x-auto">
                             <h4 className="text-sm font-semibold text-red-800 mb-2 flex items-center gap-2">
-                              <span>🔴</span> داده‌های قدیمی (قبل از تغییر)
+                              <span>🔴</span> {t("dashboard.oldBlockTitle")}
                             </h4>
                             <table className="min-w-full table-auto">
                               <thead>
                                 <tr className="bg-red-100">
                                   <th className="px-4 py-2 text-left text-red-800 font-semibold">
-                                    فیلد
+                                    {t("dashboard.thField")}
                                   </th>
                                   <th className="px-4 py-2 text-left text-red-800 font-semibold">
-                                    مقدار قدیمی
+                                    {t("dashboard.thOldValue")}
                                   </th>
                                 </tr>
                               </thead>
@@ -797,16 +789,16 @@ const Dashboard = () => {
                         {selectedLog.newData && (
                           <div className="bg-green-50 p-4 rounded border overflow-x-auto">
                             <h4 className="text-sm font-semibold text-green-800 mb-2 flex items-center gap-2">
-                              <span>🟢</span> داده‌های جدید (بعد از تغییر)
+                              <span>🟢</span> {t("dashboard.newBlockTitle")}
                             </h4>
                             <table className="min-w-full table-auto">
                               <thead>
                                 <tr className="bg-green-100">
                                   <th className="px-4 py-2 text-left text-green-800 font-semibold">
-                                    فیلد
+                                    {t("dashboard.thField")}
                                   </th>
                                   <th className="px-4 py-2 text-left text-green-800 font-semibold">
-                                    مقدار جدید
+                                    {t("dashboard.thNewValue")}
                                   </th>
                                 </tr>
                               </thead>
@@ -840,17 +832,17 @@ const Dashboard = () => {
                 {selectedLog.operation === "DELETE" && selectedLog.oldData && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      داده‌های حذف شده
+                      {t("dashboard.deletedRowsTitle")}
                     </label>
                     <div className="bg-red-50 p-4 rounded border border-slate-300 overflow-x-auto">
                       <table className="min-w-full table-auto">
                         <thead>
                           <tr className="bg-red-100">
                             <th className="px-4 py-2 text-left text-red-800 font-semibold">
-                              فیلد
+                              {t("dashboard.thField")}
                             </th>
                             <th className="px-4 py-2 text-left text-red-800 font-semibold">
-                              مقدار حذف شده
+                              {t("dashboard.thDeletedValue")}
                             </th>
                           </tr>
                         </thead>
@@ -864,7 +856,7 @@ const Dashboard = () => {
                                 }
                               >
                                 <td className="px-4 py-2 font-medium text-red-800 border-b border-red-200">
-                                  {key}
+                                  {translateFieldName(key)}
                                 </td>
                                 <td className="px-4 py-2 text-red-700 border-b border-red-200">
                                   {renderValue(value)}
@@ -886,7 +878,7 @@ const Dashboard = () => {
                   }}
                   className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
                 >
-                  بستن
+                  {t("dashboard.close")}
                 </button>
               </div>
             </div>

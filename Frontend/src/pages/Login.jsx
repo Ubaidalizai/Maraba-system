@@ -1,14 +1,17 @@
 import { BsEye } from "react-icons/bs";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { toast } from "react-toastify";
 import { inputStyle } from "../components/ProductForm";
 import GloableModal from "../components/GloableModal";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 import { useForm } from "react-hook-form";
 import { useForgotPassword } from "../services/useApi";
 
 const Login = () => {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [forgotPassword, setForgotPassword] = useState(false);
   const { mutate: sendEmail, isPending } = useForgotPassword();
@@ -38,11 +41,11 @@ const Login = () => {
 
     try {
       await login(formData);
-      toast.success("ورود موفقیت‌آمیز بود");
+      toast.success(t("toast.loginSuccess"));
       navigate("/");
     } catch (error) {
       console.error("Login error:", error);
-      toast.error(error.message || "خطا در ورود به سیستم");
+      toast.error(error.message || t("toast.loginError"));
     } finally {
       setIsLoading(false);
     }
@@ -50,12 +53,15 @@ const Login = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center"
+      className="min-h-screen flex items-center justify-center relative"
       style={{
         backgroundColor: "var(--background)",
         fontFamily: "var(--font-family)",
       }}
     >
+      <div className="absolute top-4 end-4">
+        <LanguageSwitcher />
+      </div>
       <div className="max-w-md border-2 border-slate-200 rounded-sm bg-white w-full space-y-8 p-8">
         {/* Header */}
         <div className="text-center">
@@ -63,10 +69,10 @@ const Login = () => {
             className="text-3xl font-bold"
             style={{ color: "var(--primary-brown)" }}
           >
-            ورود به سیستم
+            {t("login.title")}
           </h2>
           <p className="mt-2 text-sm" style={{ color: "var(--text-medium)" }}>
-            سیستم مدیریت تجارت و توزیع
+            {t("login.subtitle")}
           </p>
         </div>
 
@@ -80,7 +86,7 @@ const Login = () => {
                 className="block text-[16px] font-medium"
                 style={{ color: "var(--text-dark)" }}
               >
-                ایمیل
+                {t("login.email")}
               </label>
               <input
                 id="email"
@@ -96,7 +102,7 @@ const Login = () => {
                   color: "var(--text-dark)",
                   focusRingColor: "var(--primary-brown)",
                 }}
-                placeholder="ایمیل خود را وارد کنید"
+                placeholder={t("login.emailPlaceholder")}
               />
             </div>
 
@@ -107,7 +113,7 @@ const Login = () => {
                 className="block text-[16px] font-medium"
                 style={{ color: "var(--text-dark)" }}
               >
-                رمز عبور
+                {t("login.password")}
               </label>
               <input
                 id="password"
@@ -123,11 +129,11 @@ const Login = () => {
                   color: "var(--text-dark)",
                   focusRingColor: "var(--primary-brown)",
                 }}
-                placeholder="رمز عبور خود را وارد کنید"
+                placeholder={t("login.passwordPlaceholder")}
               />
               <BsEye
                 onClick={() => setIsOpen((isOpen) => !isOpen)}
-                className=" text-[18px] absolute top-[45px] cursor-pointer text-slate-700 left-3"
+                className=" text-[18px] absolute top-[45px] cursor-pointer text-slate-700 end-3"
               />
             </div>
           </div>
@@ -135,7 +141,7 @@ const Login = () => {
             onClick={() => setForgotPassword(true)}
             className={" text-[16px]  underline cursor-pointer"}
           >
-            آیاپسورد تانرا فراموش کردید؟
+            {t("login.forgotPassword")}
           </p>
           {/* Submit Button */}
           <div className=" pt-2">
@@ -152,11 +158,11 @@ const Login = () => {
             >
               {isLoading ? (
                 <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  در حال ورود...
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white me-2"></div>
+                  {t("login.submitting")}
                 </div>
               ) : (
-                "ورود"
+                t("login.submit")
               )}
             </button>
           </div>
@@ -169,11 +175,10 @@ const Login = () => {
       >
         <div className="bg-white shadow-xl rounded-sm p-8 w-full max-w-md">
           <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">
-            فراموشی رمز عبور
+            {t("login.forgotTitle")}
           </h2>
           <p className="text-gray-500 text-center mb-6 text-sm">
-            آدرس ایمیل خود را وارد کنید تا لینک بازیابی رمز عبور برای شما ارسال
-            شود.
+            {t("login.forgotDescription")}
           </p>
 
           <form
@@ -186,7 +191,7 @@ const Login = () => {
                 htmlFor="email"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                آدرس ایمیل
+                {t("login.forgotEmailLabel")}
               </label>
               <input
                 id="email"
@@ -194,7 +199,7 @@ const Login = () => {
                 type="email"
                 required
                 placeholder="example@gmail.com"
-                className="w-full px-4 py-3 rounded-sm border border-gray-300 focus:ring-1 focus:ring-primary-brown-light focus:border-primary-brown-light outline-none text-right"
+                className="w-full px-4 py-3 rounded-sm border border-gray-300 focus:ring-1 focus:ring-primary-brown-light focus:border-primary-brown-light outline-none text-start"
               />
             </div>
 
@@ -202,17 +207,17 @@ const Login = () => {
               type="submit"
               className="w-full py-3  bg-primary-brown text-white font-semibold rounded-sm  cursor-pointer  hover:bg-primary-brown-light  transition duration-200"
             >
-              ارسال لینک بازیابی <span>{isPending && "..."}</span>
+              {t("login.forgotSubmit")} <span>{isPending && "..."}</span>
             </button>
           </form>
 
           <p className="text-center text-sm text-gray-500 mt-6">
-            رمز عبور خود را به یاد آوردید؟
+            {t("login.rememberPassword")}
             <p
               onClick={() => setForgotPassword(false)}
               className="text-primary-brown-light  hover:underline"
             >
-              بازگشت به ورود
+              {t("login.backToLogin")}
             </p>
           </p>
         </div>

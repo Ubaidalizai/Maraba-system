@@ -1,0 +1,463 @@
+{
+  "sales": {
+    "title": "د خرځو مدیریت",
+    "subtitle": "خرځ وګورئ او اداره یې کړئ",
+    "stats": {
+      "totalSales": "د خرځو شمېر",
+      "totalRevenue": "ټول عاید",
+      "totalCollected": "راټول شوې پیسې",
+      "totalOwed": "پاتې پور"
+    },
+    "filters": {
+      "allCustomers": "ټول پېرودونکي",
+      "allStatuses": "ټول حالتونه",
+      "statusPaid": "تادې شوی",
+      "statusPartial": "جزوي تادې",
+      "statusPending": "پاتې",
+      "addSale": "خرځ زیاتول",
+      "addSalePending": "په زیاتولو کې..."
+    },
+    "table": {
+      "date": "نېټه",
+      "customer": "پېرودونکی",
+      "employee": "کارکوونکی",
+      "totalAmount": "ټول مقدار",
+      "paid": "تادې شوی",
+      "due": "پاتې",
+      "status": "حالت",
+      "actions": "عملیات",
+      "loading": "بار کېږي...",
+      "empty": "هیڅ خرځ و نه موندل شو",
+      "statusPartialPaid": "جزوي تادې شوی",
+      "statusFullyPaid": "بشپړ تادې شوی"
+    },
+    "actions": {
+      "viewDetails": "تفصیلات وګورئ",
+      "printInvoice": "فاکتور چاپ",
+      "recordPayment": "تادې ثبت",
+      "edit": "سمون",
+      "delete": "ړنګول"
+    },
+    "details": {
+      "title": "د خرځې تفصیلات",
+      "loading": "بار کېږي...",
+      "totalAmount": "ټول مقدار",
+      "paidAmount": "تادې شوی مقدار",
+      "dueAmount": "پاتې پور",
+      "itemCount": "د توکو شمېر",
+      "saleInfo": "د خرځې معلومات",
+      "billNumber": "د فاکتور نمبر",
+      "saleDate": "د خرځې نېټه",
+      "customer": "پېرودونکی",
+      "paymentStatus": "د تادې حالت",
+      "itemsTitle": "خرځ شوي توکي",
+      "product": "توکی",
+      "unit": "واحد",
+      "quantity": "شمېر",
+      "cartonCount": "کارټن",
+      "unitPrice": "د واحد بیه",
+      "lineTotal": "د کرښې ټول",
+      "noItems": "توکی و نه موندل شو",
+      "grandTotal": "ټول ټول:",
+      "recordPayment": "تادې ثبت"
+    },
+    "delete": {
+      "title": "ړنګول تایید",
+      "message": "آیا ډاډه یاست چې غواړئ دا خرځ ړنګ کړئ؟ دا عمل بیرته نه شي.",
+      "cancel": "لغوه کول",
+      "confirm": "ړنګول",
+      "deleting": "ړنګېږي..."
+    },
+    "payment": {
+      "title": "تادې ثبت",
+      "remaining": "پاتې پور:",
+      "amountLabel": "د تادې مقدار *",
+      "amountPlaceholder": "مقدار ولیکئ",
+      "receiptAccountLabel": "د ترلاسه حساب *",
+      "selectAccount": "حساب غوره کړئ",
+      "descriptionLabel": "تفصیل",
+      "descriptionPlaceholder": "اختیاري تفصیل...",
+      "cancel": "لغوه کول",
+      "submit": "تادې ثبت",
+      "submitting": "په ثبت کې...",
+      "defaultDescription": "د خرځې لپاره تادې"
+    },
+    "toast": {
+      "deleteError": "خرځ ړنګولو کې ستونزه",
+      "updateSuccess": "خرځ په بریالیتوب تازه شوه",
+      "updateError": "د خرځې سمونو کې ستونزه",
+      "createError": "د خرځې جوړولو کې ستونزه",
+      "enterAmountAndAccount": "مهرباني وکړئ مقدار او ترلاسه حساب ولیکئ",
+      "amountRange": "مقدار باید له {{min}} تر {{max}} پورې وي",
+      "paymentSuccess": "تادې په بریالیتوب ثبت شوه",
+      "paymentError": "د تادې ثبتولو کې ستونزه"
+    }
+  },
+  "saleForm": {
+    "loading": "بار کېږي...",
+    "titleEdit": "د خرځې سمون",
+    "titleNew": "نوې خرځ",
+    "saleType": "د خرځې ډول",
+    "typeCustomer": "پېرودونکی",
+    "typeEmployee": "کارکوونکی",
+    "typeWalkIn": "حاضري پېرودونکی",
+    "selectCustomerAccount": "پېرودونکی (حساب) غوره کړئ",
+    "selectEmployeeAccount": "کارکوونکی (حساب) غوره کړئ",
+    "accountCount": "{{count}} حسابونه",
+    "walkInHint": "حاضري پېرودونکی",
+    "invoiceType": "د فاکتور ډول",
+    "invoiceSmall": "وړوکی",
+    "invoiceLarge": "لوی",
+    "selectInvoiceType": "د فاکتور ډول غوره کړئ",
+    "receiptAccount": "ترلاسه حساب",
+    "selectAccount": "حساب غوره کړئ",
+    "paidAmount": "تادې شوی مقدار",
+    "paidPlaceholder": "0.00",
+    "saleDate": "د خرځې نېټه",
+    "datePlaceholder": "نېټه غوره کړئ",
+    "saleDateRequired": "د خرځې نېټه اړینه ده",
+    "itemsTitle": "د خرځې توکي",
+    "addItem": "زیاتول",
+    "addItemSaving": "په زیاتولو کې...",
+    "productName": "د توکي نوم",
+    "requiredStar": "*",
+    "unitLabel": "واحد",
+    "unitPlaceholderNoProduct": "توکی",
+    "unitPlaceholderSelect": "واحد",
+    "batchNumber": "د بیچ نمبر",
+    "batchPlaceholder": "بیچ",
+    "quantityLabel": "شمېر",
+    "quantityPlaceholder": "شمېر",
+    "carton": "کارټن",
+    "cartonPlaceholder": "کارټن",
+    "priceLabel": "بیه",
+    "pricePlaceholder": "بیه",
+    "belowPurchaseWarning": "⚠️ د پېرود له بیې لاندې",
+    "expiryDate": "د پای نېټه",
+    "purchaseHintPrefix": "💰 ",
+    "summaryFinal": "ټول ټول",
+    "summaryPaid": "تادې شوی",
+    "summaryDue": "پاتې",
+    "notesLabel": "تفصیل (اختیاري)",
+    "notesPlaceholder": "د خرځې یادښت...",
+    "cancel": "لغوه کول",
+    "submitNew": "خرځ ثبت",
+    "submitEdit": "خرځ تازه",
+    "submitting": "په لېږلو کې...",
+    "table": {
+      "product": "توکی",
+      "qtyWithUnit": "شمېر (واحد)",
+      "batchNo": "بیچ",
+      "expiry": "پای",
+      "carton": "کارټن",
+      "unitPrice": "د واحد بیه",
+      "lineTotal": "ټول",
+      "actions": "عملیات"
+    },
+    "errors": {
+      "productRequired": "توکی اړین دی",
+      "unitRequired": "واحد اړین دی",
+      "quantityRequired": "شمېر اړین دی",
+      "priceRequired": "بیه اړینه ده"
+    },
+    "validation": {
+      "paidExceedsTotal": "تادې شوی مقدار ({{paid}}) نشي کولی له ټول ({{total}}) زیات وي",
+      "paidExceedsTotalField": "تادې شوی مقدار نشي کولی له ټول ({{total}}) زیات وي"
+    }
+  },
+  "expenses": {
+    "title": "لګښتونه",
+    "addExpense": "لګښت زیاتول",
+    "filters": {
+      "category": "کټګوري",
+      "all": "ټول",
+      "dateFrom": "له نېټې",
+      "dateTo": "تر نېټې",
+      "dateFromPlaceholder": "پیل نېټه غوره کړئ",
+      "dateToPlaceholder": "پای نېټه غوره کړئ",
+      "search": "لټون",
+      "searchPlaceholder": "تفصیل..."
+    },
+    "table": {
+      "date": "نېټه",
+      "category": "کټګوري",
+      "amount": "مقدار",
+      "paidFrom": "تادې له",
+      "description": "تفصیل",
+      "actions": "عملیات",
+      "loading": "بار کېږي...",
+      "empty": "هیڅ ریکارډ و نه موندل شو",
+      "currencySuffix": "افغانۍ"
+    },
+    "actions": {
+      "edit": "سمون",
+      "delete": "ړنګول"
+    },
+    "toast": {
+      "createSuccess": "لګښت ثبت شو",
+      "createError": "د لګښت ثبتولو کې ستونزه",
+      "updateSuccess": "لګښت تازه شو",
+      "updateError": "د لګښت سمونو کې ستونزه",
+      "deleteSuccess": "ړنګ شو",
+      "deleteError": "د ړنګولو کې ستونزه"
+    },
+    "deleteConfirm": "آیا ډاډه یاست چې غواړئ دا لګښت ړنګ کړئ؟",
+    "modal": {
+      "titleAdd": "لګښت زیاتول",
+      "titleEdit": "د لګښت سمون",
+      "category": "کټګوري",
+      "amount": "مقدار",
+      "paidFrom": "تادې له",
+      "description": "تفصیل",
+      "date": "نېټه",
+      "selectCategory": "غوره کړئ",
+      "selectAccount": "حساب غوره کړئ",
+      "datePlaceholder": "نېټه غوره کړئ",
+      "cancel": "لغوه کول",
+      "submit": "ثبت",
+      "saveChanges": "بدلونونه خوندي کول"
+    }
+  },
+  "income": {
+    "title": "عایدونه",
+    "addIncome": "عاید زیاتول",
+    "filters": {
+      "category": "کټګوري",
+      "all": "ټول",
+      "dateFrom": "له نېټې",
+      "dateTo": "تر نېټې",
+      "dateFromPlaceholder": "پیل نېټه غوره کړئ",
+      "dateToPlaceholder": "پای نېټه غوره کړئ",
+      "search": "لټون",
+      "searchPlaceholder": "سرچینه یا تفصیل..."
+    },
+    "table": {
+      "date": "نېټه",
+      "category": "کټګوري",
+      "amount": "مقدار",
+      "source": "سرچینه",
+      "placedIn": "په کې ځای شوی",
+      "description": "تفصیل",
+      "actions": "عملیات",
+      "loading": "بار کېږي...",
+      "empty": "هیڅ ریکارډ و نه موندل شو",
+      "currencySuffix": "افغانۍ"
+    },
+    "actions": {
+      "edit": "سمون",
+      "delete": "ړنګول"
+    },
+    "toast": {
+      "createSuccess": "عاید ثبت شو",
+      "createError": "د عاید ثبتولو کې ستونزه",
+      "updateSuccess": "عاید تازه شو",
+      "updateError": "د عاید سمونو کې ستونزه",
+      "deleteSuccess": "ړنګ شو",
+      "deleteError": "د ړنګولو کې ستونزه"
+    },
+    "deleteConfirm": "آیا ډاډه یاست چې غواړئ دا عاید ړنګ کړئ؟",
+    "modal": {
+      "titleAdd": "عاید زیاتول",
+      "titleEdit": "د عاید سمون",
+      "category": "کټګوري",
+      "amount": "مقدار",
+      "placedIn": "په کې ځای شوی",
+      "description": "تفصیل",
+      "date": "نېټه",
+      "selectCategory": "غوره کړئ",
+      "selectAccount": "حساب غوره کړئ",
+      "datePlaceholder": "نېټه غوره کړئ",
+      "cancel": "لغوه کول",
+      "submit": "ثبت",
+      "saveChanges": "بدلونونه خوندي کول",
+      "saving": "په خوندي کې...",
+      "submitting": "په ثبت کې..."
+    }
+  },
+  "accounts": {
+    "title": "د حسابونو مدیریت",
+    "subtitle": "د سیسټم حسابونه جوړ او اداره کړئ",
+    "newAccount": "نوی حساب",
+    "types": {
+      "supplier": "برابرونکی",
+      "customer": "پېرودونکی",
+      "employee": "کارکوونکی",
+      "cashier": "صندوق",
+      "safe": "امانت صندوق",
+      "saraf": "صراف"
+    },
+    "searchPlaceholder": "د حساب د نوم له مخې لټون...",
+    "table": {
+      "name": "نوم",
+      "type": "ډول",
+      "openingBalance": "لومړنی بیلانس",
+      "currentBalance": "اوسنی بیلانس",
+      "currency": "اسعار",
+      "createdAt": "د جوړېدو نېټه",
+      "actions": "عملیات",
+      "loading": "بار کېږي...",
+      "empty": "هیڅ حساب و نه موندل شو"
+    },
+    "actions": {
+      "viewDetails": "تفصیلات وګورئ",
+      "addTransaction": "لېکه زیاتول",
+      "edit": "سمون",
+      "delete": "ړنګول"
+    },
+    "pagination": {
+      "pageOf": "پاڼه {{page}} له {{totalPages}} (ټول {{total}} حسابونه)"
+    },
+    "prev": "مخکینی",
+    "next": "راتلونکی",
+    "delete": {
+      "title": "ړنګول تایید",
+      "message": "آیا ډاډه یاست؟ دا عمل بیرته نه شي.",
+      "cancel": "لغوه کول",
+      "confirm": "ړنګول",
+      "deleting": "ړنګېږي..."
+    },
+    "modal": {
+      "createTitle": "نوی حساب",
+      "editTitle": "د حساب سمون",
+      "accountType": "د حساب ډول *",
+      "reference": "مرجع *",
+      "selectReference": "مرجع غوره کړئ",
+      "accountName": "د حساب نوم *",
+      "accountNamePlaceholder": "د حساب نوم",
+      "openingBalance": "لومړنی بیلانس",
+      "openingBalanceHint": "(اوسنی بیلانس به لومړني بیلانس سره سم وي)",
+      "currency": "اسعار",
+      "cancel": "لغوه کول",
+      "saving": "په خوندي کې...",
+      "saveChanges": "بدلونونه خوندي کول",
+      "create": "حساب جوړول"
+    },
+    "transaction": {
+      "title": "لاسي لېکه زیاتول",
+      "account": "حساب",
+      "currentBalance": "اوسنی بیلانس",
+      "transactionType": "د لېکې ډول *",
+      "optionCredit": "پور (بیلانس زیاتېږي)",
+      "optionDebit": "پاتې (بیلانس کمېږي)",
+      "optionExpense": "لګښت (بیلانس کمېږي)",
+      "examplesTitle": "بېلګې:",
+      "creditEx1": "• پېرودونکي تادې کړې → د پېرودونکي بیلانس زیاتېږي",
+      "creditEx2": "• تاسو برابرونکي ته تادې کړې → د برابرونکي بیلانس کمېږي (ستاسو پور کمېږي)",
+      "creditEx3": "• معاش ورکړل شو → د کارکوونکي بیلانس زیاتېږي",
+      "debitEx1": "• تاسو پېرودونکي ته تادې کړې → بیلانس کمېږي",
+      "debitEx2": "• برابرونکي بیرته ورکړل → بیلانس کمېږي",
+      "debitEx3": "• کارکوونکي بیرته ورکړل → بیلانس کمېږي",
+      "expenseEx1": "• د دفتر توکي → د صندوق بیلانس کمېږي",
+      "expenseEx2": "• کرایه → د صندوق بیلانس کمېږي",
+      "expenseEx3": "• تعمیرات لګښت → د صندوق بیلانس کمېږي",
+      "amount": "مقدار *",
+      "amountPlaceholder": "مقدار په AFN",
+      "description": "تفصیل",
+      "descriptionPlaceholder": "د لېکې لنډ تفصیل...",
+      "noteCredit": " دا لېکه بیلانس زیاتوي.",
+      "noteDebit": " دا لېکه بیلانس کموي.",
+      "noteExpense": " دا لېکه بیلانس کموي.",
+      "noteLabel": "یادونه:",
+      "cancel": "لغوه کول",
+      "adding": "په زیاتولو کې...",
+      "submit": "لېکه زیاتول",
+      "defaultDescription": "لاسي {{type}} لېکه"
+    }
+  },
+  "accountDetails": {
+    "fallbackName": "حساب",
+    "loadError": "د حساب معلوماتو بارولو کې ستونزه",
+    "backToList": "بیرته حسابونو ته",
+    "subtitle": "د حساب تفصیلات او لېکې",
+    "openingBalance": "لومړنی بیلانس",
+    "transactionCount": "د لېکو شمېر",
+    "filtersTitle": "د لېکو فلټر",
+    "dateFromPlaceholder": "له نېټې",
+    "dateToPlaceholder": "تر نېټې",
+    "allTypes": "ټول لېکې",
+    "transactionsTitle": "لېکې",
+    "table": {
+      "date": "نېټه",
+      "type": "ډول",
+      "amount": "مقدار",
+      "balanceAfter": "بیلانس وروسته",
+      "description": "تفصیل",
+      "empty": "هیڅ لېکه و نه موندل شوه",
+      "updating": "لېکې تازه کېږي..."
+    },
+    "clickToView": "(د لیدو لپاره کلیک)",
+    "balance": {
+      "cashierPositive": "شته بیلانس",
+      "cashierNegative": "کم بیلانس",
+      "sarafPositive": "تاسو صراف ته پور لرئ",
+      "sarafNegative": "صراف تاسو ته پور لري",
+      "supplierPositive": "تاسو برابرونکي ته پور لرئ",
+      "supplierNegative": "برابرونکی تاسو ته پور لري",
+      "customerPositive": "پېرودونکی تاسو ته پور لري",
+      "customerNegative": "تاسو پېرودونکي ته پور لرئ",
+      "employeePositive": "کارکوونکی تاسو ته پور لري",
+      "employeeNegative": "تاسو کارکوونکي ته پور لرئ",
+      "default": "بیلانس"
+    },
+    "txTypes": {
+      "Credit": "پور",
+      "Debit": "پاتې",
+      "Transfer": "لیږد",
+      "Expense": "لګښت",
+      "Purchase": "پېرود",
+      "Sale": "خرځ",
+      "Payment": "تادې"
+    }
+  },
+  "admin": {
+    "unauthorizedTitle": "د لاسرسي اجازه نشته",
+    "unauthorizedMessage": "لومړی سیسټم ته ننوځئ",
+    "title": "د مدیریت پانل",
+    "subtitle": "برابرونکي، پېرودونکي، کارکوونکي، واحدونه او کټګوري اداره کړئ",
+    "adminAccess": "د مدیر لاسرسي",
+    "sectionsTitle": "د مدیریت برخې",
+    "sections": {
+      "profile": {
+        "name": "کارن پروفایل",
+        "description": "د پروفایل معلومات وګورئ او سمون یې کړئ"
+      },
+      "users": {
+        "name": "د کاروونکو مدیریت",
+        "description": "سیسټم کاروونکي وګورئ، زیات او اداره کړئ"
+      },
+      "suppliers": {
+        "name": "د برابرونکو مدیریت",
+        "description": "برابرونکي زیات، سم یا ړنګ کړئ"
+      },
+      "categories": {
+        "name": "د کټګوریو مدیریت",
+        "description": "د لګښت، عاید او توکو کټګوري"
+      },
+      "customers": {
+        "name": "د پېرودونکو مدیریت",
+        "description": "پېرودونکي زیات، سم یا ړنګ کړئ"
+      },
+      "employees": {
+        "name": "د کارکوونکو مدیریت",
+        "description": "کارکوونکي زیات، سم یا ړنګ کړئ"
+      },
+      "units": {
+        "name": "د واحدونو مدیریت",
+        "description": "د اندازې واحدونه او بدلون"
+      }
+    }
+  },
+  "reports": {
+    "title": "راپورونه او تحلیلونه",
+    "subtitle": "سوداګریز راپورونه جوړ او وګورئ",
+    "selectType": "د راپور ډول غوره کړئ",
+    "types": {
+      "sales": "د خرځو راپورونه",
+      "inventory": "د زیرمې راپورونه",
+      "purchases": "د پېرود راپورونه",
+      "accounts": "د حسابونو راپورونه",
+      "expenses": "د لګښتونو راپورونه",
+      "profit": "ګټه او زیان"
+    }
+  }
+}

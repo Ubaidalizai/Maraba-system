@@ -5,6 +5,7 @@ import {
   BrowserRouter as Router,
   Routes,
 } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Bounce, ToastContainer } from "react-toastify";
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -33,6 +34,26 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function AppToastContainer() {
+  const { i18n } = useTranslation();
+  return (
+    <ToastContainer
+      position="top-right"
+      autoClose={4000}
+      hideProgressBar
+      newestOnTop={false}
+      closeOnClick={false}
+      rtl={i18n.dir() === "rtl"}
+      pauseOnFocusLoss
+      draggable
+      pauseOnHover
+      theme="colored"
+      transition={Bounce}
+    />
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -70,19 +91,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
 
-            <ToastContainer
-              position="top-right"
-              autoClose={4000}
-              hideProgressBar
-              newestOnTop={false}
-              closeOnClick={false}
-              rtl={false}
-              pauseOnFocusLoss
-              draggable
-              pauseOnHover
-              theme="colored" // ✅ this line
-              transition={Bounce}
-            />
+            <AppToastContainer />
           </Router>
         </PageStateProvider>
       </AuthProvider>

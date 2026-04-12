@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, API_ENDPOINTS } from "../services/apiConfig";
@@ -69,6 +70,7 @@ const deleteIncomeApi = async (id) => {
 };
 
 export default function Income() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -104,7 +106,7 @@ export default function Income() {
   const createMutation = useMutation({
     mutationFn: createIncomeApi,
     onSuccess: (_, variables) => {
-      toast.success("درآمد ثبت شد");
+      toast.success(t("income.toast.createSuccess"));
       queryClient.invalidateQueries({ queryKey: ["income"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
@@ -117,13 +119,14 @@ export default function Income() {
       }
       setIsModalOpen(false);
     },
-    onError: (e) => toast.error(e.message || "ثبت درآمد ناموفق بود"),
+    onError: (e) =>
+      toast.error(e.message || t("income.toast.createError")),
   });
 
   const updateMutation = useMutation({
     mutationFn: updateIncomeApi,
     onSuccess: (_, variables) => {
-      toast.success("درآمد ویرایش شد");
+      toast.success(t("income.toast.updateSuccess"));
       queryClient.invalidateQueries({ queryKey: ["income"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
@@ -141,19 +144,21 @@ export default function Income() {
       setIsModalOpen(false);
       setEditingIncome(null);
     },
-    onError: (e) => toast.error(e.message || "ویرایش درآمد ناموفق بود"),
+    onError: (e) =>
+      toast.error(e.message || t("income.toast.updateError")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteIncomeApi,
     onSuccess: () => {
-      toast.success("حذف شد");
+      toast.success(t("income.toast.deleteSuccess"));
       queryClient.invalidateQueries({ queryKey: ["income"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
       queryClient.invalidateQueries({ queryKey: ["accountLedger"] });
     },
-    onError: (e) => toast.error(e.message || "حذف ناموفق بود"),
+    onError: (e) =>
+      toast.error(e.message || t("income.toast.deleteError")),
   });
 
   const income = incomeRes?.data || [];
@@ -171,13 +176,17 @@ export default function Income() {
     updateMutation.mutateAsync({ id, payload: form });
 
   const onDelete = (id) => {
-    if (window.confirm("آیا از حذف این درآمد مطمئن هستید؟")) {
+    if (window.confirm(t("income.deleteConfirm"))) {
       deleteMutation.mutate(id);
     }
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("fa-IR");
+    if (!dateString) return "—";
+    const lang = (i18n.language || "ps").split("-")[0];
+    const localeTag =
+      lang === "ps" ? "ps-AF" : "fa-IR";
+    return new Date(dateString).toLocaleDateString(localeTag);
   };
 
   return (
@@ -187,7 +196,7 @@ export default function Income() {
           className="text-xl font-bold"
           style={{ color: "var(--primary-brown)" }}
         >
-          درآمد‌ها
+          {t("income.title")}
         </h1>
         <button
           className={`bg-amber-600 cursor-pointer group  text-white hover:bg-amber-600/90  duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in `}
@@ -196,7 +205,7 @@ export default function Income() {
             setIsModalOpen(true);
           }}
         >
-          افزودن درآمد
+          {t("income.addIncome")}
         </button>
       </div>
 
@@ -208,7 +217,7 @@ export default function Income() {
               className="block mb-2"
               style={{ color: "var(--text-medium)" }}
             >
-              دسته‌بندی
+              {t("income.filters.category")}
             </label>
             <select
               className={
@@ -217,7 +226,7 @@ export default function Income() {
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
-              <option value="">همه</option>
+              <option value="">{t("income.filters.all")}</option>
               {categories.map((c) => (
                 <option key={c._id} value={c._id}>
                   {c.name}
@@ -227,7 +236,7 @@ export default function Income() {
           </div>
           <div>
             <JalaliDatePicker
-              label="از تاریخ"
+              label={t("income.filters.dateFrom")}
               value={dateRange.start}
               onChange={(nextValue) =>
                 setDateRange((d) => ({
@@ -235,13 +244,13 @@ export default function Income() {
                   start: normalizeDateToIso(nextValue),
                 }))
               }
-              placeholder="انتخاب تاریخ شروع"
+              placeholder={t("income.filters.dateFromPlaceholder")}
               clearable
             />
           </div>
           <div>
             <JalaliDatePicker
-              label="تا تاریخ"
+              label={t("income.filters.dateTo")}
               value={dateRange.end}
               onChange={(nextValue) =>
                 setDateRange((d) => ({
@@ -249,7 +258,7 @@ export default function Income() {
                   end: normalizeDateToIso(nextValue),
                 }))
               }
-              placeholder="انتخاب تاریخ پایان"
+              placeholder={t("income.filters.dateToPlaceholder")}
               clearable
             />
           </div>
@@ -258,14 +267,14 @@ export default function Income() {
               className="block mb-2"
               style={{ color: "var(--text-medium)" }}
             >
-              جستجو
+              {t("income.filters.search")}
             </label>
             <input
               type="text"
               className={
                 "w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm px-3 py-2.5 transition duration-300 ease focus:outline-none  hover:border-slate-300 focus:border-slate-300  shadow-sm"
               }
-              placeholder="منبع یا توضیحات..."
+              placeholder={t("income.filters.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -277,26 +286,26 @@ export default function Income() {
       <Table>
         <TableHeader
           headerData={[
-            { title: "تاریخ" },
-            { title: "دسته‌بندی" },
-            { title: "مبلغ" },
-            { title: "منبع" },
-            { title: "قرار داده شده در" },
-            { title: "توضیحات" },
-            { title: "اقدامات" },
+            { title: t("income.table.date") },
+            { title: t("income.table.category") },
+            { title: t("income.table.amount") },
+            { title: t("income.table.source") },
+            { title: t("income.table.placedIn") },
+            { title: t("income.table.description") },
+            { title: t("income.table.actions") },
           ]}
         />
         <TableBody>
           {isLoading ? (
             <TableRow>
               <TableColumn colSpan="7" className="text-center py-6">
-                در حال بارگذاری...
+                {t("income.table.loading")}
               </TableColumn>
             </TableRow>
           ) : income.length === 0 ? (
             <TableRow>
               <TableColumn colSpan="7" className="text-center py-6">
-                موردی یافت نشد
+                {t("income.table.empty")}
               </TableColumn>
             </TableRow>
           ) : (
@@ -306,7 +315,10 @@ export default function Income() {
                   {formatDate(i.date)}
                 </TableColumn>
                 <TableColumn>{i.category?.name || "-"}</TableColumn>
-                <TableColumn>{formatNumber(i.amount || 0)} افغانی</TableColumn>
+                <TableColumn>
+                  {formatNumber(i.amount || 0)}{" "}
+                  {t("income.table.currencySuffix")}
+                </TableColumn>
                 <TableColumn>{i.source || "-"}</TableColumn>
                 <TableColumn>{i.placedInAccount?.name || "-"}</TableColumn>
                 <TableColumn>{i.description || "-"}</TableColumn>
@@ -318,14 +330,14 @@ export default function Income() {
                         setEditingIncome(i);
                         setIsModalOpen(true);
                       }}
-                      title="ویرایش"
+                      title={t("income.actions.edit")}
                     >
                       <PencilIcon className="h-4 w-4" />
                     </button>
                     <button
                       className="text-red-600 hover:text-red-900"
                       onClick={() => onDelete(i._id)}
-                      title="حذف"
+                      title={t("income.actions.delete")}
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
@@ -366,6 +378,7 @@ export default function Income() {
 }
 
 function IncomeModal({ onClose, onSubmit, categories, accounts, initial }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     category: initial?.category?._id || initial?.category || "",
     amount: initial?.amount || "",
@@ -411,12 +424,14 @@ function IncomeModal({ onClose, onSubmit, categories, accounts, initial }) {
         className="text-lg font-bold "
         style={{ color: "var(--primary-brown)" }}
       >
-        {initial ? "ویرایش درآمد" : "افزودن درآمد"}
+        {initial
+          ? t("income.modal.titleEdit")
+          : t("income.modal.titleAdd")}
       </h2>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block mb-2" style={{ color: "var(--text-medium)" }}>
-            دسته‌بندی
+            {t("income.modal.category")}
           </label>
           <select
             className={
@@ -426,7 +441,7 @@ function IncomeModal({ onClose, onSubmit, categories, accounts, initial }) {
             value={form.category}
             onChange={handleChange}
           >
-            <option value="">انتخاب کنید</option>
+            <option value="">{t("income.modal.selectCategory")}</option>
             {categories.map((c) => (
               <option key={c._id} value={c._id}>
                 {c.name}
@@ -436,7 +451,7 @@ function IncomeModal({ onClose, onSubmit, categories, accounts, initial }) {
         </div>
         <div>
           <label className="block mb-2" style={{ color: "var(--text-medium)" }}>
-            مبلغ
+            {t("income.modal.amount")}
           </label>
           <input
             className={
@@ -452,7 +467,7 @@ function IncomeModal({ onClose, onSubmit, categories, accounts, initial }) {
         </div>
         <div>
           <label className="block mb-2" style={{ color: "var(--text-medium)" }}>
-            قرار داده شده در
+            {t("income.modal.placedIn")}
           </label>
           <select
             className={
@@ -462,7 +477,7 @@ function IncomeModal({ onClose, onSubmit, categories, accounts, initial }) {
             value={form.placedInAccount}
             onChange={handleChange}
           >
-            <option value="">انتخاب حساب</option>
+            <option value="">{t("income.modal.selectAccount")}</option>
             {accounts.map((a) => (
               <option key={a._id} value={a._id}>
                 {a.name}
@@ -472,7 +487,7 @@ function IncomeModal({ onClose, onSubmit, categories, accounts, initial }) {
         </div>
         <div>
           <JalaliDatePicker
-            label="تاریخ"
+            label={t("income.modal.date")}
             name="date"
             value={form.date}
             onChange={(nextValue) =>
@@ -483,13 +498,13 @@ function IncomeModal({ onClose, onSubmit, categories, accounts, initial }) {
                   new Date().toISOString().slice(0, 10),
               }))
             }
-            placeholder="انتخاب تاریخ"
+            placeholder={t("income.modal.datePlaceholder")}
             clearable={false}
           />
         </div>
         <div className=" col-span-2">
           <label className="block mb-2" style={{ color: "var(--text-medium)" }}>
-            توضیحات
+            {t("income.modal.description")}
           </label>
           <textarea
             className={
@@ -507,7 +522,7 @@ function IncomeModal({ onClose, onSubmit, categories, accounts, initial }) {
           className={` bg-transparent border border-slate-600 cursor-pointer group  text-black     flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in duration-200`}
           onClick={onClose}
         >
-          لغو
+          {t("income.modal.cancel")}
         </button>
         <button
           className={`bg-amber-600 text-white hover:bg-amber-600/90 flex gap-2 justify-center items-center px-4 py-2 rounded-sm font-medium text-sm transition-all ease-in duration-200 ${
@@ -518,11 +533,11 @@ function IncomeModal({ onClose, onSubmit, categories, accounts, initial }) {
         >
           {isSubmitting
             ? initial
-              ? "در حال ذخیره..."
-              : "در حال ثبت..."
+              ? t("income.modal.saving")
+              : t("income.modal.submitting")
             : initial
-            ? "ذخیره تغییرات"
-            : "ثبت"}
+            ? t("income.modal.saveChanges")
+            : t("income.modal.submit")}
         </button>
       </div>
     </div>

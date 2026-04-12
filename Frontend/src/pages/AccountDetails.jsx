@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeftIcon,
@@ -17,6 +18,7 @@ import Spinner from "../components/Spinner";
 const EMPTY_LEDGER = [];
 
 const AccountDetails = () => {
+  const { t, i18n } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [startDate, setStartDate] = useState("");
@@ -40,7 +42,7 @@ const AccountDetails = () => {
     error,
   } = useAccountLedger(id, ledgerFilters);
 
-  const account = ledgerData?.account || "حساب";
+  const account = ledgerData?.account || t("accountDetails.fallbackName");
   const accountType = ledgerData?.accountType || "unknown";
   const openingBalance = ledgerData?.openingBalance || 0;
   const currentBalance = ledgerData?.currentBalance || 0;
@@ -58,58 +60,74 @@ const AccountDetails = () => {
   }, [ledger, page, rowsPerPage]);
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("fa-IR").format(amount);
+    const lang = (i18n.language || "ps").split("-")[0];
+    const localeTag =
+      lang === "ps" ? "ps-AF" : "fa-IR";
+    return new Intl.NumberFormat(localeTag).format(amount);
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("fa-IR");
+    if (!dateString) return "—";
+    const lang = (i18n.language || "ps").split("-")[0];
+    const localeTag =
+      lang === "ps" ? "ps-AF" : "fa-IR";
+    return new Date(dateString).toLocaleDateString(localeTag);
   };
 
   const getBalanceInfo = (balance, accountType) => {
     if (accountType === "cashier" || accountType === "safe") {
-      // For cashier/safe accounts, positive balance means you have money
       return {
-        label: balance >= 0 ? "موجودی موجود" : "کسر موجودی",
+        label:
+          balance >= 0
+            ? t("accountDetails.balance.cashierPositive")
+            : t("accountDetails.balance.cashierNegative"),
         color: balance >= 0 ? "text-green-600" : "text-red-600",
         bgColor: balance >= 0 ? "bg-green-50" : "bg-red-50",
         iconColor: balance >= 0 ? "text-green-600" : "text-red-600",
       };
     } else if (accountType === "saraf") {
-      // For saraf accounts, positive balance means you owe them money
       return {
-        label: balance >= 0 ? "بدهی شما به صراف" : "طلب شما از صراف",
+        label:
+          balance >= 0
+            ? t("accountDetails.balance.sarafPositive")
+            : t("accountDetails.balance.sarafNegative"),
         color: balance >= 0 ? "text-red-600" : "text-green-600",
         bgColor: balance >= 0 ? "bg-red-50" : "bg-green-50",
         iconColor: balance >= 0 ? "text-red-600" : "text-green-600",
       };
     } else if (accountType === "supplier") {
-      // For supplier accounts, positive balance means you owe them money
       return {
-        label: balance >= 0 ? "بدهی شما به تاجر" : "طلب شما از تاجر",
+        label:
+          balance >= 0
+            ? t("accountDetails.balance.supplierPositive")
+            : t("accountDetails.balance.supplierNegative"),
         color: balance >= 0 ? "text-red-600" : "text-green-600",
         bgColor: balance >= 0 ? "bg-red-50" : "bg-green-50",
         iconColor: balance >= 0 ? "text-red-600" : "text-green-600",
       };
     } else if (accountType === "customer") {
-      // For customer accounts, positive balance means they owe you money
       return {
-        label: balance >= 0 ? "طلب شما از مشتری" : "بدهی شما به مشتری",
+        label:
+          balance >= 0
+            ? t("accountDetails.balance.customerPositive")
+            : t("accountDetails.balance.customerNegative"),
         color: balance >= 0 ? "text-green-600" : "text-red-600",
         bgColor: balance >= 0 ? "bg-green-50" : "bg-red-50",
         iconColor: balance >= 0 ? "text-green-600" : "text-red-600",
       };
     } else if (accountType === "employee") {
-      // For employee accounts, positive balance means they owe you money
       return {
-        label: balance >= 0 ? "طلب شما از کارمند" : "بدهی شما به کارمند",
+        label:
+          balance >= 0
+            ? t("accountDetails.balance.employeePositive")
+            : t("accountDetails.balance.employeeNegative"),
         color: balance >= 0 ? "text-green-600" : "text-red-600",
         bgColor: balance >= 0 ? "bg-green-50" : "bg-red-50",
         iconColor: balance >= 0 ? "text-green-600" : "text-red-600",
       };
     } else {
-      // Default case
       return {
-        label: "موجودی",
+        label: t("accountDetails.balance.default"),
         color: "text-gray-600",
         bgColor: "bg-gray-50",
         iconColor: "text-gray-600",
@@ -132,24 +150,9 @@ const AccountDetails = () => {
   };
 
   const getTransactionTypeLabel = (type) => {
-    switch (type) {
-      case "Credit":
-        return "اعتبار";
-      case "Debit":
-        return "بدهی";
-      case "Transfer":
-        return "انتقال";
-      case "Expense":
-        return "مصرف";
-      case "Purchase":
-        return "خرید";
-      case "Sale":
-        return "فروش";
-      case "Payment":
-        return "پرداخت";
-      default:
-        return type;
-    }
+    const key = `accountDetails.txTypes.${type}`;
+    const translated = t(key);
+    return translated === key ? type : translated;
   };
 
   const handleTransactionClick = (transaction) => {
@@ -208,13 +211,13 @@ const AccountDetails = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <p className="text-red-600 mb-4">
-            {error.message || "خطا در بارگذاری اطلاعات حساب"}
+            {error.message || t("accountDetails.loadError")}
           </p>
           <button
             onClick={() => navigate("/accounts")}
             className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
           >
-            بازگشت به لیست حساب ها
+            {t("accountDetails.backToList")}
           </button>
         </div>
       </div>
@@ -234,7 +237,9 @@ const AccountDetails = () => {
           </button>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">{account}</h1>
-            <p className="text-gray-600 mt-1">جزئیات حساب و تراکنش ها</p>
+            <p className="text-gray-600 mt-1">
+              {t("accountDetails.subtitle")}
+            </p>
           </div>
         </div>
       </div>
@@ -276,7 +281,9 @@ const AccountDetails = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">موجودی اولیه</p>
+              <p className="text-sm text-gray-600">
+                {t("accountDetails.openingBalance")}
+              </p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
                 {formatCurrency(Math.abs(openingBalance))} AFN
               </p>
@@ -290,7 +297,9 @@ const AccountDetails = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">تعداد تراکنش ها</p>
+              <p className="text-sm text-gray-600">
+                {t("accountDetails.transactionCount")}
+              </p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
                 {totalTransactions}
               </p>
@@ -306,7 +315,7 @@ const AccountDetails = () => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">
-            فیلتر تراکنش ها
+            {t("accountDetails.filtersTitle")}
           </h3>
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
@@ -314,7 +323,7 @@ const AccountDetails = () => {
               <JalaliDatePicker
                 value={startDate}
                 onChange={handleStartDateChange}
-                placeholder="از تاریخ"
+                placeholder={t("accountDetails.dateFromPlaceholder")}
                 clearable
                 inputClassName="!px-3 !py-2"
               />
@@ -324,7 +333,7 @@ const AccountDetails = () => {
               <JalaliDatePicker
                 value={endDate}
                 onChange={handleEndDateChange}
-                placeholder="تا تاریخ"
+                placeholder={t("accountDetails.dateToPlaceholder")}
                 clearable
                 inputClassName="!px-3 !py-2"
               />
@@ -336,11 +345,17 @@ const AccountDetails = () => {
                 onChange={(e) => setTransactionType(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
               >
-                <option value="">همه تراکنش ها</option>
-                <option value="Credit">اعتبار</option>
-                <option value="Debit">بدهی</option>
-                <option value="Transfer">انتقال</option>
-                <option value="Expense">مصرف</option>
+                <option value="">{t("accountDetails.allTypes")}</option>
+                <option value="Credit">
+                  {t("accountDetails.txTypes.Credit")}
+                </option>
+                <option value="Debit">{t("accountDetails.txTypes.Debit")}</option>
+                <option value="Transfer">
+                  {t("accountDetails.txTypes.Transfer")}
+                </option>
+                <option value="Expense">
+                  {t("accountDetails.txTypes.Expense")}
+                </option>
               </select>
             </div>
           </div>
@@ -350,14 +365,16 @@ const AccountDetails = () => {
       {/* Transactions Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">تراکنش ها</h3>
+          <h3 className="text-lg font-semibold text-gray-900">
+            {t("accountDetails.transactionsTitle")}
+          </h3>
         </div>
         <div className="relative overflow-x-auto">
           {isFetching && ledgerData && (
             <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] flex items-center justify-center z-10">
               <div className="flex items-center gap-3 text-gray-600 text-sm">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-amber-600"></div>
-                <span>در حال بروزرسانی تراکنش‌ها...</span>
+                <span>{t("accountDetails.table.updating")}</span>
               </div>
             </div>
           )}
@@ -365,19 +382,19 @@ const AccountDetails = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  تاریخ
+                  {t("accountDetails.table.date")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  نوع
+                  {t("accountDetails.table.type")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  مبلغ
+                  {t("accountDetails.table.amount")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  موجودی بعد از تراکنش
+                  {t("accountDetails.table.balanceAfter")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  توضیحات
+                  {t("accountDetails.table.description")}
                 </th>
               </tr>
             </thead>
@@ -388,7 +405,7 @@ const AccountDetails = () => {
                     colSpan={5}
                     className="px-6 py-8 text-center text-gray-500"
                   >
-                    تراکنشی یافت نشد
+                    {t("accountDetails.table.empty")}
                   </td>
                 </tr>
               ) : (
@@ -429,7 +446,7 @@ const AccountDetails = () => {
                       {transaction.description || "-"}
                       {isClickable(transaction) && (
                         <span className="ml-2 text-xs text-blue-600">
-                          (کلیک برای مشاهده)
+                          {t("accountDetails.clickToView")}
                         </span>
                       )}
                     </td>

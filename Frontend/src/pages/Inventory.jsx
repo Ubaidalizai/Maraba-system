@@ -11,7 +11,8 @@ import {
   ExclamationTriangleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import GloableModal from "../components/GloableModal";
 import Table from "../components/Table";
 import TableBody from "../components/TableBody";
@@ -33,7 +34,10 @@ import { useSearchParams } from "react-router-dom";
 import Employee from "../components/Employee";
 import { TrashIcon } from "lucide-react";
 
+const EASTERN_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
+
 const Inventory = () => {
+  const { t, i18n } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [openConfirm, setOpenConfirm] = useState(false);
   const { isLoading: isLoadingProducts } = useProduct();
@@ -43,10 +47,36 @@ const Inventory = () => {
   const { data: inventoryStats, isLoading: isStatsLoading } =
     useInventoryStats();
 
-  // Function to convert numbers to Persian numerals
-  const toPersianNumber = (num) => {
-    return num.toString().replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
+  const toLocalizedNumber = (num) => {
+    const raw = String(num ?? "");
+    return raw.replace(/\d/g, (d) => EASTERN_DIGITS[d]);
   };
+
+  const formatTransferDate = (iso) => {
+    if (!iso) return t("inventory.transfer.empty");
+    const lang = (i18n.language || "ps").split("-")[0];
+    const localeTag = lang === "ps" ? "ps-AF" : "fa-IR";
+    return new Date(iso).toLocaleDateString(localeTag);
+  };
+
+  const transferTableHeaders = useMemo(
+    () => [
+      { title: t("inventory.transfer.headers.item") },
+      { title: t("inventory.transfer.headers.quantity") },
+      { title: t("inventory.transfer.headers.toLocation") },
+      { title: t("inventory.transfer.headers.date") },
+      { title: t("inventory.transfer.headers.employee") },
+      { title: t("inventory.transfer.headers.actions") },
+    ],
+    [t]
+  );
+
+  const locationLabel = (loc) =>
+    loc
+      ? t(`inventory.locations.${String(loc).toLowerCase()}`, {
+          defaultValue: String(loc),
+        })
+      : "";
   const handleDelete = () => {
     deleteStockTransfer(id);
     setOpenConfirm(false);
@@ -84,10 +114,10 @@ const Inventory = () => {
       {/* Page header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">مدیریت موجودی</h1>
-          <p className="text-gray-600 mt-1">
-            مدیریت کردن تمام دیتا های و نماینده گی های تان
-          </p>
+          <h1 className="text-xl font-bold text-gray-900">
+            {t("inventory.title")}
+          </h1>
+          <p className="text-gray-600 mt-1">{t("inventory.subtitle")}</p>
         </div>
       </div>
 
@@ -96,9 +126,11 @@ const Inventory = () => {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">تمام اجناس</p>
+              <p className="text-sm text-gray-600">
+                {t("inventory.stats.allProducts")}
+              </p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
-                {toPersianNumber(stats.totalProducts)}
+                {toLocalizedNumber(stats.totalProducts)}
               </p>
             </div>
             <div className="bg-blue-100 p-3 rounded-lg">
@@ -110,12 +142,16 @@ const Inventory = () => {
         <div className="bg-white rounded-lg  border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">موجودی گدام</p>
+              <p className="text-sm text-gray-600">
+                {t("inventory.stats.warehouseStock")}
+              </p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
-                {toPersianNumber(stats.warehouse.totalQuantity)}
+                {toLocalizedNumber(stats.warehouse.totalQuantity)}
               </p>
               <p className="text-sm text-gray-500">
-                {toPersianNumber(stats.warehouse.uniqueProducts)} محصول
+                {t("inventory.stats.productCount", {
+                  count: toLocalizedNumber(stats.warehouse.uniqueProducts),
+                })}
               </p>
             </div>
             <div className="bg-purple-100 p-3 rounded-lg">
@@ -127,12 +163,16 @@ const Inventory = () => {
         <div className="bg-white rounded-lg  border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">موجودی فروشگاه</p>
+              <p className="text-sm text-gray-600">
+                {t("inventory.stats.storeStock")}
+              </p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
-                {toPersianNumber(stats.store.totalQuantity)}
+                {toLocalizedNumber(stats.store.totalQuantity)}
               </p>
               <p className="text-sm text-gray-500">
-                {toPersianNumber(stats.store.uniqueProducts)} محصول
+                {t("inventory.stats.productCount", {
+                  count: toLocalizedNumber(stats.store.uniqueProducts),
+                })}
               </p>
             </div>
             <div className="bg-green-100 p-3 rounded-lg">
@@ -144,11 +184,15 @@ const Inventory = () => {
         <div className="bg-white rounded-lg  border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">کمبود موجودی</p>
-              <p className="text-2xl font-bold text-red-600 mt-1">
-                {toPersianNumber(stats.lowStockItems)}
+              <p className="text-sm text-gray-600">
+                {t("inventory.stats.lowStock")}
               </p>
-              <p className="text-sm text-gray-500">محصول نیاز به خرید</p>
+              <p className="text-2xl font-bold text-red-600 mt-1">
+                {toLocalizedNumber(stats.lowStockItems)}
+              </p>
+              <p className="text-sm text-gray-500">
+                {t("inventory.stats.needPurchase")}
+              </p>
             </div>
             <div className="bg-red-100 p-3 rounded-lg">
               <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
@@ -169,7 +213,7 @@ const Inventory = () => {
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
-              تمام اجناس
+              {t("inventory.tabs.all")}
             </button>
             <button
               onClick={() => setActiveTab("warehouse")}
@@ -180,7 +224,7 @@ const Inventory = () => {
               }`}
             >
               <BuildingOffice2Icon className="h-5 w-5" />
-              گدام
+              {t("inventory.tabs.warehouse")}
             </button>
             <button
               onClick={() => setActiveTab("store")}
@@ -191,7 +235,7 @@ const Inventory = () => {
               }`}
             >
               <BuildingStorefrontIcon className="h-5 w-5" />
-              فروشگاه
+              {t("inventory.tabs.store")}
             </button>
             <button
               onClick={() => setActiveTab("employee")}
@@ -202,7 +246,7 @@ const Inventory = () => {
               }`}
             >
               <FaUserTag className="h-5 w-5" />
-              فروشنده
+              {t("inventory.tabs.seller")}
             </button>
           </nav>
         </div>
@@ -228,21 +272,13 @@ const Inventory = () => {
       {/* Stock Transfer History */}
       {activeTab !== "all" && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2"></h3>
-          <ArrowPathIcon className="h-6 w-6 text-amber-600" />
-          انتقالات اخیر موجودی
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <ArrowPathIcon className="h-6 w-6 text-amber-600" />
+            {t("inventory.transfer.title")}
+          </h3>
           <div className="overflow-x-auto h-auto -mx-6 px-6 ">
             <Table>
-              <TableHeader
-                headerData={[
-                  { title: "جنس" },
-                  { title: "تعداد" },
-                  { title: "مکان گیرنده" },
-                  { title: "تاریخ" },
-                  { title: "کارمند" },
-                  { title: "عملیات" },
-                ]}
-              />
+              <TableHeader headerData={transferTableHeaders} />
               <TableBody>
                 {transferHistoryData?.data
                   ?.filter((transfer) => {
@@ -265,10 +301,12 @@ const Inventory = () => {
                   ?.map((transfer) => (
                     <TableRow key={transfer._id}>
                       <TableColumn>
-                        {transfer.product?.name || "N/A"}
+                        {transfer.product?.name ||
+                          t("inventory.transfer.notAvailable")}
                       </TableColumn>
                       <TableColumn>
-                        {toPersianNumber(transfer.quantity)} {transfer.unit?.name || ""}
+                        {toLocalizedNumber(transfer.quantity)}{" "}
+                        {transfer.unit?.name || ""}
                       </TableColumn>
 
                       <TableColumn>
@@ -294,16 +332,12 @@ const Inventory = () => {
                                 : ""
                             } rounded-full px-2`}
                           >
-                            {transfer.toLocation}
+                            {locationLabel(transfer.toLocation)}
                           </p>
                         </div>
                       </TableColumn>
                       <TableColumn>
-                        {transfer?.transferDate
-                          ? new Date(transfer.transferDate).toLocaleDateString(
-                              "fa-IR"
-                            )
-                          : "—"}
+                        {formatTransferDate(transfer?.transferDate)}
                       </TableColumn>
                       <TableColumn>
                         {transfer.transferredBy?.name ||
@@ -338,19 +372,18 @@ const Inventory = () => {
                       <TrashIcon className="h-6 w-6 text-red-600" />
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900">
-                      تأیید حذف
+                      {t("inventory.delete.title")}
                     </h3>
                   </div>
                   <p className="text-gray-600 mb-6">
-                    آیا مطمئن هستید که می‌خواهید این خرید را حذف کنید؟ این عمل
-                    قابل بازگشت نیست.
+                    {t("inventory.delete.message")}
                   </p>
                   <div className="flex justify-end gap-3">
                     <button
                       onClick={() => setOpenConfirm(false)}
                       className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
                     >
-                      لغو
+                      {t("inventory.delete.cancel")}
                     </button>
                     <button
                       onClick={() => {
@@ -359,7 +392,9 @@ const Inventory = () => {
                       disabled={isDeleting}
                       className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
                     >
-                      {isDeleting ? "در حال حذف..." : "حذف"}
+                      {isDeleting
+                        ? t("inventory.delete.deleting")
+                        : t("inventory.delete.confirm")}
                     </button>
                   </div>
                 </div>

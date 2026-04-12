@@ -5,7 +5,8 @@ import {
   PlusIcon,
 } from "@heroicons/react/24/outline";
 import { CalendarDays, ClipboardList, Info, Package, User } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Button from "../components/Button";
 import EditProduct from "../components/EditProduct";
 import GloableModal from "../components/GloableModal";
@@ -25,14 +26,21 @@ import { formatNumber } from "../utilies/helper";
 import ProductForm from "../components/ProductForm";
 import { useForm } from "react-hook-form";
 
-const headers = [
-  { title: "اسم جنس" },
-  { title: "واحد پایه" },
-  { title: "ردیابی بچ" },
-  { title: "عملیات" },
-];
-
 function Product() {
+  const { t, i18n } = useTranslation();
+  const dateLocaleTag =
+    (i18n.language || "ps").split("-")[0] === "ps" ? "ps-AF" : "fa-IR";
+
+  const headers = useMemo(
+    () => [
+      { title: t("inventory.product.table.name") },
+      { title: t("inventory.product.table.baseUnit") },
+      { title: t("inventory.product.table.batchTracking") },
+      { title: t("inventory.product.table.actions") },
+    ],
+    [t]
+  );
+
   const { mutate: deleteProduct, isPending: isDeleting } = useDeleteProdcut();
   const { mutate: createProduct, isPending: isCreating } = useCreateProdcut();
   const { register, handleSubmit, formState, reset, control } = useForm();
@@ -105,7 +113,7 @@ function Product() {
       <div className="w-full flex flex-col gap-3 md:flex-row md:items-center md:justify-between py-3 bg-white border-slate-200 rounded-md border my-1.5 px-3">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 w-full">
           <SearchInput
-            placeholder="جستجو بر اساس نام جنس..."
+            placeholder={t("inventory.product.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e?.target ? e.target.value : e)}
           />
@@ -115,7 +123,7 @@ function Product() {
             disabled={isCreating}
             className="md:w-[200px] text-white bg-amber-600"
           >
-            اضافه کردن جنس
+            {t("inventory.product.addProduct")}
           </Button>
         </div>
       </div>
@@ -135,7 +143,9 @@ function Product() {
             <TableRow key="loading">
               <TableColumn colSpan={headers.length} className="text-center">
                 <div className=" w-full h-[120px] flex justify-center items-center">
-                  <div className="text-gray-500">در حال بارگذاری...</div>
+                  <div className="text-gray-500">
+                    {t("inventory.product.loading")}
+                  </div>
                 </div>
               </TableColumn>
             </TableRow>
@@ -153,7 +163,9 @@ function Product() {
                         : "bg-gray-100 text-gray-800"
                     }`}
                   >
-                    {el?.trackByBatch ? "فعال" : "غیرفعال"}
+                    {el?.trackByBatch
+                      ? t("inventory.product.active")
+                      : t("inventory.product.inactive")}
                   </span>
                 </TableColumn>
                 <TableColumn>
@@ -161,14 +173,14 @@ function Product() {
                     <button
                       className="text-yellow-600 hover:text-yellow-900"
                       onClick={() => handleViewProduct(el)}
-                      title="مشاهده"
+                      title={t("inventory.product.tooltipView")}
                     >
                       <EyeIcon className="h-4 w-4" />
                     </button>
                     <button
                       className="text-indigo-600 hover:text-indigo-900"
                       onClick={() => handleEditProduct(el)}
-                      title="ویرایش"
+                      title={t("inventory.product.tooltipEdit")}
                     >
                       <PencilIcon className="h-4 w-4" />
                     </button>
@@ -189,7 +201,7 @@ function Product() {
                 colSpan={headers.length}
                 className="text-center py-8 text-gray-500"
               >
-                هیچ محصولی یافت نشد
+                {t("inventory.product.empty")}
               </TableColumn>
             </TableRow>
           )}
@@ -214,12 +226,14 @@ function Product() {
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">
-                Product Details
+                {t("inventory.product.detailsTitle")}
               </h2>
             </div>
 
             <div className="p-6 border-t border-gray-200 flex justify-end">
-              <Button onClick={() => setShow(false)}>بسته کردن</Button>
+              <Button onClick={() => setShow(false)}>
+                {t("inventory.product.close")}
+              </Button>
             </div>
           </div>
         )}
@@ -245,7 +259,9 @@ function Product() {
                 <div className=" flex flex-col  items-start gap-x-2">
                   <h3 className="text-sm  font-medium text-gray-500 mb-1 flex items-center justify-end gap-1">
                     <Package className=" text-2xl text-palm-500" />
-                    <span className="text-lg text-palm-500">واحد پایه</span>
+                    <span className="text-lg text-palm-500">
+                      {t("inventory.product.baseUnitLabel")}
+                    </span>
                   </h3>
                   <p className="text-lg font-semibold text-palm-400">
                     {selectedPro.baseUnit?.name || "-"}
@@ -256,10 +272,13 @@ function Product() {
                 <div className="flex flex-col  items-start gap-x-2">
                   <h3 className="text-sm font-medium text-gray-500 mb-1 flex items-center justify-end gap-1">
                     <ClipboardList className="text-2xl text-palm-500" />
-                    <span className="text-lg text-palm-500">حداقل سطح</span>
+                    <span className="text-lg text-palm-500">
+                      {t("inventory.product.minLevelLabel")}
+                    </span>
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
-                    {selectedPro.minLevel || 0} عدد
+                    {selectedPro.minLevel || 0}{" "}
+                    {t("inventory.product.minLevelSuffix")}
                   </p>
                 </div>
 
@@ -268,14 +287,14 @@ function Product() {
                   <h3 className="text-sm font-medium text-gray-500 mb-1 flex items-center justify-end gap-1">
                     <User className="text-2xl text-palm-500" />
                     <span className="text-lg text-palm-500">
-                      آخرین قیمت خرید
+                      {t("inventory.product.latestPurchase")}
                     </span>
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
                     {selectedPro.latestPurchasePrice
                       ? `${formatNumber(
                           selectedPro.latestPurchasePrice
-                        )} افغانی`
+                        )} ${t("inventory.product.currencyAfn")}`
                       : "-"}
                   </p>
                 </div>
@@ -284,10 +303,14 @@ function Product() {
                 <div className="flex flex-col  items-start gap-x-2">
                   <h3 className="text-sm font-medium text-gray-500 mb-1 flex items-center justify-end gap-1">
                     <CalendarDays className="text-2xl text-palm-500" />
-                    <span className="text-lg text-palm-500">ردیابی بچ</span>
+                    <span className="text-lg text-palm-500">
+                      {t("inventory.product.batchTrackingLabel")}
+                    </span>
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
-                    {selectedPro.trackByBatch ? "فعال" : "غیرفعال"}
+                    {selectedPro.trackByBatch
+                      ? t("inventory.product.active")
+                      : t("inventory.product.inactive")}
                   </p>
                 </div>
 
@@ -295,11 +318,13 @@ function Product() {
                 <div className="flex flex-col  items-start gap-x-2">
                   <h3 className="text-sm font-medium text-gray-500 mb-1 flex items-center justify-end gap-1">
                     <CalendarDays className="text-2xl text-palm-500" />
-                    <span className="text-lg text-palm-500">تاریخ ایجاد</span>
+                    <span className="text-lg text-palm-500">
+                      {t("inventory.product.createdAt")}
+                    </span>
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
                     {new Date(selectedPro.createdAt).toLocaleDateString(
-                      "fa-IR"
+                      dateLocaleTag
                     )}
                   </p>
                 </div>
@@ -309,12 +334,12 @@ function Product() {
                   <h3 className="text-sm font-medium text-gray-500 mb-1 flex items-center justify-end gap-1">
                     <CalendarDays className="text-2xl text-palm-500" />
                     <span className="text-lg text-palm-500">
-                      آخرین بروزرسانی
+                      {t("inventory.product.updatedAt")}
                     </span>
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
                     {new Date(selectedPro.updatedAt).toLocaleDateString(
-                      "fa-IR"
+                      dateLocaleTag
                     )}
                   </p>
                 </div>
@@ -326,17 +351,21 @@ function Product() {
               <div className="flex flex-col  items-start gap-x-2">
                 <h3 className="text-sm font-medium text-gray-500 mb-2 flex items-center justify-end gap-1">
                   <Info className="text-2xl text-palm-500" />
-                  <span className="text-[16px] text-palm-500">توضیحات</span>
+                  <span className="text-[16px] text-palm-500">
+                    {t("inventory.product.description")}
+                  </span>
                 </h3>
                 <p className="text-gray-800 leading-relaxed text-right">
-                  {selectedPro.description || "هیچ توضیحی در دسترس نیست."}
+                  {selectedPro.description || t("inventory.product.noDescription")}
                 </p>
               </div>
             </div>
 
             {/* Footer */}
             <div className="bg-gray-50 border-t border-gray-200 p-4 flex justify-end">
-              <Button onClick={handleCloseView}>بسته کردن</Button>
+              <Button onClick={handleCloseView}>
+                {t("inventory.product.close")}
+              </Button>
             </div>
           </div>
         )}
@@ -354,18 +383,19 @@ function Product() {
               <div className="bg-red-100 p-2 rounded-full mr-3">
                 <TrashIcon className="h-6 w-6 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">تأیید حذف</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t("inventory.product.delete.title")}
+              </h3>
             </div>
             <p className="text-gray-600 mb-6">
-              آیا مطمئن هستید که می‌خواهید این خرید را حذف کنید؟ این عمل قابل
-              بازگشت نیست.
+              {t("inventory.product.delete.message")}
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
-                لغو
+                {t("inventory.product.delete.cancel")}
               </button>
               <button
                 onClick={() => {
@@ -374,7 +404,9 @@ function Product() {
                 disabled={isDeleting}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
-                {isDeleting ? "در حال حذف..." : "حذف"}
+                {isDeleting
+                  ? t("inventory.product.delete.deleting")
+                  : t("inventory.product.delete.confirm")}
               </button>
             </div>
           </div>
