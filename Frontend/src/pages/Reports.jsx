@@ -118,7 +118,7 @@ const getJalaliYearIsoRange = (jalaliYearString) => {
 };
 
 const Reports = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selectedReport, setSelectedReport] = useState("sales");
   const [reportFilters, setReportFilters] = useState(() => {
     const initial = {};
@@ -131,6 +131,7 @@ const Reports = () => {
   const [selectedExpenseCategory, setSelectedExpenseCategory] = useState(""); // Empty string means "all categories"
   const [selectedStockLocation, setSelectedStockLocation] = useState("all"); // "all", "warehouse", or "store"
   const [selectedStockLevel, setSelectedStockLevel] = useState("low"); // "all", "low", "critical", or "out"
+  const localeTag = (i18n.language || "ps").split("-")[0] === "ps" ? "ps-AF" : "fa-IR";
 
   const reportTypes = useMemo(
     () => [
@@ -392,29 +393,18 @@ const Reports = () => {
         "November",
         "December",
       ];
-      const monthNamesPersian = [
-        "جنوری",
-        "فبروری",
-        "مارچ",
-        "اپریل",
-        "می",
-        "جون",
-        "جولای",
-        "آگست",
-        "سپتامبر",
-        "اکتبر",
-        "نومبر",
-        "دسمبر",
-      ];
-
       // Use Gregorian year from the date range (already converted from Jalali)
       const gregorianYear = new Date(startDate).getFullYear();
 
       for (let month = 0; month < 12; month++) {
         const monthKey = `${monthNames[month]} ${gregorianYear}`;
         const apiItem = apiMap.get(monthKey);
+        const monthLabel = new Date(gregorianYear, month, 1).toLocaleDateString(
+          localeTag,
+          { month: "long" }
+        );
         allPeriods.push({
-          date: monthNamesPersian[month],
+          date: monthLabel,
           fullDate: monthKey,
           sales: apiItem ? parseFloat(apiItem.sales) : 0,
           paid: apiItem ? parseFloat(apiItem.paid) : 0,
@@ -425,7 +415,7 @@ const Reports = () => {
     }
 
     return allPeriods;
-  }, [salesReportsData, selectedReport, salesDateParams, salesFilter]);
+  }, [salesReportsData, selectedReport, salesDateParams, salesFilter, localeTag]);
 
   // Chart data for profit reports - generate all periods like sales
   const profitChartData = useMemo(() => {
@@ -476,28 +466,20 @@ const Reports = () => {
     } else if (range === "yearly") {
       // Yearly view: Generate all 12 months
       // Profit API uses YYYY-MM format for monthly grouping
-      const monthNamesPersian = [
-        "جنوری",
-        "فبروری",
-        "مارچ",
-        "اپریل",
-        "می",
-        "جون",
-        "جولای",
-        "آگست",
-        "سپتامبر",
-        "اکتبر",
-        "نومبر",
-        "دسمبر",
-      ];
-
       // Use Gregorian year from the date range (already converted from Jalali)
       const gregorianYear = new Date(startDate).getFullYear();
       for (let month = 1; month <= 12; month++) {
         const monthKey = `${gregorianYear}-${String(month).padStart(2, "0")}`; // Format: YYYY-MM
         const apiItem = apiMap.get(monthKey);
+        const monthLabel = new Date(
+          gregorianYear,
+          month - 1,
+          1
+        ).toLocaleDateString(localeTag, {
+          month: "long",
+        });
         allPeriods.push({
-          period: monthNamesPersian[month - 1],
+          period: monthLabel,
           fullDate: monthKey,
           grossProfit: apiItem ? parseFloat(apiItem.grossProfit) : 0,
           otherIncome: apiItem ? parseFloat(apiItem.otherIncome) : 0,
@@ -508,7 +490,7 @@ const Reports = () => {
     }
 
     return allPeriods;
-  }, [profitSummaryData, selectedReport, profitDateParams, profitFilter]);
+  }, [profitSummaryData, selectedReport, profitDateParams, profitFilter, localeTag]);
 
   // Chart data for purchase reports - generate all periods like sales
   const purchaseChartData = useMemo(() => {
@@ -572,29 +554,18 @@ const Reports = () => {
         "November",
         "December",
       ];
-      const monthNamesPersian = [
-        "جنوری",
-        "فبروری",
-        "مارچ",
-        "اپریل",
-        "می",
-        "جون",
-        "جولای",
-        "آگست",
-        "سپتامبر",
-        "اکتبر",
-        "نومبر",
-        "دسمبر",
-      ];
-
       // Use Gregorian year from the date range (already converted from Jalali)
       const gregorianYear = new Date(startDate).getFullYear();
 
       for (let month = 0; month < 12; month++) {
         const monthKey = `${monthNames[month]} ${gregorianYear}`;
         const apiItem = apiMap.get(monthKey);
+        const monthLabel = new Date(gregorianYear, month, 1).toLocaleDateString(
+          localeTag,
+          { month: "long" }
+        );
         allPeriods.push({
-          date: monthNamesPersian[month],
+          date: monthLabel,
           fullDate: monthKey,
           purchases: apiItem ? parseFloat(apiItem.purchases) : 0,
           paid: apiItem ? parseFloat(apiItem.paid) : 0,
@@ -610,6 +581,7 @@ const Reports = () => {
     selectedReport,
     purchaseDateParams,
     purchaseFilter,
+    localeTag,
   ]);
 
   // Chart data for expense reports - generate all periods like sales
@@ -669,29 +641,18 @@ const Reports = () => {
         "November",
         "December",
       ];
-      const monthNamesPersian = [
-        "جنوری",
-        "فبروری",
-        "مارچ",
-        "اپریل",
-        "می",
-        "جون",
-        "جولای",
-        "آگست",
-        "سپتامبر",
-        "اکتبر",
-        "نومبر",
-        "دسمبر",
-      ];
-
       // Use Gregorian year from the date range (already converted from Jalali)
       const gregorianYear = new Date(startDate).getFullYear();
 
       for (let month = 0; month < 12; month++) {
         const monthKey = `${monthNames[month]} ${gregorianYear}`;
         const apiItem = apiMap.get(monthKey);
+        const monthLabel = new Date(gregorianYear, month, 1).toLocaleDateString(
+          localeTag,
+          { month: "long" }
+        );
         allPeriods.push({
-          date: monthNamesPersian[month],
+          date: monthLabel,
           fullDate: monthKey,
           expenses: apiItem ? parseFloat(apiItem.expenses) : 0,
           count: apiItem ? parseInt(apiItem.count) : 0,
@@ -700,7 +661,7 @@ const Reports = () => {
     }
 
     return allPeriods;
-  }, [expenseSummaryData, selectedReport, expenseDateParams, expenseFilter]);
+  }, [expenseSummaryData, selectedReport, expenseDateParams, expenseFilter, localeTag]);
 
   // Chart data for cash flow reports - generate all periods like sales
   const cashFlowChartData = useMemo(() => {
@@ -763,29 +724,18 @@ const Reports = () => {
         "November",
         "December",
       ];
-      const monthNamesPersian = [
-        "جنوری",
-        "فبروری",
-        "مارچ",
-        "اپریل",
-        "می",
-        "جون",
-        "جولای",
-        "آگست",
-        "سپتامبر",
-        "اکتبر",
-        "نومبر",
-        "دسمبر",
-      ];
-
       // Use Gregorian year from the date range (already converted from Jalali)
       const gregorianYear = new Date(startDate).getFullYear();
 
       for (let month = 0; month < 12; month++) {
         const monthKey = `${monthNames[month]} ${gregorianYear}`;
         const apiItem = apiMap.get(monthKey);
+        const monthLabel = new Date(gregorianYear, month, 1).toLocaleDateString(
+          localeTag,
+          { month: "long" }
+        );
         allPeriods.push({
-          date: monthNamesPersian[month],
+          date: monthLabel,
           fullDate: monthKey,
           moneyIn: apiItem ? parseFloat(apiItem.moneyIn) : 0,
           moneyOut: apiItem ? parseFloat(apiItem.moneyOut) : 0,
@@ -796,7 +746,7 @@ const Reports = () => {
     }
 
     return allPeriods;
-  }, [cashFlowData, selectedReport, accountsDateParams, accountsFilter]);
+  }, [cashFlowData, selectedReport, accountsDateParams, accountsFilter, localeTag]);
 
   // System colors for charts
   const chartColors = {
@@ -866,7 +816,9 @@ const Reports = () => {
                 <CurrencyDollarIcon className="h-6 w-6 text-white" />
               </div>
               <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">مجموع فروش</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {t("reports.summary.salesTotal")}
+                </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(salesReportsData.data.totals.totalSales || 0)}
                 </p>
@@ -881,7 +833,7 @@ const Reports = () => {
               </div>
               <div className="mr-4">
                 <p className="text-sm font-medium text-gray-600">
-                  مجموع پرداخت شده
+                  {t("reports.summary.paidTotal")}
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(salesReportsData.data.totals.totalPaid || 0)}
@@ -896,7 +848,9 @@ const Reports = () => {
                 <ExclamationCircleIcon className="h-6 w-6 text-white" />
               </div>
               <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">مجموع بدهی</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {t("reports.summary.dueTotal")}
+                </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(salesReportsData.data.totals.totalDue || 0)}
                 </p>
@@ -916,7 +870,7 @@ const Reports = () => {
               </div>
               <div className="mr-4">
                 <p className="text-sm font-medium text-gray-600">
-                  مجموع خریداری
+                  {t("reports.summary.purchasesTotal")}
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(
@@ -934,7 +888,7 @@ const Reports = () => {
               </div>
               <div className="mr-4">
                 <p className="text-sm font-medium text-gray-600">
-                  مجموع پرداخت شده
+                  {t("reports.summary.paidTotal")}
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(
@@ -951,7 +905,9 @@ const Reports = () => {
                 <ClockIcon className="h-6 w-6 text-white" />
               </div>
               <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">مجموع بدهی</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {t("reports.summary.dueTotal")}
+                </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(
                     purchaseReportsData.data.totals.totalDue || 0
@@ -973,7 +929,7 @@ const Reports = () => {
               </div>
               <div className="mr-4">
                 <p className="text-sm font-medium text-gray-600">
-                  مجموع هزینه ها
+                  {t("reports.summary.expensesTotal")}
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(
@@ -991,7 +947,7 @@ const Reports = () => {
               </div>
               <div className="mr-4">
                 <p className="text-sm font-medium text-gray-600">
-                  تعداد هزینه ها
+                  {t("reports.summary.expenseCount")}
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatNumber(expenseSummaryData.data.totals.totalCount || 0)}
@@ -1012,7 +968,7 @@ const Reports = () => {
               </div>
               <div className="mr-4">
                 <p className="text-sm font-medium text-gray-600">
-                  مجموع حساب‌های نقدی
+                  {t("reports.summary.cashAccountsTotal")}
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(
@@ -1030,7 +986,7 @@ const Reports = () => {
               </div>
               <div className="mr-4">
                 <p className="text-sm font-medium text-gray-600">
-                  مجموع بدهی به تاجران
+                  {t("reports.summary.supplierDebtTotal")}
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(
@@ -1048,7 +1004,7 @@ const Reports = () => {
               </div>
               <div className="mr-4">
                 <p className="text-sm font-medium text-gray-600">
-                  مجموع طلب از مشتریان
+                  {t("reports.summary.customerCreditTotal")}
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(
@@ -1071,7 +1027,9 @@ const Reports = () => {
                 <ArrowTrendingUpIcon className="h-6 w-6 text-white" />
               </div>
               <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">موقعیت خالص</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {t("reports.summary.netPosition")}
+                </p>
                 <p
                   className={`text-2xl font-bold ${
                     (accountBalancesData.data.summary.netPosition || 0) >= 0
@@ -1098,9 +1056,12 @@ const Reports = () => {
                 <ArrowTrendingUpIcon className="h-6 w-6 text-white" />
               </div>
               <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">سود ناخالص</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {t("reports.summary.grossProfit")}
+                </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {formatNumber(netProfitData.data.grossProfit || 0)} افغانی
+                  {formatNumber(netProfitData.data.grossProfit || 0)}{" "}
+                  {t("reports.currencyAfn")}
                 </p>
               </div>
             </div>
@@ -1112,9 +1073,12 @@ const Reports = () => {
                 <PlusCircleIcon className="h-6 w-6 text-white" />
               </div>
               <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">درآمد دیگر</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {t("reports.summary.otherIncome")}
+                </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {formatNumber(netProfitData.data.otherIncome || 0)} افغانی
+                  {formatNumber(netProfitData.data.otherIncome || 0)}{" "}
+                  {t("reports.currencyAfn")}
                 </p>
               </div>
             </div>
@@ -1126,9 +1090,12 @@ const Reports = () => {
                 <MinusCircleIcon className="h-6 w-6 text-white" />
               </div>
               <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">هزینه ها</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {t("reports.summary.expensesTotal")}
+                </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {formatNumber(netProfitData.data.expenses || 0)} افغانی
+                  {formatNumber(netProfitData.data.expenses || 0)}{" "}
+                  {t("reports.currencyAfn")}
                 </p>
               </div>
             </div>
@@ -1146,7 +1113,9 @@ const Reports = () => {
                 <ChartPieIcon className="h-6 w-6 text-white" />
               </div>
               <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">سود خالص</p>
+                <p className="text-sm font-medium text-gray-600">
+                  {t("reports.summary.netProfit")}
+                </p>
                 <p
                   className={`text-2xl font-bold ${
                     (netProfitData.data.netProfit || 0) >= 0
@@ -1154,7 +1123,8 @@ const Reports = () => {
                       : "text-red-600"
                   }`}
                 >
-                  {formatNumber(netProfitData.data.netProfit || 0)} افغانی
+                  {formatNumber(netProfitData.data.netProfit || 0)}{" "}
+                  {t("reports.currencyAfn")}
                 </p>
               </div>
             </div>
@@ -1166,7 +1136,7 @@ const Reports = () => {
       {hasDateControls && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            نوع گزارش و تاریخ را انتخاب کنید
+            {t("reports.selectRangeDate")}
           </h3>
           <div className="flex flex-wrap justify-between items-end gap-4">
             <div className="flex flex-wrap items-end gap-4">
@@ -1184,7 +1154,7 @@ const Reports = () => {
                       : "border-gray-300 text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  ماهانه (روزها)
+                  {t("reports.range.monthly")}
                 </button>
                 <button
                   onClick={() =>
@@ -1199,14 +1169,14 @@ const Reports = () => {
                       : "border-gray-300 text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  سالانه (ماه‌ها)
+                  {t("reports.range.yearly")}
                 </button>
               </div>
 
               {activeRange === "monthly" && (
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-700">
-                    انتخاب ماه
+                    {t("reports.filters.pickMonth")}
                   </label>
                   <JalaliDatePicker
                     value={
@@ -1231,7 +1201,7 @@ const Reports = () => {
                         };
                       });
                     }}
-                    placeholder="انتخاب تاریخ"
+                    placeholder={t("reports.filters.pickDate")}
                     clearable
                   />
                 </div>
@@ -1240,7 +1210,7 @@ const Reports = () => {
               {activeRange === "yearly" && (
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-700">
-                    انتخاب سال
+                    {t("reports.filters.pickYear")}
                   </label>
                   <div className="relative inline-block">
                     <input
@@ -1342,7 +1312,7 @@ const Reports = () => {
                           }
                         }}
                         className="p-0.5 hover:bg-gray-100 rounded-t text-gray-600 hover:text-gray-900 transition-colors"
-                        aria-label="Increase year"
+                        aria-label={t("reports.filters.increaseYear")}
                       >
                         <ChevronUpIcon className="h-4 w-4" />
                       </button>
@@ -1360,7 +1330,7 @@ const Reports = () => {
                           }
                         }}
                         className="p-0.5 hover:bg-gray-100 rounded-b text-gray-600 hover:text-gray-900 transition-colors"
-                        aria-label="Decrease year"
+                        aria-label={t("reports.filters.decreaseYear")}
                       >
                         <ChevronDownIcon className="h-4 w-4" />
                       </button>
@@ -1374,14 +1344,14 @@ const Reports = () => {
             {selectedReport === "expenses" && expenseCategoriesData?.data && (
               <div>
                 <label className="block mb-2 text-sm font-medium text-gray-700">
-                  دسته بندی هزینه
+                  {t("reports.filters.expenseCategory")}
                 </label>
                 <select
                   value={selectedExpenseCategory}
                   onChange={(e) => setSelectedExpenseCategory(e.target.value)}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white min-w-[180px]"
                 >
-                  <option value="">همه دسته بندی‌ها</option>
+                  <option value="">{t("reports.filters.allCategories")}</option>
                   {expenseCategoriesData.data.map((category) => (
                     <option key={category._id} value={category._id}>
                       {category.name}
@@ -1407,15 +1377,20 @@ const Reports = () => {
                       const monthValue =
                         activeFilter.month || getCurrentMonthValue();
                       const displayDate = new Date(`${monthValue}-01`);
-                      return `ماهانه (${displayDate.toLocaleDateString(
-                        "fa-IR",
-                        {
+                      return t("reports.periodTitle.monthly", {
+                        type: t("reports.range.monthlyLabel"),
+                        month: displayDate.toLocaleDateString(localeTag, {
                           year: "numeric",
                           month: "long",
-                        }
-                      )})`;
+                        }),
+                      });
                     })()
-                  : `سالانه (${toPersianDigits(activeFilter.year || getCurrentYearValue())})`}
+                  : t("reports.periodTitle.yearly", {
+                      type: t("reports.range.yearlyLabel"),
+                      year: toPersianDigits(
+                        activeFilter.year || getCurrentYearValue()
+                      ),
+                    })}
               </>
             )}
           </h3>
@@ -1426,20 +1401,20 @@ const Reports = () => {
             <div className="space-y-6">
               {salesReportsLoading ? (
                 <div className="text-center text-gray-500 py-12">
-                  در حال بارگذاری داده های فروش...
+                  {t("reports.states.loadingSales")}
                 </div>
               ) : !salesReportsData?.data ? (
                 <div className="text-center text-gray-500 py-12">
-                  داده‌ای برای نمایش وجود ندارد
+                  {t("reports.states.noData")}
                 </div>
               ) : chartData.length === 0 ? (
                 <div className="text-center text-gray-500 py-12">
-                  هیچ داده فروشی برای دوره انتخاب شده یافت نشد.
+                  {t("reports.states.noDataPeriodSales")}
                 </div>
               ) : (
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                    روند فروش
+                    {t("reports.charts.salesTrend")}
                   </h4>
                   <ResponsiveContainer width="100%" height={400}>
                     <BarChart data={chartData}>
@@ -1458,8 +1433,8 @@ const Reports = () => {
                       />
                       <Tooltip
                         formatter={(value) => [
-                          `${formatNumber(parseFloat(value))} افغانی`,
-                          "فروش",
+                          `${formatNumber(parseFloat(value))} ${t("reports.currencyAfn")}`,
+                          t("reports.charts.barSales"),
                         ]}
                         labelStyle={{ color: "#374151" }}
                       />
@@ -1467,7 +1442,7 @@ const Reports = () => {
                       <Bar
                         dataKey="sales"
                         fill={chartColors.sales}
-                        name="فروش"
+                        name={t("reports.charts.barSales")}
                         radius={[4, 4, 0, 0]}
                       />
                     </BarChart>
@@ -1481,20 +1456,20 @@ const Reports = () => {
             <div className="space-y-6">
               {purchaseReportsLoading ? (
                 <div className="text-center text-gray-500 py-12">
-                  در حال بارگذاری داده های خریداری...
+                  {t("reports.states.loadingPurchases")}
                 </div>
               ) : !purchaseReportsData?.data ? (
                 <div className="text-center text-gray-500 py-12">
-                  داده‌ای برای نمایش وجود ندارد
+                  {t("reports.states.noData")}
                 </div>
               ) : purchaseChartData.length === 0 ? (
                 <div className="text-center text-gray-500 py-12">
-                  هیچ داده خریداری برای دوره انتخاب شده یافت نشد.
+                  {t("reports.states.noDataPeriodPurchases")}
                 </div>
               ) : (
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                    روند خریداری
+                    {t("reports.charts.purchasesTrend")}
                   </h4>
                   <ResponsiveContainer width="100%" height={400}>
                     <BarChart data={purchaseChartData}>
@@ -1513,8 +1488,8 @@ const Reports = () => {
                       />
                       <Tooltip
                         formatter={(value) => [
-                          `${formatNumber(parseFloat(value))} افغانی`,
-                          "خریداری",
+                          `${formatNumber(parseFloat(value))} ${t("reports.currencyAfn")}`,
+                          t("reports.charts.barPurchases"),
                         ]}
                         labelStyle={{ color: "#374151" }}
                       />
@@ -1522,7 +1497,7 @@ const Reports = () => {
                       <Bar
                         dataKey="purchases"
                         fill={chartColors.purchases}
-                        name="خریداری"
+                        name={t("reports.charts.barPurchases")}
                         radius={[4, 4, 0, 0]}
                       />
                     </BarChart>
@@ -1536,20 +1511,20 @@ const Reports = () => {
             <div className="space-y-6">
               {expenseSummaryLoading ? (
                 <div className="text-center text-gray-500 py-12">
-                  در حال بارگذاری داده های هزینه...
+                  {t("reports.states.loadingExpenses")}
                 </div>
               ) : !expenseSummaryData?.data ? (
                 <div className="text-center text-gray-500 py-12">
-                  داده‌ای برای نمایش وجود ندارد
+                  {t("reports.states.noData")}
                 </div>
               ) : expenseChartData.length === 0 ? (
                 <div className="text-center text-gray-500 py-12">
-                  هیچ داده هزینه برای دوره انتخاب شده یافت نشد.
+                  {t("reports.states.noDataPeriodExpenses")}
                 </div>
               ) : (
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                    روند هزینه ها
+                    {t("reports.charts.expensesTrend")}
                   </h4>
                   <ResponsiveContainer width="100%" height={400}>
                     <BarChart data={expenseChartData}>
@@ -1576,8 +1551,8 @@ const Reports = () => {
                       />
                       <Tooltip
                         formatter={(value) => [
-                          `${formatNumber(parseFloat(value))} افغانی`,
-                          "هزینه",
+                          `${formatNumber(parseFloat(value))} ${t("reports.currencyAfn")}`,
+                          t("reports.charts.barExpenses"),
                         ]}
                         labelStyle={{ color: "#374151" }}
                       />
@@ -1585,7 +1560,7 @@ const Reports = () => {
                       <Bar
                         dataKey="expenses"
                         fill={chartColors.expenses}
-                        name="هزینه"
+                        name={t("reports.charts.barExpenses")}
                         radius={[4, 4, 0, 0]}
                       />
                     </BarChart>
@@ -1599,25 +1574,27 @@ const Reports = () => {
             <div className="space-y-6">
               {cashFlowLoading ? (
                 <div className="text-center text-gray-500 py-12">
-                  در حال بارگذاری داده های جریان نقدی...
+                  {t("reports.states.loadingAccounts")}
                 </div>
               ) : !cashFlowData?.data ? (
                 <div className="text-center text-gray-500 py-12">
-                  داده‌ای برای نمایش وجود ندارد
+                  {t("reports.states.noData")}
                 </div>
               ) : cashFlowChartData.length === 0 ? (
                 <div className="text-center text-gray-500 py-12">
-                  هیچ داده جریان نقدی برای دوره انتخاب شده یافت نشد.
+                  {t("reports.states.noDataPeriodAccounts")}
                 </div>
               ) : (
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                    روند جریان نقدی (پول ورودی و خروجی)
+                    {t("reports.charts.cashFlowTrend")}
                   </h4>
                   {cashFlowData.data.totals && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                       <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <p className="text-sm text-gray-600">مجموع ورودی</p>
+                        <p className="text-sm text-gray-600">
+                          {t("reports.summary.moneyInTotal")}
+                        </p>
                         <p className="text-xl font-bold text-green-600">
                           {formatCurrency(
                             cashFlowData.data.totals.totalIn || 0
@@ -1625,7 +1602,9 @@ const Reports = () => {
                         </p>
                       </div>
                       <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <p className="text-sm text-gray-600">مجموع خروجی</p>
+                        <p className="text-sm text-gray-600">
+                          {t("reports.summary.moneyOutTotal")}
+                        </p>
                         <p className="text-xl font-bold text-red-600">
                           {formatCurrency(
                             cashFlowData.data.totals.totalOut || 0
@@ -1633,7 +1612,9 @@ const Reports = () => {
                         </p>
                       </div>
                       <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <p className="text-sm text-gray-600">جریان خالص</p>
+                        <p className="text-sm text-gray-600">
+                          {t("reports.summary.netFlowTotal")}
+                        </p>
                         <p
                           className={`text-xl font-bold ${
                             (cashFlowData.data.totals.netFlow || 0) >= 0
@@ -1678,12 +1659,12 @@ const Reports = () => {
                               ? value
                               : parseFloat(value);
                           return [
-                            `${formatNumber(num)} افغانی`,
+                            `${formatNumber(num)} ${t("reports.currencyAfn")}`,
                             name === "moneyIn"
-                              ? "پول ورودی"
+                              ? t("reports.charts.barMoneyIn")
                               : name === "moneyOut"
-                              ? "پول خروجی"
-                              : "جریان خالص",
+                              ? t("reports.charts.barMoneyOut")
+                              : t("reports.charts.barNetFlow"),
                           ];
                         }}
                         labelStyle={{ color: "#374151" }}
@@ -1692,13 +1673,13 @@ const Reports = () => {
                       <Bar
                         dataKey="moneyIn"
                         fill={chartColors.moneyIn}
-                        name="پول ورودی"
+                        name={t("reports.charts.barMoneyIn")}
                         radius={[4, 4, 0, 0]}
                       />
                       <Bar
                         dataKey="moneyOut"
                         fill={chartColors.moneyOut}
-                        name="پول خروجی"
+                        name={t("reports.charts.barMoneyOut")}
                         radius={[4, 4, 0, 0]}
                       />
                     </BarChart>
@@ -1713,13 +1694,13 @@ const Reports = () => {
               {/* Filter buttons */}
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  فیلترها
+                  {t("reports.filters.inventory.title")}
                 </h3>
 
                 {/* Location filter buttons */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    مکان
+                    {t("reports.filters.inventory.location")}
                   </label>
                   <div className="flex space-x-3">
                     <button
@@ -1730,7 +1711,7 @@ const Reports = () => {
                           : "border-gray-300 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
-                      همه
+                      {t("reports.filters.inventory.all")}
                     </button>
                     <button
                       onClick={() => setSelectedStockLocation("store")}
@@ -1740,7 +1721,7 @@ const Reports = () => {
                           : "border-gray-300 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
-                      فروشگاه
+                      {t("reports.filters.inventory.store")}
                     </button>
                     <button
                       onClick={() => setSelectedStockLocation("warehouse")}
@@ -1750,7 +1731,7 @@ const Reports = () => {
                           : "border-gray-300 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
-                      گدام
+                      {t("reports.filters.inventory.warehouse")}
                     </button>
                   </div>
                 </div>
@@ -1758,7 +1739,7 @@ const Reports = () => {
                 {/* Stock level filter buttons */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    سطح موجودی
+                    {t("reports.filters.inventory.stockLevel")}
                   </label>
                   <div className="flex space-x-3">
                     <button
@@ -1769,7 +1750,7 @@ const Reports = () => {
                           : "border-gray-300 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
-                      همه
+                      {t("reports.filters.inventory.all")}
                     </button>
                     <button
                       onClick={() => setSelectedStockLevel("low")}
@@ -1779,7 +1760,7 @@ const Reports = () => {
                           : "border-gray-300 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
-                      موجودی کم
+                      {t("reports.filters.inventory.low")}
                     </button>
                     <button
                       onClick={() => setSelectedStockLevel("critical")}
@@ -1789,7 +1770,7 @@ const Reports = () => {
                           : "border-gray-300 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
-                      بحرانی کم
+                      {t("reports.filters.inventory.critical")}
                     </button>
                     <button
                       onClick={() => setSelectedStockLevel("out")}
@@ -1799,7 +1780,7 @@ const Reports = () => {
                           : "border-gray-300 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
-                      تمام شده
+                      {t("reports.filters.inventory.out")}
                     </button>
                   </div>
                 </div>
@@ -1808,15 +1789,15 @@ const Reports = () => {
               {/* Stock items list */}
               {stockReportLoading ? (
                 <div className="text-center text-gray-500 py-12">
-                  در حال بارگذاری داده های موجودی...
+                  {t("reports.states.loadingInventory")}
                 </div>
               ) : !stockReportData?.data ? (
                 <div className="text-center text-gray-500 py-12">
-                  داده‌ای برای نمایش وجود ندارد
+                  {t("reports.states.noData")}
                 </div>
               ) : stockReportData.data.stocks.length === 0 ? (
                 <div className="text-center text-gray-500 py-12">
-                  هیچ موجودی برای فیلتر انتخاب شده یافت نشد.
+                  {t("reports.states.noDataPeriodInventory")}
                 </div>
               ) : (
                 <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -1825,22 +1806,22 @@ const Reports = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            محصول
+                            {t("reports.inventoryTable.product")}
                           </th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            مکان
+                            {t("reports.inventoryTable.location")}
                           </th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            موجودی
+                            {t("reports.inventoryTable.quantity")}
                           </th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            حداقل
+                            {t("reports.inventoryTable.minLevel")}
                           </th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            وضعیت
+                            {t("reports.inventoryTable.status")}
                           </th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            ارزش
+                            {t("reports.inventoryTable.value")}
                           </th>
                         </tr>
                       </thead>
@@ -1854,7 +1835,7 @@ const Reports = () => {
                               {stock.batchNumber &&
                                 stock.batchNumber !== "DEFAULT" && (
                                   <div className="text-xs text-gray-500">
-                                    Batch: {stock.batchNumber}
+                                    {t("reports.inventoryTable.batch")}: {stock.batchNumber}
                                   </div>
                                 )}
                             </td>
@@ -1867,8 +1848,8 @@ const Reports = () => {
                                 }`}
                               >
                                 {stock.location === "warehouse"
-                                  ? "گدام"
-                                  : "فروشگاه"}
+                                  ? t("reports.filters.inventory.warehouse")
+                                  : t("reports.filters.inventory.store")}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -1892,12 +1873,12 @@ const Reports = () => {
                                 }`}
                               >
                                 {stock.status === "out"
-                                  ? "تمام شده"
+                                  ? t("reports.inventoryTable.statusOut")
                                   : stock.status === "critical"
-                                  ? "بحرانی کم"
+                                  ? t("reports.inventoryTable.statusCritical")
                                   : stock.status === "low"
-                                  ? "موجودی کم"
-                                  : "عادی"}
+                                  ? t("reports.inventoryTable.statusLow")
+                                  : t("reports.inventoryTable.statusNormal")}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -1919,23 +1900,23 @@ const Reports = () => {
               netProfitLoading ||
               profitStatsLoading ? (
                 <div className="text-center text-gray-500 py-12">
-                  در حال بارگذاری داده های سود و زیان...
+                  {t("reports.states.loadingProfit")}
                 </div>
               ) : !profitSummaryData?.data ? (
                 <div className="text-center text-gray-500 py-12">
-                  داده‌ای برای نمایش وجود ندارد
+                  {t("reports.states.noData")}
                 </div>
               ) : profitChartData.length === 0 ? (
                 <div className="text-center text-gray-500 py-12">
-                  هیچ داده سود و زیانی برای دوره انتخاب شده یافت نشد.
+                  {t("reports.states.noDataPeriodProfit")}
                 </div>
               ) : (
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex justify-between items-center mb-4">
                     <h4 className="text-lg font-semibold text-gray-900">
                       {profitChartType === "net"
-                        ? "روند سود خالص"
-                        : "روند سود ناخالص"}
+                        ? t("reports.charts.profitTrendNet")
+                        : t("reports.charts.profitTrendGross")}
                     </h4>
                     <div className="flex space-x-2">
                       <button
@@ -1946,7 +1927,7 @@ const Reports = () => {
                             : "border-gray-300 text-gray-700 hover:bg-gray-50"
                         }`}
                       >
-                        سود ناخالص
+                        {t("reports.charts.toggleGross")}
                       </button>
                       <button
                         onClick={() => setProfitChartType("net")}
@@ -1956,7 +1937,7 @@ const Reports = () => {
                             : "border-gray-300 text-gray-700 hover:bg-gray-50"
                         }`}
                       >
-                        سود خالص
+                        {t("reports.charts.toggleNet")}
                       </button>
                     </div>
                   </div>
@@ -1990,10 +1971,10 @@ const Reports = () => {
                               ? value
                               : parseFloat(value);
                           return [
-                            `${formatNumber(num)} افغانی`,
+                            `${formatNumber(num)} ${t("reports.currencyAfn")}`,
                             profitChartType === "net"
-                              ? "سود خالص"
-                              : "سود ناخالص",
+                              ? t("reports.charts.barNetProfit")
+                              : t("reports.charts.barGrossProfit"),
                           ];
                         }}
                         labelStyle={{ color: "#374151" }}
@@ -2006,7 +1987,9 @@ const Reports = () => {
                             : "grossProfit"
                         }
                         name={
-                          profitChartType === "net" ? "سود خالص" : "سود ناخالص"
+                          profitChartType === "net"
+                            ? t("reports.charts.barNetProfit")
+                            : t("reports.charts.barGrossProfit")
                         }
                         radius={[4, 4, 0, 0]}
                       >
@@ -2041,10 +2024,12 @@ const Reports = () => {
             <div className="text-center py-12">
               <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {reportTypes.find((r) => r.id === selectedReport)?.name} به زودی
+                {t("reports.states.comingSoonTitle", {
+                  type: reportTypes.find((r) => r.id === selectedReport)?.name,
+                })}
               </h3>
               <p className="text-gray-600">
-                این نوع گزارش در حال توسعه است و به زودی در دسترس خواهد بود.
+                {t("reports.states.comingSoonDesc")}
               </p>
             </div>
           )}
