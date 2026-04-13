@@ -1213,16 +1213,114 @@
     }
   },
   "reports": {
-    "title": "راپورونه او تحلیل",
-    "subtitle": "د سوداګرۍ راپورونه جوړ او وګورئ",
-    "selectType": "د راپور ډول وټاکئ",
+    "title": "گزارش‌ها و تحلیل",
+    "subtitle": "گزارش‌های کسب‌وکار را بسازید و بررسی کنید",
+    "selectType": "نوع گزارش را انتخاب کنید",
+    "selectRangeDate": "نوع گزارش و تاریخ را انتخاب کنید",
     "types": {
-      "sales": "د خرڅلاو راپورونه",
-      "inventory": "د سټاک راپورونه",
-      "purchases": "د پېرود راپورونه",
-      "accounts": "د حسابونو راپورونه",
-      "expenses": "د لګښت راپورونه",
-      "profit": "ګټه او تاوان"
+      "sales": "گزارش‌های فروش",
+      "inventory": "گزارش‌های موجودی",
+      "purchases": "گزارش‌های خرید",
+      "accounts": "گزارش‌های حساب‌ها",
+      "expenses": "گزارش‌های هزینه",
+      "profit": "سود و زیان"
+    },
+    "currencyAfn": "افغانی",
+    "range": {
+      "monthly": "ماهانه (روزها)",
+      "yearly": "سالانه (ماه‌ها)",
+      "monthlyLabel": "ماهانه",
+      "yearlyLabel": "سالانه"
+    },
+    "filters": {
+      "pickMonth": "انتخاب ماه",
+      "pickYear": "انتخاب سال",
+      "pickDate": "انتخاب تاریخ",
+      "increaseYear": "افزایش سال",
+      "decreaseYear": "کاهش سال",
+      "expenseCategory": "دسته‌بندی هزینه",
+      "allCategories": "همه دسته‌بندی‌ها",
+      "inventory": {
+        "title": "فیلترها",
+        "location": "مکان",
+        "stockLevel": "سطح موجودی",
+        "all": "همه",
+        "store": "فروشگاه",
+        "warehouse": "گدام",
+        "low": "موجودی کم",
+        "critical": "بحرانی کم",
+        "out": "تمام شده"
+      }
+    },
+    "periodTitle": {
+      "monthly": "{{type}} - ماهانه ({{month}})",
+      "yearly": "{{type}} - سالانه ({{year}})"
+    },
+    "states": {
+      "loadingSales": "در حال بارگذاری داده‌های فروش...",
+      "loadingPurchases": "در حال بارگذاری داده‌های خرید...",
+      "loadingExpenses": "در حال بارگذاری داده‌های هزینه...",
+      "loadingAccounts": "در حال بارگذاری داده‌های جریان نقدی...",
+      "loadingInventory": "در حال بارگذاری داده‌های موجودی...",
+      "loadingProfit": "در حال بارگذاری داده‌های سود و زیان...",
+      "noData": "داده‌ای برای نمایش وجود ندارد",
+      "noDataPeriodSales": "هیچ داده فروشی برای دوره انتخاب شده یافت نشد.",
+      "noDataPeriodPurchases": "هیچ داده خریدی برای دوره انتخاب شده یافت نشد.",
+      "noDataPeriodExpenses": "هیچ داده هزینه‌ای برای دوره انتخاب شده یافت نشد.",
+      "noDataPeriodAccounts": "هیچ داده جریان نقدی برای دوره انتخاب شده یافت نشد.",
+      "noDataPeriodInventory": "هیچ موجودی برای فیلتر انتخاب شده یافت نشد.",
+      "noDataPeriodProfit": "هیچ داده سود و زیانی برای دوره انتخاب شده یافت نشد.",
+      "comingSoonTitle": "{{type}} به زودی",
+      "comingSoonDesc": "این نوع گزارش در حال توسعه است و به زودی در دسترس خواهد بود."
+    },
+    "summary": {
+      "salesTotal": "مجموع فروش",
+      "paidTotal": "مجموع پرداخت شده",
+      "dueTotal": "مجموع بدهی",
+      "purchasesTotal": "مجموع خرید",
+      "expensesTotal": "مجموع هزینه‌ها",
+      "expenseCount": "تعداد هزینه‌ها",
+      "cashAccountsTotal": "مجموع حساب‌های نقدی",
+      "supplierDebtTotal": "مجموع بدهی به تاجران",
+      "customerCreditTotal": "مجموع طلب از مشتریان",
+      "netPosition": "موقعیت خالص",
+      "grossProfit": "سود ناخالص",
+      "otherIncome": "درآمد دیگر",
+      "netProfit": "سود خالص",
+      "moneyInTotal": "مجموع ورودی",
+      "moneyOutTotal": "مجموع خروجی",
+      "netFlowTotal": "جریان خالص"
+    },
+    "charts": {
+      "salesTrend": "روند فروش",
+      "purchasesTrend": "روند خرید",
+      "expensesTrend": "روند هزینه‌ها",
+      "cashFlowTrend": "روند جریان نقدی (پول ورودی و خروجی)",
+      "profitTrendNet": "روند سود خالص",
+      "profitTrendGross": "روند سود ناخالص",
+      "barSales": "فروش",
+      "barPurchases": "خرید",
+      "barExpenses": "هزینه",
+      "barMoneyIn": "پول ورودی",
+      "barMoneyOut": "پول خروجی",
+      "barNetFlow": "جریان خالص",
+      "barNetProfit": "سود خالص",
+      "barGrossProfit": "سود ناخالص",
+      "toggleGross": "سود ناخالص",
+      "toggleNet": "سود خالص"
+    },
+    "inventoryTable": {
+      "product": "محصول",
+      "location": "مکان",
+      "quantity": "موجودی",
+      "minLevel": "حداقل",
+      "status": "وضعیت",
+      "value": "ارزش",
+      "batch": "بچ",
+      "statusOut": "تمام شده",
+      "statusCritical": "بحرانی کم",
+      "statusLow": "موجودی کم",
+      "statusNormal": "عادی"
     }
   }
 }
