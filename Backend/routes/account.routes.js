@@ -10,6 +10,7 @@ const {
   restoreAccount,
   getAccountBalances,
   getCashFlowReport,
+  transferBetweenAccounts,
 } = require('../controllers/account.controller');
 const { authenticate } = require('../middlewares/authMiddleware');
 const {
@@ -22,6 +23,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.route('/').post(createAccount).get(getAllAccounts);
+router.post('/transfer', transferBetweenAccounts);
 router.get('/system', getSystemAccounts);
 // Reports routes must come BEFORE /:id routes
 router.get('/reports/balances', getAccountBalances);

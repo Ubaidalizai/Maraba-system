@@ -757,8 +757,8 @@
     "supplier": "عرضه کوونکی",
     "customer": "پېرودونکی",
     "employee": "کارکوونکی",
-    "cashier": "صندوق دار",
-    "safe": "سیف",
+    "cashier": "دخل",
+    "safe": "تجری",
     "saraf": "صراف"
   },
   "searchPlaceholder": "د حساب نوم له مخې لټون...",
@@ -837,6 +837,22 @@
     "adding": "اضافه کول روان دي...",
     "submit": "معامله اضافه کړئ",
     "defaultDescription": "لاسي {{type}} معامله"
+  },
+  "transfer": {
+    "title": "پیسې انتقال",
+    "fromAccount": "له حسابه *",
+    "toAccount": "حساب ته *",
+    "selectFromAccount": "د سرچینې حساب وټاکئ",
+    "selectToAccount": "د منزل حساب وټاکئ",
+    "amount": "اندازه *",
+    "amountPlaceholder": "د انتقال اندازه",
+    "description": "تشریح",
+    "descriptionPlaceholder": "د انتقال دلیل (اختیاري)",
+    "cancel": "لغوه",
+    "submit": "انتقال کړئ",
+    "submitting": "انتقال روان دی...",
+    "currentBalance": "اوسنی بیلانس",
+    "newBalance": "نوی بیلانس"
   }
 },
  "accountDetails": {

@@ -31,13 +31,13 @@ import {
 import { formatNumber, normalizeDateToIso } from "../utilies/helper";
 // Headers aligned with Backend stock.model.js for store location
 const storeHeader = [
+  { title: "محصول" },
   { title: "نمبر بچ" },
   { title: "موقعیت" },
-  { title: "محصول" },
   { title: "تاریخ انقضا" },
   { title: "قیمت خرید" },
-  { title: "واحد" },
   { title: "تعداد" },
+  { title: "واحد" },
   { title: "حداقل موجودی" },
   { title: "حالت" },
   { title: "عملیات" },
@@ -166,11 +166,11 @@ function Store() {
         <TableBody>
           {stocks?.data?.map((el) => (
             <TableRow key={el?._id}>
+              <TableColumn>{el?.product?.name || el?.product}</TableColumn>
               <TableColumn>{el?.batchNumber || "DEFAULT"}</TableColumn>
               <TableColumn>
                 {el?.location === "store" ? "فروشگاه" : el?.location}
               </TableColumn>
-              <TableColumn>{el?.product?.name || el?.product}</TableColumn>
               <TableColumn>
                 {el?.expiryDate
                   ? new Date(el.expiryDate).toLocaleDateString("fa-IR")
@@ -179,18 +179,10 @@ function Store() {
               <TableColumn>
                 {formatNumber(el?.purchasePricePerBaseUnit ?? 0)}
               </TableColumn>
-              <TableColumn>{el?.unit?.name || el?.unit}</TableColumn>
               <TableColumn className="font-semibold">
-                <div className="flex flex-col">
-                  {el?.derivedQuantity ? (
-                    <div>
-                      {formatNumber(el.derivedQuantity.derivedUnit)} {formatNumber(el?.quantity)}/{el?.derivedQuantity?.baseUnitName}
-                    </div>
-                  ) : (
-                    <div>{formatNumber(el?.quantity)} {el?.unit?.name}</div>
-                  )}
-                </div>
+                {formatNumber(el?.quantity)}
               </TableColumn>
+              <TableColumn>{el?.unit?.name || el?.unit}</TableColumn>
               <TableColumn>{el?.minLevel}</TableColumn>
               <TableColumn>
                 <span

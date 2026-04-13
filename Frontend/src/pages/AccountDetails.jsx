@@ -88,12 +88,12 @@ const AccountDetails = () => {
     } else if (accountType === "saraf") {
       return {
         label:
-          balance >= 0
+          balance < 0
             ? t("accountDetails.balance.sarafPositive")
             : t("accountDetails.balance.sarafNegative"),
-        color: balance >= 0 ? "text-red-600" : "text-green-600",
-        bgColor: balance >= 0 ? "bg-red-50" : "bg-green-50",
-        iconColor: balance >= 0 ? "text-red-600" : "text-green-600",
+        color: balance < 0 ? "text-red-600" : "text-green-600",
+        bgColor: balance < 0 ? "bg-red-50" : "bg-green-50",
+        iconColor: balance < 0 ? "text-red-600" : "text-green-600",
       };
     } else if (accountType === "supplier") {
       return {

@@ -154,11 +154,11 @@ export const deleteProduct = async (id) => {
 
 // Suppliers
 export const fetchSuppliers = async () => {
-  return await apiRequest(API_ENDPOINTS.SUPPLIERS.LIST);
+  return await apiRequest(`${API_ENDPOINTS.SUPPLIERS.LIST}?limit=1000`);
 };
 
 export const getSuppliers = async () => {
-  return await apiRequest(API_ENDPOINTS.SUPPLIERS.LIST);
+  return await apiRequest(`${API_ENDPOINTS.SUPPLIERS.LIST}?limit=1000`);
 };
 
 export const fetchSupplier = async (id) => {
@@ -187,7 +187,7 @@ export const deleteSupplier = async (id) => {
 
 // Customers
 export const fetchCustomers = async () => {
-  return await apiRequest(API_ENDPOINTS.CUSTOMERS.LIST);
+  return await apiRequest(`${API_ENDPOINTS.CUSTOMERS.LIST}?limit=1000`);
 };
 
 export const fetchCustomer = async (id) => {
@@ -216,7 +216,7 @@ export const deleteCustomer = async (id) => {
 
 // Employees
 export const fetchEmployees = async () => {
-  return await apiRequest(API_ENDPOINTS.EMPLOYEES.LIST);
+  return await apiRequest(`${API_ENDPOINTS.EMPLOYEES.LIST}?limit=1000`);
 };
 
 export const fetchEmployee = async (id) => {
@@ -939,7 +939,7 @@ export const reverseAccountTransaction = async (id, reason) => {
 
 export const transferBetweenAccounts = async (transferData) => {
   return await apiRequest(
-    `${API_ENDPOINTS.ACCOUNT_TRANSACTIONS.LIST}/transfer`,
+    `${API_ENDPOINTS.ACCOUNTS.LIST}/transfer`,
     {
       method: "POST",
       body: JSON.stringify(transferData),

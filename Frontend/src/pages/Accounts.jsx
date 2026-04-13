@@ -24,12 +24,16 @@ import {
   useCustomers,
   useEmployees,
   useCreateTransaction,
+  useTransferBetweenAccounts,
+  useSystemAccounts,
 } from "../services/useApi";
 import GloableModal from "../components/GloableModal";
 import { inputStyle } from "../components/ProductForm";
 import { toast } from "react-toastify";
 import { formatNumber } from "../utilies/helper";
 import { useSubmitLock } from "../hooks/useSubmitLock.js";
+
+console.log('useSystemAccounts imported:', typeof useSystemAccounts);
 
 const Accounts = () => {
   const { t, i18n } = useTranslation();
@@ -41,9 +45,17 @@ const Accounts = () => {
   const [limit, setLimit] = useState(10);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [editingAccount, setEditingAccount] = useState(null);
   const { register, handleSubmit, reset, watch, setValue } = useForm();
+  const {
+    register: registerTransfer,
+    handleSubmit: handleSubmitTransfer,
+    reset: resetTransfer,
+    watch: watchTransfer,
+    formState: { errors: transferErrors },
+  } = useForm();
   const [deleteModal, setDeleteModal] = useState(false);
   const [deletedId, setDeletedId] = useState(null);
   const { data: accountsResp, isLoading } = useAccounts({
@@ -69,6 +81,9 @@ const Accounts = () => {
   const { mutate: deleteAccountMutation, isPending: isDeleting } =
     useDeleteAccount();
   const { mutate: createTransaction } = useCreateTransaction();
+  const { mutate: transferMutation, isPending: isTransferring } =
+    useTransferBetweenAccounts();
+  const { data: systemAccountsData } = useSystemAccounts();
   // Helper functions
   const isSystemAccount = (accountType) => {
     return ["cashier", "safe", "saraf"].includes(accountType);
@@ -96,6 +111,7 @@ const Accounts = () => {
     });
 
   const watchedTransactionType = watch("transactionType") || "Credit";
+  const watchedFromAccount = watchTransfer("fromAccountId");
   const isAccountActionPending = accountSubmitLock.isSubmitting;
   const isTransactionActionPending = transactionSubmitLock.isSubmitting;
 
@@ -176,6 +192,21 @@ const Accounts = () => {
     }
   });
 
+  const onSubmitTransfer = async (data) => {
+    try {
+      await runMutation(transferMutation, {
+        fromAccountId: data.fromAccountId,
+        toAccountId: data.toAccountId,
+        amount: parseFloat(data.amount),
+        description: data.description || `انتقال پیسې`,
+      });
+      setShowTransferModal(false);
+      resetTransfer();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const formatCreatedAt = (iso) => {
     if (!iso) return "—";
     const lang = (i18n.language || "ps").split("-")[0];
@@ -192,23 +223,33 @@ const Accounts = () => {
           <h1 className="text-xl font-bold text-gray-900">{t("accounts.title")}</h1>
           <p className="text-gray-600 mt-1">{t("accounts.subtitle")}</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingAccount(null);
-            reset({
-              type,
-              refId: "",
-              name: "",
-              openingBalance: 0,
-              currency: "AFN",
-            });
-            setShowAccountModal(true);
-          }}
-          className="bg-amber-600 text-white px-4 py-2 rounded-sm hover:bg-amber-700 flex items-center gap-2"
-        >
-          <PlusIcon className="h-5 w-5" />
-          {t("accounts.newAccount")}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowTransferModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-sm hover:bg-blue-700 flex items-center gap-2"
+          >
+            <ArrowUpIcon className="h-5 w-5" />
+            <ArrowDownIcon className="h-5 w-5 -ml-4" />
+            {t("accounts.transfer.title")}
+          </button>
+          <button
+            onClick={() => {
+              setEditingAccount(null);
+              reset({
+                type,
+                refId: "",
+                name: "",
+                openingBalance: 0,
+                currency: "AFN",
+              });
+              setShowAccountModal(true);
+            }}
+            className="bg-amber-600 text-white px-4 py-2 rounded-sm hover:bg-amber-700 flex items-center gap-2"
+          >
+            <PlusIcon className="h-5 w-5" />
+            {t("accounts.newAccount")}
+          </button>
+        </div>
       </div>
 
       {/* Type filter and search */}
@@ -438,7 +479,7 @@ const Accounts = () => {
         setOpen={setShowAccountModal}
         isClose={true}
       >
-        <div className=" overflow-y-auto w-[450px] h-[480px] rounded-md ">
+        <div className="w-[450px] max-h-[480px] overflow-visible rounded-md">
           <div className="bg-white rounded-md">
             <div className="p-3 border-b border-slate-200 flex justify-between items-center">
               <h2 className="text-xl font-bold text-gray-900">
@@ -467,6 +508,7 @@ const Accounts = () => {
                 <select
                   className={inputStyle}
                   defaultValue={type}
+                  disabled
                   {...register("type", { required: true })}
                 >
                   <option value="supplier">{t("accounts.types.supplier")}</option>
@@ -719,6 +761,129 @@ const Accounts = () => {
             </div>
           </div>
         )}
+      </GloableModal>
+
+      {/* Transfer Money Modal */}
+      <GloableModal
+        open={showTransferModal}
+        setOpen={setShowTransferModal}
+        isClose={true}
+      >
+        <div className="overflow-y-auto w-[480px] h-auto max-h-[600px] rounded-md">
+          <div className="bg-white rounded-lg shadow-xl">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {t("accounts.transfer.title")}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowTransferModal(false);
+                  resetTransfer();
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            <form
+              onSubmit={handleSubmitTransfer(onSubmitTransfer)}
+              className="p-6 space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t("accounts.transfer.fromAccount")}
+                </label>
+                <select
+                  className={inputStyle}
+                  {...registerTransfer("fromAccountId", { required: true })}
+                >
+                  <option value="">
+                    {t("accounts.transfer.selectFromAccount")}
+                  </option>
+                  {systemAccountsData?.accounts?.map((acc) => (
+                    <option key={acc._id} value={acc._id}>
+                      {acc.name} ({formatNumber(acc.currentBalance)} AFN)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t("accounts.transfer.toAccount")}
+                </label>
+                <select
+                  className={inputStyle}
+                  {...registerTransfer("toAccountId", { required: true })}
+                >
+                  <option value="">
+                    {t("accounts.transfer.selectToAccount")}
+                  </option>
+                  {systemAccountsData?.accounts
+                    ?.filter((acc) => acc._id !== watchedFromAccount)
+                    .map((acc) => (
+                      <option key={acc._id} value={acc._id}>
+                        {acc.name} ({formatNumber(acc.currentBalance)} AFN)
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t("accounts.transfer.amount")}
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  className={inputStyle}
+                  placeholder={t("accounts.transfer.amountPlaceholder")}
+                  {...registerTransfer("amount", {
+                    required: true,
+                    min: 0.01,
+                  })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t("accounts.transfer.description")}
+                </label>
+                <textarea
+                  className={inputStyle}
+                  rows={3}
+                  placeholder={t("accounts.transfer.descriptionPlaceholder")}
+                  {...registerTransfer("description")}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    resetTransfer();
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-sm hover:bg-gray-50"
+                >
+                  {t("accounts.transfer.cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isTransferring}
+                  className={`px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 ${
+                    isTransferring ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
+                >
+                  {isTransferring
+                    ? t("accounts.transfer.submitting")
+                    : t("accounts.transfer.submit")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </GloableModal>
     </div>
   );

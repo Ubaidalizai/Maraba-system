@@ -242,7 +242,7 @@ const Purchases = () => {
     const purchaseData = resolvePurchaseData();
     const remaining = parseFloat(purchaseData?.dueAmount ?? 0);
 
-    if (!purchaseData) {
+    if (!purchaseData || !purchaseData._id) {
       toast.error(t("purchases.toast.noPurchaseSelected"));
       return;
     }
@@ -265,7 +265,7 @@ const Purchases = () => {
     setIsSubmittingPayment(true);
     createpaymentProces(
       {
-        purchaseId: selectedPurchaseId,
+        purchaseId: purchaseData._id,
         payload: {
           amount,
           paymentAccount: selectedAccount,

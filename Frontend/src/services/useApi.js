@@ -75,6 +75,7 @@ import {
   recordPurchasePayment,
   refreshUserToken,
   reverseAccountTransaction,
+  transferBetweenAccounts,
   updateAccount,
   updateCompany,
   updateCustomer,
@@ -1199,6 +1200,24 @@ export const useReverseTransaction = () => {
         theme: "colored",
         transition: Bounce,
       });
+    },
+  });
+};
+
+export const useTransferBetweenAccounts = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: transferBetweenAccounts,
+    mutationKey: ["transferAccounts"],
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["systemAccounts"] });
+      queryClient.invalidateQueries({ queryKey: ["accountLedger"] });
+      queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
+      toast.success("پیسې په بریالیتوب سره انتقال شوې");
+    },
+    onError: (error) => {
+      toast.error(error.message || "انتقال ناکام شو");
     },
   });
 };

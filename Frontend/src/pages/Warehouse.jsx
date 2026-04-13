@@ -30,11 +30,11 @@ import JalaliDatePicker from "../components/JalaliDatePicker";
 const tableHeader = [
   { title: "محصول" },
   { title: "نمبر بچ" },
-  { title: "واحد" },
   { title: "موقعیت" },
   { title: "تاریخ انقضا" },
   { title: "قیمت خرید" },
   { title: "تعداد" },
+  { title: "واحد" },
   { title: "حداقل موجودی" },
   { title: "حالت" },
   { title: "عملیات" },
@@ -179,7 +179,6 @@ function Warehouse() {
               <TableRow key={row?._id}>
                 <TableColumn>{row?.product?.name || row?.product}</TableColumn>
                 <TableColumn>{row?.batchNumber || "DEFAULT"}</TableColumn>
-                <TableColumn>{row?.unit?.name || row?.unit}</TableColumn>
                 <TableColumn>
                   {row?.location === "warehouse" ? "گدام" : row?.location}
                 </TableColumn>
@@ -192,16 +191,9 @@ function Warehouse() {
                   {formatNumber(row?.purchasePricePerBaseUnit ?? 0)}
                 </TableColumn>
                 <TableColumn className="font-semibold">
-                  <div className="flex flex-col">
-                    {row?.derivedQuantity ? (
-                      <div>
-                        {formatNumber(row.derivedQuantity.derivedUnit)} {formatNumber(row?.quantity)}/{row?.derivedQuantity?.baseUnitName}
-                      </div>
-                    ) : (
-                      <div>{formatNumber(row?.quantity)} {row?.unit?.name}</div>
-                    )}
-                  </div>
+                  {formatNumber(row?.quantity)}
                 </TableColumn>
+                <TableColumn>{row?.unit?.name || row?.unit}</TableColumn>
                 <TableColumn>{row.minLevel || "_"}</TableColumn>
                 <TableColumn>
                   <span

@@ -484,7 +484,18 @@ function Purchase({ getPaymentStatusColor }) {
                 ))}
               </TableBody>
             </Table>
-              <div className="p-6 border-t border-gray-200 flex justify-end">
+              <div className="p-6 border-t border-gray-200 flex justify-between">
+              {selectedPurchase.dueAmount > 0 && (
+                <button
+                  onClick={() => {
+                    // TODO: Open payment modal with selectedPurchase._id
+                    console.log('Record payment for purchase:', selectedPurchase._id);
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  ثبت پرداخت
+                </button>
+              )}
               <button
                 onClick={() => handleSetModalOpen(false)}
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"

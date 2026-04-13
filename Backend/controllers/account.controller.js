@@ -265,6 +265,154 @@ exports.restoreAccount = asyncHandler(async (req, res, next) => {
   }
 });
 
+// @desc    Transfer money between system accounts
+// @route   POST /api/v1/accounts/transfer
+exports.transferBetweenAccounts = asyncHandler(async (req, res, next) => {
+  const { fromAccountId, toAccountId, amount, description } = req.body;
+
+  // Validation
+  if (!fromAccountId || !toAccountId || !amount) {
+    throw new AppError('د حساب، منزل حساب او اندازه اړینه ده', 400);
+  }
+
+  if (fromAccountId === toAccountId) {
+    throw new AppError('تاسو نشئ کولی ورته حساب ته پیسې انتقال کړئ', 400);
+  }
+
+  if (amount <= 0) {
+    throw new AppError('اندازه باید مثبته وي', 400);
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const AccountTransaction = require('../models/accountTransaction.model');
+
+    // Get both accounts
+    const [fromAccount, toAccount] = await Promise.all([
+      Account.findOne({ _id: fromAccountId, isDeleted: false }).session(session),
+      Account.findOne({ _id: toAccountId, isDeleted: false }).session(session),
+    ]);
+
+    if (!fromAccount) throw new AppError('د سرچینې حساب ونه موندل شو', 404);
+    if (!toAccount) throw new AppError('د منزل حساب ونه موندل شو', 404);
+
+    // Validate both are system accounts
+    const systemTypes = ['cashier', 'safe', 'saraf'];
+    if (!systemTypes.includes(fromAccount.type)) {
+      throw new AppError('د سرچینې حساب باید سیسټم حساب وي (دخل، تجری، صراف)', 400);
+    }
+    if (!systemTypes.includes(toAccount.type)) {
+      throw new AppError('د منزل حساب باید سیسټم حساب وي (دخل، تجری، صراف)', 400);
+    }
+
+    // Validate balance for non-saraf accounts
+    if (fromAccount.type !== 'saraf') {
+      const newBalance = fromAccount.currentBalance - amount;
+      if (newBalance < 0) {
+        throw new AppError(
+          `د ${fromAccount.name} کافي بیلانس نشته. اوسنی بیلانس: ${fromAccount.currentBalance}`,
+          400
+        );
+      }
+    }
+
+    // Create reference ID for linking transactions
+    const transferRefId = new mongoose.Types.ObjectId();
+
+    // Create debit transaction for FROM account (money goes out)
+    const debitTransaction = await AccountTransaction.create(
+      [
+        {
+          account: fromAccount._id,
+          transactionType: 'Transfer',
+          amount: -amount, // Negative = money out
+          balanceAfter: fromAccount.currentBalance - amount,
+          description: description || `انتقال ته ${toAccount.name}`,
+          referenceType: 'transfer',
+          referenceId: transferRefId,
+          date: new Date(),
+          created_by: req.user._id,
+        },
+      ],
+      { session }
+    );
+
+    // Create credit transaction for TO account (money comes in)
+    const creditTransaction = await AccountTransaction.create(
+      [
+        {
+          account: toAccount._id,
+          transactionType: 'Transfer',
+          amount: amount, // Positive = money in
+          balanceAfter: toAccount.currentBalance + amount,
+          description: description || `انتقال له ${fromAccount.name}`,
+          referenceType: 'transfer',
+          referenceId: transferRefId,
+          date: new Date(),
+          created_by: req.user._id,
+        },
+      ],
+      { session }
+    );
+
+    // Update account balances
+    fromAccount.currentBalance -= amount;
+    toAccount.currentBalance += amount;
+
+    await Promise.all([
+      fromAccount.save({ session }),
+      toAccount.save({ session }),
+    ]);
+
+    // Audit logs
+    await AuditLog.create(
+      [
+        {
+          tableName: 'AccountTransaction',
+          recordId: transferRefId,
+          operation: 'INSERT',
+          oldData: null,
+          newData: {
+            from: fromAccount.name,
+            to: toAccount.name,
+            amount,
+            description,
+          },
+          reason: 'د حسابونو ترمنځ انتقال',
+          changedBy: req.user?.name || 'System',
+        },
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      success: true,
+      message: 'پیسې په بریالیتوب سره انتقال شوې',
+      data: {
+        transferId: transferRefId,
+        from: {
+          account: fromAccount.name,
+          newBalance: fromAccount.currentBalance,
+        },
+        to: {
+          account: toAccount.name,
+          newBalance: toAccount.currentBalance,
+        },
+        amount,
+      },
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    throw new AppError(err.message || 'انتقال ناکام شو', 500);
+  }
+});
+
 // @desc    Get account balances overview (grouped by type)
 // @route   GET /api/v1/accounts/reports/balances
 exports.getAccountBalances = asyncHandler(async (req, res, next) => {

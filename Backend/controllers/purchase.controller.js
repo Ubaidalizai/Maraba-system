@@ -806,6 +806,10 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
   const { amount, paymentAccount, description } = req.body;
   const purchaseId = req.params.id;
 
+  if (!purchaseId || purchaseId === 'null' || purchaseId === 'undefined') {
+    throw new AppError('سم د پیرود ID اړین دی', 400);
+  }
+
   if (!amount || amount <= 0) {
     throw new AppError('د تادیې مبلغ باید له 0 څخه زیات وي', 400);
   }
@@ -857,7 +861,7 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
           referenceType: 'purchase',
           referenceId: purchase._id,
           created_by: req.user._id,
-          description: description || `پرداخت اضافی برای خریداری${billRef}`,
+          description: description || `د پیرود لپاره اضافي تادیه${billRef}`,
         },
       ],
       { session }
@@ -876,7 +880,7 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
           referenceType: 'purchase',
           referenceId: purchase._id,
           created_by: req.user._id,
-          description: description || `پرداخت اضافی برای خریداری${billRef}`,
+          description: description || `د پیرود لپاره اضافي تادیه${billRef}`,
         },
       ],
       { session }
