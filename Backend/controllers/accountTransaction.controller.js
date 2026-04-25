@@ -276,13 +276,12 @@ exports.getAllTransactions = asyncHandler(async (req, res, next) => {
 // @route GET /api/v1/accounts/:id/ledger
 exports.getAccountLedger = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const { startDate, endDate, type, sortOrder = 'desc' } = req.query;
-  console.log(startDate, endDate);
+  const { startDate, endDate, type, sortOrder = 'desc', includeAll = 'false' } = req.query;
   const account = await Account.findById(id);
   if (!account || account.isDeleted)
     throw new AppError('Account not found', 404);
 
-  const query = { account: id, isDeleted: false };
+  const query = { account: id, isDeleted: false, reversed: { $ne: true } };
 
   const hasValidStart = startDate && !Number.isNaN(new Date(startDate).getTime());
   const hasValidEnd = endDate && !Number.isNaN(new Date(endDate).getTime());
@@ -366,58 +365,123 @@ const validateAccountBalance = async (accountId, requiredAmount, session) => {
   return account;
 };
 
-// @desc Add manual transaction (Credit/Debit/Expense etc.)
+// @desc Add manual transaction for customer/supplier with system account
 // @route POST /api/v1/account-transactions
 exports.createManualTransaction = asyncHandler(async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const { accountId, transactionType, amount, description } = req.body;
+    const { accountId, systemAccountId, transactionType, amount, description } = req.body;
 
-    if (!accountId || !transactionType || !amount)
-      throw new AppError('All required fields must be provided', 400);
+    if (!accountId || !systemAccountId || !transactionType || !amount)
+      throw new AppError('حساب، سیسټم حساب، د معاملې ډول او اندازه اړینه ده', 400);
+
+    if (amount <= 0)
+      throw new AppError('اندازه باید مثبته وي', 400);
 
     const account = await Account.findById(accountId).session(session);
-    if (!account) throw new AppError('Account not found', 404);
+    const systemAccount = await Account.findById(systemAccountId).session(session);
 
-    // Determine the actual amount to add to balance based on transaction type
-    let actualAmount = amount;
-    if (transactionType === 'Debit' || transactionType === 'Expense') {
-      actualAmount = -amount; // Debit and Expense should decrease balance
+    if (!account || account.isDeleted) throw new AppError('حساب ونه موندل شو', 404);
+    if (!systemAccount || systemAccount.isDeleted) throw new AppError('سیسټم حساب ونه موندل شو', 404);
 
-      // Validate that the account has enough balance before decreasing it
-      await validateAccountBalance(accountId, amount, session);
+    // Validate account types
+    if (!['customer', 'supplier', 'employee'].includes(account.type)) {
+      throw new AppError('دا معامله یوازې د پیرودونکو، عرضه کوونکو او کارمندانو لپاره ده', 400);
     }
 
-    // Create transaction
-    const transaction = await AccountTransaction.create(
+    if (!['cashier', 'safe', 'saraf'].includes(systemAccount.type)) {
+      throw new AppError('سیسټم حساب باید دخل، تجری یا صراف وي', 400);
+    }
+
+    // Validate transaction type based on account type
+    if ((account.type === 'customer' || account.type === 'employee') && transactionType !== 'Debit') {
+      throw new AppError('د پیرودونکي/کارمند لپاره یوازې ډیبټ (د پیسو ترلاسه کول) اجازه ده', 400);
+    }
+
+    if (account.type === 'supplier' && transactionType !== 'Credit') {
+      throw new AppError('د عرضه کوونکي لپاره یوازې کریډیټ (د پیسو ورکول) اجازه ده', 400);
+    }
+
+    // Validate system account balance for supplier payment
+    if (account.type === 'supplier' && systemAccount.type !== 'saraf') {
+      if (systemAccount.currentBalance < amount) {
+        throw new AppError(
+          `د ${systemAccount.name} کافي بیلانس نشته. اوسنی بیلانس: ${systemAccount.currentBalance}`,
+          400
+        );
+      }
+    }
+
+    const transferGroupId = new mongoose.Types.ObjectId();
+
+    let customerSupplierAmount, systemAccountAmount;
+
+    if (account.type === 'customer' || account.type === 'employee') {
+      // Customer/Employee pays you: their balance decreases (debit), system account increases
+      customerSupplierAmount = -amount;
+      systemAccountAmount = amount;
+    } else {
+      // You pay supplier: supplier balance decreases (credit), system account decreases
+      customerSupplierAmount = -amount;
+      systemAccountAmount = -amount;
+    }
+
+    // Create transaction for customer/supplier
+    const mainTransaction = await AccountTransaction.create(
       [
         {
           account: account._id,
           transactionType,
-          amount: actualAmount, // Store the actual amount (positive/negative)
-          description,
+          amount: customerSupplierAmount,
+          referenceType: 'payment',
+          referenceId: transferGroupId,
+          description: description || `${transactionType} - ${systemAccount.name}`,
           created_by: req.user._id,
         },
       ],
       { session }
     );
 
-    // Update account balance
-    account.currentBalance += actualAmount;
-    await account.save({ session });
+    // Create paired transaction for system account
+    const systemTransaction = await AccountTransaction.create(
+      [
+        {
+          account: systemAccount._id,
+          transactionType: systemAccountAmount > 0 ? 'Credit' : 'Debit',
+          amount: systemAccountAmount,
+          referenceType: 'payment',
+          referenceId: transferGroupId,
+          description: description || `${account.type === 'customer' || account.type === 'employee' ? 'له' : 'ته'} ${account.name}`,
+          created_by: req.user._id,
+        },
+      ],
+      { session }
+    );
 
-    // After saving account
+    // Update balances
+    account.currentBalance += customerSupplierAmount;
+    systemAccount.currentBalance += systemAccountAmount;
+
+    await account.save({ session });
+    await systemAccount.save({ session });
+
+    // Audit logs
     await AuditLog.create(
       [
         {
           tableName: 'AccountTransaction',
-          recordId: transaction[0]._id,
+          recordId: transferGroupId,
           operation: 'INSERT',
           oldData: null,
-          newData: transaction[0].toObject(),
-          reason: description || 'Manual transaction created',
+          newData: {
+            account: account.name,
+            systemAccount: systemAccount.name,
+            amount,
+            type: transactionType,
+          },
+          reason: description || 'Manual payment transaction',
           changedBy: req.user?.name || 'System',
           changedAt: new Date(),
         },
@@ -430,8 +494,19 @@ exports.createManualTransaction = asyncHandler(async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'معامله په بریالیتوب سره زیاته شوه',
-      transaction: transaction[0],
+      message: 'معامله په بریالیتوب سره ثبت شوه',
+      data: {
+        mainTransaction: mainTransaction[0],
+        systemTransaction: systemTransaction[0],
+        account: {
+          name: account.name,
+          newBalance: account.currentBalance,
+        },
+        systemAccount: {
+          name: systemAccount.name,
+          newBalance: systemAccount.currentBalance,
+        },
+      },
     });
   } catch (err) {
     await session.abortTransaction();

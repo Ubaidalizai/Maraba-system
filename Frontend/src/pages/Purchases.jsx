@@ -981,6 +981,7 @@ const Purchases = () => {
                     step="0.01"
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
+                    onWheel={(e) => e.target.blur()}
                     className="w-full px-3 py-2 border border-gray-300 rounded-sm  "
                     placeholder={t("purchases.payment.amountPlaceholder")}
                     max={paymentPurchase?.dueAmount ?? undefined}

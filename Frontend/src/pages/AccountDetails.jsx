@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -8,12 +8,17 @@ import {
   ChartBarIcon,
   CalendarIcon,
   FunnelIcon,
+  PlusIcon,
+  DocumentArrowDownIcon,
 } from "@heroicons/react/24/outline";
-import { useAccountLedger } from "../services/useApi";
+import { useAccountLedger, useSystemAccounts, useCreateTransaction, useAccountTransactionVolume } from "../services/useApi";
 import Pagination from "../components/Pagination";
 import JalaliDatePicker from "../components/JalaliDatePicker";
 import { normalizeDateToIso } from "../utilies/helper";
 import Spinner from "../components/Spinner";
+import { toast } from "react-toastify";
+import { usePDF } from "react-to-pdf";
+import AccountStatementPDF from "../components/AccountStatementPDF";
 
 const EMPTY_LEDGER = [];
 
@@ -21,11 +26,18 @@ const AccountDetails = () => {
   const { t, i18n } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
+  const { toPDF, targetRef } = usePDF({ filename: 'account-statement.pdf' });
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [transactionType, setTransactionType] = useState("");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    systemAccountId: "",
+    amount: "",
+    description: "",
+  });
 
   const ledgerFilters = useMemo(() => {
     const filters = {};
@@ -42,12 +54,24 @@ const AccountDetails = () => {
     error,
   } = useAccountLedger(id, ledgerFilters);
 
+  // Fetch all transactions for PDF (without filters)
+  const { data: allLedgerData } = useAccountLedger(id, {});
+  const allTransactions = allLedgerData?.ledger ?? EMPTY_LEDGER;
+
+  const { data: systemAccountsData } = useSystemAccounts();
+  const systemAccounts = systemAccountsData?.accounts || [];
+
+  const createTransactionMutation = useCreateTransaction();
+
   const account = ledgerData?.account || t("accountDetails.fallbackName");
   const accountType = ledgerData?.accountType || "unknown";
   const openingBalance = ledgerData?.openingBalance || 0;
   const currentBalance = ledgerData?.currentBalance || 0;
   const totalTransactions = ledgerData?.totalTransactions || 0;
   const ledger = ledgerData?.ledger ?? EMPTY_LEDGER;
+
+  const { data: volumeData } = useAccountTransactionVolume(id);
+  const totalTransactionVolume = volumeData?.data?.totalTransactionVolume || 0;
 
   useEffect(() => {
     setPage(1);
@@ -194,6 +218,46 @@ const AccountDetails = () => {
     navigate(`/accounts?type=${typeParam}`);
   };
 
+  const handlePaymentSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!paymentForm.systemAccountId || !paymentForm.amount) {
+      toast.error("مهرباني وکړئ ټول اړین فیلډونه ډک کړئ");
+      return;
+    }
+
+    const amount = parseFloat(paymentForm.amount);
+    if (amount <= 0) {
+      toast.error("اندازه باید مثبته وي");
+      return;
+    }
+
+    const transactionType = accountType === "customer" ? "Debit" : "Credit";
+
+    try {
+      await createTransactionMutation.mutateAsync({
+        accountId: id,
+        systemAccountId: paymentForm.systemAccountId,
+        transactionType,
+        amount,
+        description: paymentForm.description || `${transactionType} - ${account}`,
+      });
+
+      setShowPaymentModal(false);
+      setPaymentForm({ systemAccountId: "", amount: "", description: "" });
+    } catch (error) {
+      console.error("Payment error:", error);
+    }
+  };
+
+  const canRecordPayment = ["customer", "supplier", "employee"].includes(accountType);
+  const canExportPDF = ["customer", "supplier"].includes(accountType);
+
+  const handleExportPDF = () => {
+    toPDF();
+    toast.success("PDF په بریالیتوب سره ډاونلوډ شو");
+  };
+
   const isInitialLoading = isLoading && !ledgerData;
 
   if (isInitialLoading) {
@@ -242,10 +306,48 @@ const AccountDetails = () => {
             </p>
           </div>
         </div>
+        <div className="flex gap-3">
+          {canExportPDF && (
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <DocumentArrowDownIcon className="h-5 w-5" />
+              <span>PDF ډاونلوډ</span>
+            </button>
+          )}
+          {canRecordPayment && (
+            <button
+              onClick={() => setShowPaymentModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <PlusIcon className="h-5 w-5" />
+              <span>{accountType === "customer" ? "پیسې ترلاسه کول" : "پیسې ورکول"}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* PDF Content - Hidden */}
+      <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+        <AccountStatementPDF
+          ref={targetRef}
+          account={account}
+          accountType={accountType}
+          currentBalance={currentBalance}
+          openingBalance={openingBalance}
+          totalTransactions={allTransactions.length}
+          totalTransactionVolume={totalTransactionVolume}
+          ledger={allTransactions}
+          formatCurrency={formatCurrency}
+          formatDate={formatDate}
+          getBalanceInfo={getBalanceInfo}
+          getTransactionTypeLabel={getTransactionTypeLabel}
+        />
       </div>
 
       {/* Account Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div
           className={`rounded-lg shadow-sm border border-gray-200 p-6 ${
             getBalanceInfo(currentBalance, accountType).bgColor
@@ -309,6 +411,24 @@ const AccountDetails = () => {
             </div>
           </div>
         </div>
+
+        {(accountType === 'customer' || accountType === 'supplier') && (
+          <div className="bg-blue-50 rounded-lg shadow-sm border border-blue-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-700">
+                  {accountType === 'customer' ? 'ټول ترلاسه شوی پیسې' : 'ټول ورکړل شوی پیسې'}
+                </p>
+                <p className="text-2xl font-bold text-blue-900 mt-1">
+                  {formatCurrency(totalTransactionVolume)} AFN
+                </p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <BanknotesIcon className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -472,6 +592,93 @@ const AccountDetails = () => {
           </div>
         )}
       </div>
+
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {accountType === "customer" ? "پیسې ترلاسه کول" : "پیسې ورکول"}
+              </h3>
+            </div>
+            <form onSubmit={handlePaymentSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {accountType === "customer" ? "کوم حساب ته" : "له کوم حسابه"} *
+                </label>
+                <select
+                  value={paymentForm.systemAccountId}
+                  onChange={(e) =>
+                    setPaymentForm({ ...paymentForm, systemAccountId: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  required
+                >
+                  <option value="">حساب وټاکئ</option>
+                  {systemAccounts.map((acc) => (
+                    <option key={acc._id} value={acc._id}>
+                      {acc.name} ({formatCurrency(acc.currentBalance)} AFN)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  اندازه *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={paymentForm.amount}
+                  onChange={(e) =>
+                    setPaymentForm({ ...paymentForm, amount: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="اندازه داخل کړئ"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  تشریح
+                </label>
+                <textarea
+                  value={paymentForm.description}
+                  onChange={(e) =>
+                    setPaymentForm({ ...paymentForm, description: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="اختیاري یادښت..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPaymentModal(false);
+                    setPaymentForm({ systemAccountId: "", amount: "", description: "" });
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  لغوه
+                </button>
+                <button
+                  type="submit"
+                  disabled={createTransactionMutation.isPending}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {createTransactionMutation.isPending ? "ثبت روان دی..." : "ثبت"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

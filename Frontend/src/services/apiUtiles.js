@@ -371,6 +371,10 @@ export const fetchAccountLedger = async (accountId, params = {}) => {
   return await apiRequest(url);
 };
 
+export const fetchAccountTransactionVolume = async (accountId) => {
+  return await apiRequest(`${API_ENDPOINTS.ACCOUNTS.LIST}/${accountId}/transaction-volume`);
+};
+
 export const createManualTransaction = async (transactionData) => {
   try {
     const response = await apiRequest(
@@ -1292,4 +1296,17 @@ export const updateCurrentUser = async (newData) => {
       body: JSON.stringify(newData),
     });
   }
+};
+
+// Daily Report
+export const fetchDailyReport = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.startDate) query.set("startDate", params.startDate);
+  if (params.endDate) query.set("endDate", params.endDate);
+
+  const url = query.toString()
+    ? `${API_ENDPOINTS.REPORTS.DAILY}?${query.toString()}`
+    : API_ENDPOINTS.REPORTS.DAILY;
+
+  return await apiRequest(url);
 };

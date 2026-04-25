@@ -308,6 +308,11 @@ export const API_ENDPOINTS = {
     SUMMARY: "/profit/summary",
   },
 
+  // Reports
+  REPORTS: {
+    DAILY: "/reports/daily",
+  },
+
   // Dashboard Statistics
   DASHBOARD: {
     STATS: "/dashboard/stats",

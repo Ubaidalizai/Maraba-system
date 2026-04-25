@@ -16,14 +16,16 @@ exports.createAccount = asyncHandler(async (req, res, next) => {
   session.startTransaction();
 
   try {
-    // Ensure no duplicate account for same type + refId
-    const existing = await Account.findOne({
-      type,
-      refId,
-      isDeleted: false,
-    }).session(session);
-    if (existing)
-      throw new AppError('Account already exists for this entity', 400);
+    // Ensure no duplicate account for same type + refId (except saraf - allow multiple)
+    if (type !== 'saraf') {
+      const existing = await Account.findOne({
+        type,
+        refId,
+        isDeleted: false,
+      }).session(session);
+      if (existing)
+        throw new AppError('Account already exists for this entity', 400);
+    }
 
     const account = await Account.create(
       [
@@ -459,6 +461,48 @@ exports.getAccountBalances = asyncHandler(async (req, res, next) => {
         totalCustomerCredit,
         netPosition: totalCashAccounts + totalCustomerCredit - totalSupplierDebt,
       },
+    },
+  });
+});
+
+// @desc    Get total transaction volume for an account
+// @route   GET /api/v1/accounts/:id/transaction-volume
+exports.getAccountTransactionVolume = asyncHandler(async (req, res, next) => {
+  const accountId = req.params.id;
+
+  const account = await Account.findOne({ _id: accountId, isDeleted: false });
+  if (!account) throw new AppError('Account not found', 404);
+
+  const AccountTransaction = require('../models/accountTransaction.model');
+
+  // Get all transactions for this account
+  const transactions = await AccountTransaction.find({
+    account: accountId,
+    isDeleted: false,
+    reversed: { $ne: true },
+  }).select('amount');
+
+  let totalVolume = 0;
+
+  if (account.type === 'customer') {
+    // For customers: sum all negative amounts (money received from customer)
+    totalVolume = transactions.reduce((sum, tx) => {
+      return sum + (tx.amount < 0 ? Math.abs(tx.amount) : 0);
+    }, 0);
+  } else if (account.type === 'supplier') {
+    // For suppliers: sum all positive amounts (money paid to supplier)
+    totalVolume = transactions.reduce((sum, tx) => {
+      return sum + (tx.amount > 0 ? tx.amount : 0);
+    }, 0);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      accountId: account._id,
+      accountName: account.name,
+      accountType: account.type,
+      totalTransactionVolume: totalVolume,
     },
   });
 });

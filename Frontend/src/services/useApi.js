@@ -29,6 +29,7 @@ import {
   fetchAccountLedger,
   fetchAccounts,
   fetchAccountTransactions,
+  fetchAccountTransactionVolume,
   fetchBatchesByProduct,
   fetchCompanies,
   fetchCustomer,
@@ -53,6 +54,7 @@ import {
   fetchAccountBalances,
   fetchCashFlowReport,
   fetchStockReport,
+  fetchDailyReport,
   fetchStock,
   fetchNetProfit,
   fetchProfitStats,
@@ -991,6 +993,15 @@ export const useDeleteEmployee = () => {
   });
 };
 
+export const useAccountTransactionVolume = (accountId) => {
+  return useQuery({
+    queryKey: ["accountTransactionVolume", accountId],
+    queryFn: () => fetchAccountTransactionVolume(accountId),
+    enabled: !!accountId,
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
 // Units
 export const useUnits = (params = {}) => {
   return useQuery({
@@ -1247,6 +1258,16 @@ export const usePaymentProcess = () => {
     },
   });
 };
+export const useDailyReport = (params = {}) => {
+  const { startDate, endDate } = params;
+  return useQuery({
+    queryKey: ["dailyReport", { startDate, endDate }],
+    queryFn: () => fetchDailyReport({ startDate, endDate }),
+    enabled: !!(startDate && endDate),
+    keepPreviousData: true,
+  });
+};
+
 export const useProfile = () => {
   return useQuery({
     queryKey: ["profile"],

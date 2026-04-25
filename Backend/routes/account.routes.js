@@ -11,6 +11,7 @@ const {
   getAccountBalances,
   getCashFlowReport,
   transferBetweenAccounts,
+  getAccountTransactionVolume,
 } = require('../controllers/account.controller');
 const { authenticate } = require('../middlewares/authMiddleware');
 const {
@@ -31,5 +32,6 @@ router.get('/reports/cashflow', getCashFlowReport);
 router.route('/:id').get(getAccount).patch(updateAccount).delete(deleteAccount);
 router.patch('/:id/restore', restoreAccount);
 router.get('/:id/ledger', getAccountLedger);
+router.get('/:id/transaction-volume', getAccountTransactionVolume);
 
 module.exports = router;

@@ -1,0 +1,39 @@
+@font-face {
+  font-family: 'Noto Nastaliq Urdu';
+  src: url('/fonts/NotoNastaliqUrdu-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+.pdf-content {
+  font-family: 'Noto Nastaliq Urdu', 'Arial', serif !important;
+  direction: rtl;
+  background: white;
+  line-height: 1.6;
+}
+
+.pdf-content *,
+.pdf-content *::before,
+.pdf-content *::after {
+  font-family: 'Noto Nastaliq Urdu', 'Arial', serif !important;
+  box-sizing: border-box;
+}
+
+.pdf-content table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.pdf-content th,
+.pdf-content td {
+  text-align: right;
+  padding: 8px;
+  border: 1px solid #ddd;
+}
+
+@media print {
+  .pdf-content {
+    padding: 20px;
+  }
+}

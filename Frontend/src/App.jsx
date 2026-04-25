@@ -25,6 +25,8 @@ import Reports from "./pages/Reports";
 import Sales from "./pages/Sales";
 import SaleBill from "./pages/SaleBill";
 import PrintSimple from "./pages/PrintSimple";
+import TestPDF from "./components/TestPDF";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -62,6 +64,7 @@ function App() {
           <Router>
             <Routes>
               {/* Public routes */}
+              <Route path="/test-pdf" element={<TestPDF />}  />
               <Route path="/login" element={<Login />} />
 
               {/* Protected routes */}

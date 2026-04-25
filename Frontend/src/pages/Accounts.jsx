@@ -13,7 +13,10 @@ import {
   EyeIcon,
   ArrowUpIcon,
   ArrowDownIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { useForm } from "react-hook-form";
 import {
   useAccounts,
@@ -27,11 +30,13 @@ import {
   useTransferBetweenAccounts,
   useSystemAccounts,
 } from "../services/useApi";
+import { fetchAccounts } from "../services/apiUtiles";
 import GloableModal from "../components/GloableModal";
 import { inputStyle } from "../components/ProductForm";
 import { toast } from "react-toastify";
 import { formatNumber } from "../utilies/helper";
 import { useSubmitLock } from "../hooks/useSubmitLock.js";
+import AccountsPDF from "../components/AccountsPDF";
 
 console.log('useSystemAccounts imported:', typeof useSystemAccounts);
 
@@ -50,6 +55,14 @@ const Accounts = () => {
   const [editingAccount, setEditingAccount] = useState(null);
   const { register, handleSubmit, reset, watch, setValue } = useForm();
   const {
+    register: registerTransaction,
+    handleSubmit: handleSubmitTransaction,
+    reset: resetTransaction,
+    watch: watchTransaction,
+    setValue: setValueTransaction,
+    formState: { errors: transactionErrors },
+  } = useForm();
+  const {
     register: registerTransfer,
     handleSubmit: handleSubmitTransfer,
     reset: resetTransfer,
@@ -58,6 +71,8 @@ const Accounts = () => {
   } = useForm();
   const [deleteModal, setDeleteModal] = useState(false);
   const [deletedId, setDeletedId] = useState(null);
+  const [exportingPDF, setExportingPDF] = useState(false);
+  const [allAccountsForPDF, setAllAccountsForPDF] = useState([]);
   const { data: accountsResp, isLoading } = useAccounts({
     type,
     search,
@@ -110,7 +125,7 @@ const Accounts = () => {
       });
     });
 
-  const watchedTransactionType = watch("transactionType") || "Credit";
+  const watchedTransactionType = watchTransaction("transactionType") || "Credit";
   const watchedFromAccount = watchTransfer("fromAccountId");
   const isAccountActionPending = accountSubmitLock.isSubmitting;
   const isTransactionActionPending = transactionSubmitLock.isSubmitting;
@@ -120,6 +135,12 @@ const Accounts = () => {
       ...data,
       refId: isSystemAccount(data.type) ? null : data.refId,
     };
+
+    // Handle Saraf balance type conversion
+    if (data.type === 'saraf' && data.balanceType) {
+      const amount = Math.abs(parseFloat(data.openingBalance) || 0);
+      accountData.openingBalance = data.balanceType === 'sarafOwesMe' ? -amount : amount;
+    }
 
     if (editingAccount) {
       await runMutation(updateAccountMutation, {
@@ -140,6 +161,7 @@ const Accounts = () => {
       transactionType: "Credit",
       amount: "",
       description: "",
+      balanceType: "sarafOwesMe",
     });
   });
 
@@ -163,17 +185,39 @@ const Accounts = () => {
   const handleAddTransaction = (acc) => {
     setSelectedAccount(acc);
     setShowTransactionModal(true);
-    setValue("transactionType", "Credit");
-    setValue("amount", "");
-    setValue("description", "");
+    // Pre-select transaction type based on account type
+    const transactionType = acc.type === 'supplier' ? 'Credit' : 'Debit';
+    setValueTransaction("transactionType", transactionType);
+    setValueTransaction("amount", "");
+    setValueTransaction("systemAccountId", "");
+    setValueTransaction("description", "");
   };
 
   const onSubmitTransaction = transactionSubmitLock.wrapSubmit(async (data) => {
     try {
+      if (!data.systemAccountId) {
+        toast.error('مهرباني وکړئ سیسټم حساب وټاکئ');
+        return;
+      }
+      
+      if (!data.amount || parseFloat(data.amount) <= 0) {
+        toast.error('مهرباني وکړئ سمه اندازه داخل کړئ');
+        return;
+      }
+
+      const enteredAmount = parseFloat(data.amount);
+      const accountBalance = Math.abs(selectedAccount.currentBalance);
+      
+      if (enteredAmount > accountBalance) {
+        toast.error(`اندازه د حساب له بیلانس څخه زیاته نشي کیدای. اوسنی بیلانس: ${formatNumber(accountBalance)} افغانۍ`);
+        return;
+      }
+      
       const transactionData = {
         accountId: selectedAccount._id,
         transactionType: data.transactionType,
-        amount: parseFloat(data.amount),
+        amount: enteredAmount,
+        systemAccountId: data.systemAccountId,
         description:
           data.description ||
           t("accounts.transaction.defaultDescription", {
@@ -184,11 +228,10 @@ const Accounts = () => {
       await runMutation(createTransaction, transactionData);
       setShowTransactionModal(false);
       setSelectedAccount(null);
-      setValue("transactionType", "Credit");
-      setValue("amount", "");
-      setValue("description", "");
+      resetTransaction();
     } catch (err) {
-      console.error(err);
+      console.error('Transaction error:', err);
+      toast.error(err.message || 'معامله ثبت نشوه');
     }
   });
 
@@ -215,6 +258,92 @@ const Accounts = () => {
     return new Date(iso).toLocaleDateString(localeTag);
   };
 
+  const patchOklabColors = (element) => {
+    const allElements = element.querySelectorAll("*");
+    allElements.forEach((el) => {
+      const computed = window.getComputedStyle(el);
+      const bg = computed.backgroundColor;
+      const color = computed.color;
+      if (bg && bg.startsWith("oklab")) {
+        el.style.backgroundColor = "#f3f4f6";
+      }
+      if (color && color.startsWith("oklab")) {
+        el.style.color = "#1f2937";
+      }
+    });
+  };
+
+  const exportToPDF = async () => {
+    try {
+      setExportingPDF(true);
+      
+      // Fetch all accounts without pagination using apiRequest
+      const data = await fetchAccounts({ type, limit: 9999 });
+      const allAccounts = data?.accounts || data?.data || [];
+      // Filter accounts with balance greater than 0
+      const accountsWithBalance = allAccounts.filter(acc => (acc.currentBalance || 0) > 0);
+      setAllAccountsForPDF(accountsWithBalance);
+      
+      // Wait for state update and render
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      
+      const pdfContent = document.getElementById("accounts-pdf-content");
+      if (!pdfContent) {
+        throw new Error("PDF content element not found");
+      }
+
+      // Wait for fonts and content to load
+      await document.fonts.ready;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      
+      patchOklabColors(pdfContent);
+      void pdfContent.offsetHeight;
+
+      const canvas = await html2canvas(pdfContent, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        letterRendering: true,
+        backgroundColor: "#ffffff",
+      });
+
+      // Validate canvas
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        throw new Error("Failed to capture PDF content - canvas has zero dimensions");
+      }
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.85);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+
+      pdf.addImage(
+        imgData,
+        "JPEG",
+        imgX,
+        imgY,
+        imgWidth * ratio,
+        imgHeight * ratio
+      );
+
+      const fileName = type === "customer" 
+        ? `customer-accounts-${new Date().toISOString().split("T")[0]}.pdf`
+        : `supplier-accounts-${new Date().toISOString().split("T")[0]}.pdf`;
+      pdf.save(fileName);
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast.error("د PDF په جوړولو کې ستونزه");
+    } finally {
+      setExportingPDF(false);
+      setAllAccountsForPDF([]);
+    }
+  };
+
   return (
     <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Page header */}
@@ -224,14 +353,28 @@ const Accounts = () => {
           <p className="text-gray-600 mt-1">{t("accounts.subtitle")}</p>
         </div>
         <div className="flex gap-2">
-          <button
+          {(type === "customer" || type === "supplier") && (
+            <button
+              onClick={exportToPDF}
+              disabled={exportingPDF}
+              className={`bg-green-500 text-white px-4 py-2 rounded-sm hover:bg-green-600 flex items-center gap-2 ${
+                exportingPDF ? "opacity-60 cursor-not-allowed" : ""
+              }`}
+            >
+              <ArrowDownTrayIcon className="h-5 w-5" />
+              {exportingPDF ? "PDF جوړیږي..." : t("accountsPDF.exportPDF")}
+            </button>
+          )}
+          {(type === "cashier" || type === "safe" || type === "saraf") &&
+          (<button
             onClick={() => setShowTransferModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-sm hover:bg-blue-700 flex items-center gap-2"
+            className="bg-blue-500 text-white px-4 py-2 rounded-sm hover:bg-blue-600 flex items-center gap-2"
           >
             <ArrowUpIcon className="h-5 w-5" />
             <ArrowDownIcon className="h-5 w-5 -ml-4" />
             {t("accounts.transfer.title")}
           </button>
+          )}
           <button
             onClick={() => {
               setEditingAccount(null);
@@ -376,13 +519,15 @@ const Accounts = () => {
                         >
                           <EyeIcon className="h-4 w-4" />
                         </button>
-                        <button
-                          className="text-green-600 hover:text-green-900"
-                          onClick={() => handleAddTransaction(acc)}
-                          title={t("accounts.actions.addTransaction")}
-                        >
-                          <ArrowUpIcon className="h-4 w-4" />
-                        </button>
+                        {['customer', 'supplier', 'employee'].includes(acc.type) && (
+                          <button
+                            className="text-green-600 hover:text-green-900"
+                            onClick={() => handleAddTransaction(acc)}
+                            title={t("accounts.actions.addTransaction")}
+                          >
+                            <ArrowUpIcon className="h-4 w-4" />
+                          </button>
+                        )}
                         <button
                           className="text-indigo-600 hover:text-indigo-900"
                           onClick={() => handleEdit(acc)}
@@ -551,21 +696,56 @@ const Accounts = () => {
                   {...register("name", { required: true })}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t("accounts.modal.openingBalance")}
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className={inputStyle}
-                  defaultValue={0}
-                  {...register("openingBalance", { valueAsNumber: true })}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {t("accounts.modal.openingBalanceHint")}
-                </p>
-              </div>
+              {!editingAccount && (
+                <>
+                  {(watch("type") || type) === 'saraf' && (
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        د بیلانس ډول
+                      </label>
+                      <div className="flex gap-4">
+                        
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            value="iOweSaraf"
+                            defaultChecked
+                            {...register("balanceType")}
+                            className="w-4 h-4 text-amber-600"
+                          />
+                          <span className="text-sm font-bold">مثبت</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            value="sarafOwesMe"
+                            {...register("balanceType")}
+                            className="w-4 h-4 text-amber-600"
+                          />
+                          <span className="text-sm text-amber-700 font-bold">منفی</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t("accounts.modal.openingBalance")}
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      className={inputStyle}
+                      defaultValue={0}
+                      placeholder="0"
+                      {...register("openingBalance", { valueAsNumber: true })}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {t("accounts.modal.openingBalanceHint")}
+                    </p>
+                  </div>
+                </>
+              )}
               <div className=" col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t("accounts.modal.currency")}
@@ -631,7 +811,7 @@ const Accounts = () => {
                 </button>
               </div>
               <form
-                onSubmit={handleSubmit(onSubmitTransaction)}
+                onSubmit={handleSubmitTransaction(onSubmitTransaction)}
                 className="p-6 space-y-4"
               >
                 <div className="bg-blue-50 p-4 rounded-lg">
@@ -650,7 +830,8 @@ const Accounts = () => {
                   </label>
                   <select
                     className={inputStyle}
-                    {...register("transactionType", { required: true })}
+                    disabled
+                    {...registerTransaction("transactionType", { required: true })}
                   >
                     <option value="Credit">
                       {t("accounts.transaction.optionCredit")}
@@ -662,34 +843,35 @@ const Accounts = () => {
                       {t("accounts.transaction.optionExpense")}
                     </option>
                   </select>
-                  <div className="mt-2 p-3 rounded-lg bg-gray-50">
-                    <p className="text-sm font-medium text-gray-700 mb-2">
-                      {t("accounts.transaction.examplesTitle")}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t("accounts.transaction.systemAccountLabel")}
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    {selectedAccount.type === 'supplier' 
+                      ? t("accounts.transaction.systemAccountSupplier")
+                      : t("accounts.transaction.systemAccountCustomer")}
+                  </p>
+                  <select
+                    className={`${inputStyle} ${transactionErrors.systemAccountId ? 'border-red-500' : ''}`}
+                    {...registerTransaction("systemAccountId", { required: true })}
+                  >
+                    <option value="">
+                      {t("accounts.transaction.selectSystemAccount")}
+                    </option>
+                    {systemAccountsData?.accounts?.map((acc) => (
+                      <option key={acc._id} value={acc._id}>
+                        {acc.name} ({formatNumber(acc.currentBalance)} AFN)
+                      </option>
+                    ))}
+                  </select>
+                  {transactionErrors.systemAccountId && (
+                    <p className="text-red-500 text-xs mt-1">
+                      مهرباني وکړئ سیسټم حساب وټاکئ
                     </p>
-                    <div className="text-xs text-gray-600 space-y-1">
-                      {watchedTransactionType === "Credit" && (
-                        <>
-                          <p>{t("accounts.transaction.creditEx1")}</p>
-                          <p>{t("accounts.transaction.creditEx2")}</p>
-                          <p>{t("accounts.transaction.creditEx3")}</p>
-                        </>
-                      )}
-                      {watchedTransactionType === "Debit" && (
-                        <>
-                          <p>{t("accounts.transaction.debitEx1")}</p>
-                          <p>{t("accounts.transaction.debitEx2")}</p>
-                          <p>{t("accounts.transaction.debitEx3")}</p>
-                        </>
-                      )}
-                      {watchedTransactionType === "Expense" && (
-                        <>
-                          <p>{t("accounts.transaction.expenseEx1")}</p>
-                          <p>{t("accounts.transaction.expenseEx2")}</p>
-                          <p>{t("accounts.transaction.expenseEx3")}</p>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 <div>
@@ -699,11 +881,21 @@ const Accounts = () => {
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
-                    className={inputStyle}
+                    min="0.01"
+                    onWheel={(e) => e.target.blur()}
+                    className={`${inputStyle} ${transactionErrors.amount ? 'border-red-500' : ''}`}
                     placeholder={t("accounts.transaction.amountPlaceholder")}
-                    {...register("amount", { required: true, min: 0.01 })}
+                    {...registerTransaction("amount", { 
+                      required: "اندازه اړینه ده",
+                      min: { value: 0.01, message: "اندازه باید له 0 څخه زیاته وي" },
+                      validate: value => parseFloat(value) > 0 || "اندازه باید مثبته وي"
+                    })}
                   />
+                  {transactionErrors.amount && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {transactionErrors.amount.message}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -716,7 +908,7 @@ const Accounts = () => {
                     placeholder={t(
                       "accounts.transaction.descriptionPlaceholder"
                     )}
-                    {...register("description")}
+                    {...registerTransaction("description")}
                   />
                 </div>
 
@@ -885,6 +1077,70 @@ const Accounts = () => {
           </div>
         </div>
       </GloableModal>
+
+      {/* Hidden PDF Content */}
+      {(exportingPDF || allAccountsForPDF.length > 0) && (
+        <div 
+          id="accounts-pdf-content" 
+          style={{ 
+            position: "fixed",
+            left: "0",
+            top: "0",
+            width: "100%",
+            backgroundColor: "white",
+            zIndex: 9999,
+            pointerEvents: "none"
+          }}
+        >
+          <AccountsPDF
+            accounts={allAccountsForPDF.length > 0 ? allAccountsForPDF : accounts}
+            accountType={type}
+            reportDate={new Date().toISOString()}
+          />
+        </div>
+      )}
+
+      {/* PDF Export Loading Overlay */}
+      {exportingPDF && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            gap: "1rem",
+          }}
+        >
+          <div
+            style={{
+              width: "50px",
+              height: "50px",
+              border: "5px solid #f3f3f3",
+              borderTop: "5px solid #10b981",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite",
+            }}
+          />
+          <p style={{ color: "white", fontSize: "1.25rem" }}>
+            PDF جوړیږي...
+          </p>
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+        </div>
+      )}
     </div>
   );
 };

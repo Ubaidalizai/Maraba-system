@@ -1,16 +1,6 @@
 @import "tailwindcss";
 
-.html2canvas-fix {
-  background-color: #ffffff;
-}
-
-.html2canvas-fix * {
-  /* Only fix problematic color properties */
-  color: rgb(0, 0, 0) !important;
-  border-color: rgb(200, 200, 200) !important;
-
-  /* DO NOT override background-color */
-}
+/* Removed global .html2canvas-fix to prevent PDF rendering interference */
 
 @theme {
 

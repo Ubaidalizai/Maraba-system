@@ -20,7 +20,7 @@
     "fallback": "کاروونکی"
   },
   "auth": {
-    "logout": "وتل"
+    "logout": "له سیستم څخه وتل"
   },
   "toast": {
     "logoutSuccess": "په بریالیتوب سره له سیستم څخه ووتلاست",
@@ -880,16 +880,11 @@
     "optionCredit": "کریډیټ (بیلانس زیاتوي)",
     "optionDebit": "ډیبیټ (بیلانس کموي)",
     "optionExpense": "لګښت (بیلانس کموي)",
-    "examplesTitle": "بېلګې",
-    "creditEx1": "مشتري پیسې درکړي → د مشتري حساب زیاتېږي",
-    "creditEx2": "تاسو عرضه کوونکي ته پیسې ورکړئ → د عرضه کوونکي حساب کمېږي (پور کمېږي)",
-    "creditEx3": "کارمند ته معاش ورکړل شو → د کارمند حساب زیاتېږي",
-    "debitEx1": "تاسو مشتري ته پیسې ورکړئ → د مشتري حساب کمېږي",
-    "debitEx2": "عرضه کوونکي پیسې بېرته درکړې → د عرضه کوونکي حساب کمېږي",
-    "debitEx3": "کارمند پیسې بېرته درکړې → د کارمند حساب کمېږي",
-    "expenseEx1": "د دفتر توکي → د صندوق بیلانس کمېږي",
-    "expenseEx2": "د کرایې تادیه → د صندوق بیلانس کمېږي",
-    "expenseEx3": "ترمیمات → د صندوق بیلانس کمېږي",
+    "systemAccountLabel": "سیسټم حساب *",
+    "systemAccountSupplier": "له کوم حسابه غواړئ ورکړئ؟",
+    "systemAccountCustomer": "پیسې چیرته ایښودل غواړئ؟",
+    "systemAccountEmployee": "پیسې چیرته ایښودل غواړئ؟",
+    "selectSystemAccount": "حساب وټاکئ",
     "amount": "اندازه *",
     "amountPlaceholder": "اندازه په افغانۍ",
     "description": "تشریح",
@@ -1406,6 +1401,53 @@
     "statusLow": "کمه موجودي",
     "statusNormal": "عادي"
   }
+},
+"dailyReport": {
+  "title": "ورځنی راپور",
+  "subtitle": "د ورځني فعالیتونو بشپړ راپور",
+  "selectDate": "نېټه وټاکئ",
+  "startDate": "د پیل نېټه",
+  "endDate": "د پای نېټه",
+  "dateRange": "د نېټې موده",
+  "exportPDF": "PDF ډاونلوډ",
+  "loading": "راپور لوډ کیږي...",
+  "error": "د راپور په لوډولو کې ستونزه",
+  "selectDateRange": "د راپور لیدلو لپاره د پیل او پای نېټه وټاکئ",
+  "summary": "لنډیز",
+  "totalRevenue": "ټول عاید",
+  "totalExpenses": "ټول لګښتونه",
+  "netProfit": "خالصه ګټه",
+  "totalIncome": "ټول عاید (نور سرچینې)",
+  "purchases": "رانیول",
+  "sales": "خرڅلاو",
+  "expenses": "لګښتونه",
+  "accountTransactions": "د حسابونو معاملې",
+  "supplierTransactions": "د عرضه کوونکو معاملې",
+  "customerTransactions": "د مشتریانو معاملې",
+  "employeeTransactions": "د کارکوونکو معاملې",
+  "date": "نېټه",
+  "supplier": "عرضه کوونکی",
+  "customer": "مشتري",
+  "total": "ټوله اندازه",
+  "paid": "ورکړل شوی",
+  "due": "پاتې",
+  "category": "کټګوري",
+  "amount": "اندازه",
+  "description": "تشریح",
+  "count": "شمېر"
+},
+"accountsPDF": {
+  "customerTitle": "د مشتریانو حسابونه",
+  "supplierTitle": "د عرضه کوونکو حسابونه",
+  "date": "نېټه",
+  "totalBalance": "ټول بیلانس",
+  "currency": "افغانۍ",
+  "accountsList": "د حسابونو لیست",
+  "accountName": "د حساب نوم",
+  "createdAt": "د جوړېدو نېټه",
+  "balance": "بیلانس",
+  "totalAccounts": "ټول حسابونه",
+  "exportPDF": "PDF ډاونلوډ"
 }
 
 }
