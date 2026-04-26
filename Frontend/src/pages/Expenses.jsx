@@ -44,9 +44,15 @@ const fetchCategories = async () => {
 };
 
 const fetchAccounts = async () => {
-  // Only system money accounts: cashier, safe, saraf
+  // Only cashier and safe accounts
   const res = await apiRequest(API_ENDPOINTS.ACCOUNTS.SYSTEM);
-  return res;
+  // Filter to only show cashier and safe
+  return {
+    ...res,
+    accounts: (res.accounts || res.data || []).filter(
+      (acc) => acc.type === 'cashier' || acc.type === 'safe'
+    ),
+  };
 };
 
 const createExpenseApi = async (payload) => {

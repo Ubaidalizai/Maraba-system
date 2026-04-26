@@ -244,6 +244,7 @@ const CategoryManagement = () => {
     onSuccess: () => {
       toast.success(t("admin.categoriesPage.toastCreated"));
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
       setIsModalOpen(false);
     },
     onError: (e) =>
@@ -260,6 +261,7 @@ const CategoryManagement = () => {
     onSuccess: () => {
       toast.success(t("admin.categoriesPage.toastUpdated"));
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
       setIsModalOpen(false);
       setEditing(null);
     },
@@ -273,6 +275,7 @@ const CategoryManagement = () => {
     onSuccess: () => {
       toast.success(t("admin.categoriesPage.toastDeleted"));
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
     },
     onError: (e) =>
       toast.error(e.message || t("admin.categoriesPage.errDelete")),

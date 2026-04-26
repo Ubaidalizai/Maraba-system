@@ -54,6 +54,7 @@ exports.getAllExpenses = asyncHandler(async (req, res, next) => {
   const [expenses, total] = await Promise.all([
     Expense.find(filter)
       .populate('category', 'name type color')
+      .populate('paidFromAccount', 'name type')
       .populate('createdBy', 'name')
       .sort(sort)
       .skip(skip)
@@ -66,7 +67,6 @@ exports.getAllExpenses = asyncHandler(async (req, res, next) => {
   const totalPages = Math.ceil(total / limitNum);
   const hasNextPage = pageNum < totalPages;
   const hasPrevPage = pageNum > 1;
-
   res.status(200).json({
     success: true,
     count: expenses.length,
