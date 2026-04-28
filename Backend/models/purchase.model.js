@@ -41,6 +41,11 @@ const purchaseSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    stockLocation: {
+      type: String,
+      enum: ['warehouse', 'store'],
+      default: 'warehouse',
+    },
     isDeleted: {
       type: Boolean,
       default: false,

@@ -109,6 +109,7 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
           totalAmount,
           paidAmount,
           dueAmount,
+          stockLocation, // Store the location
         },
       ],
       { session }
@@ -647,11 +648,12 @@ exports.softDeletePurchase = asyncHandler(async (req, res, next) => {
     for (const item of items) {
       const unit = await Unit.findById(item.unit).session(session);
       const batchNum = item.batchNumber || 'DEFAULT';
+      // Use the stockLocation stored in the purchase
       await Stock.findOneAndUpdate(
         {
           product: item.product,
           batchNumber: batchNum,
-          location: 'store',
+          location: purchase.stockLocation || 'warehouse',
         },
         { $inc: { quantity: -item.quantity * unit.conversion_to_base } },
         { session }

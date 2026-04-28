@@ -281,6 +281,32 @@ exports.getAccountLedger = asyncHandler(async (req, res, next) => {
   if (!account || account.isDeleted)
     throw new AppError('Account not found', 404);
 
+  // Populate supplier/customer details if account has refId
+  let contactInfo = null;
+  if (account.refId) {
+    if (account.type === 'supplier') {
+      const Supplier = require('../models/supplier.model');
+      const supplier = await Supplier.findById(account.refId).select('name contact_info');
+      if (supplier) {
+        contactInfo = {
+          name: supplier.name,
+          phone: supplier.contact_info?.phone || null,
+          email: supplier.contact_info?.email || null,
+        };
+      }
+    } else if (account.type === 'customer') {
+      const Customer = require('../models/customer.model');
+      const customer = await Customer.findById(account.refId).select('name contact_info');
+      if (customer) {
+        contactInfo = {
+          name: customer.name,
+          phone: customer.contact_info?.phone || null,
+          email: customer.contact_info?.email || null,
+        };
+      }
+    }
+  }
+
   const query = { account: id, isDeleted: false, reversed: { $ne: true } };
 
   const hasValidStart = startDate && !Number.isNaN(new Date(startDate).getTime());
@@ -339,6 +365,7 @@ exports.getAccountLedger = asyncHandler(async (req, res, next) => {
     openingBalance: account.openingBalance,
     currentBalance: account.currentBalance,
     totalTransactions: transactions.length,
+    contactInfo, // Include contact info
     ledger,
     sortOrder,
   });
