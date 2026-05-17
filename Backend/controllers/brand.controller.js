@@ -10,7 +10,7 @@ const createBrand = asyncHandler(async (req, res, next) => {
 
   const typeExists = await Brand.findOne({ name, isDeleted: false });
   if (typeExists) {
-    throw new AppError("Brand with this name already exists", 400);
+    throw new AppError("د دې نوم سره برانډ دمخه شتون لري", 400);
   }
 
   const brand = await Brand.create({ name, address, contactNumber, email });
@@ -58,7 +58,7 @@ const getBrand = asyncHandler(async (req, res, next) => {
   });
 
   if (!brand) {
-    throw new AppError("Brand not found", 404);
+    throw new AppError("برانډ ونه موندل شو", 404);
   }
 
   res.status(200).json({
@@ -78,7 +78,7 @@ const updateBrand = asyncHandler(async (req, res, next) => {
   );
 
   if (!brand) {
-    throw new AppError("Brand not found or already deleted", 404);
+    throw new AppError("برانډ ونه موندل شو یا دمخه حذف شوی دی", 404);
   }
 
   res.status(200).json({
@@ -98,12 +98,12 @@ const deleteBrand = asyncHandler(async (req, res, next) => {
   );
 
   if (!brand) {
-    throw new AppError("Brand not found or already deleted", 404);
+    throw new AppError("برانډ ونه موندل شو یا دمخه حذف شوی دی", 404);
   }
 
   res.status(200).json({
     status: "success",
-    message: "Brand deleted successfully (soft delete applied)",
+    message: "برانډ په بریالیتوب سره حذف شو",
   });
 });
 

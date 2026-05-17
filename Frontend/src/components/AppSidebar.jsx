@@ -22,6 +22,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { BACKEND_BASE_URL } from "../services/apiConfig";
 import { useClickOutSide } from "../hooks/useClickOutSide";
+import { useSettings } from "../services/useApi";
 
 const navItem = [
   { nameKey: "nav.dashboard", path: "/", icon: <AiOutlineHome /> },
@@ -103,6 +104,9 @@ function AppSidebar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const ref = useClickOutSide(() => setShowUserMenu(false));
   const navigate = useNavigate();
+  const { data: settings } = useSettings();
+  
+  const companyName = settings?.data?.settings?.companyName || t("brand.title");
   const handleLogout = async () => {
     try {
       await logout();
@@ -318,7 +322,7 @@ function AppSidebar() {
           {isExpanded || isHoverd || isMobileOpen ? (
             <div className=" w-full  text-center">
               <h1 className=" md:font-bold font-medium text-white md:text-[16px] text-[14px] w-full">
-                {t("brand.title")}{" "}
+                {companyName}
               </h1>
               <p
                 className="text-sm"

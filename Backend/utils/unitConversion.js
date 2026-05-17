@@ -18,7 +18,7 @@ const convertQuantity = async (quantity, fromUnitId, toUnitId) => {
   ]);
 
   if (!fromUnit || !toUnit) {
-    throw new Error('Unit not found');
+    throw new Error('واحد ونه موندل شو');
   }
 
   // Convert to base unit first, then to target unit
@@ -37,7 +37,7 @@ const convertQuantity = async (quantity, fromUnitId, toUnitId) => {
 const convertToBaseUnit = async (quantity, unitId) => {
   const unit = await Unit.findById(unitId);
   if (!unit) {
-    throw new Error('Unit not found');
+    throw new Error('واحد ونه موندل شو');
   }
 
   return quantity * unit.conversion_to_base;
@@ -52,7 +52,7 @@ const convertToBaseUnit = async (quantity, unitId) => {
 const convertFromBaseUnit = async (baseQuantity, unitId) => {
   const unit = await Unit.findById(unitId);
   if (!unit) {
-    throw new Error('Unit not found');
+    throw new Error('واحد ونه موندل شو');
   }
 
   return baseQuantity / unit.conversion_to_base;

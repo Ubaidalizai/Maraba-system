@@ -212,6 +212,15 @@ export const API_ENDPOINTS = {
     DELETE: (id) => `/customers/${id}`,
   },
 
+  // Sarafs
+  SARAFS: {
+    LIST: "/sarafs",
+    DETAIL: (id) => `/sarafs/${id}`,
+    CREATE: "/sarafs",
+    UPDATE: (id) => `/sarafs/${id}`,
+    DELETE: (id) => `/sarafs/${id}`,
+  },
+
   // Accounts
   ACCOUNTS: {
     LIST: "/accounts",
@@ -311,6 +320,12 @@ export const API_ENDPOINTS = {
   // Reports
   REPORTS: {
     DAILY: "/reports/daily",
+  },
+
+  // Settings
+  SETTINGS: {
+    GET: "/settings",
+    UPDATE: "/settings",
   },
 
   // Dashboard Statistics

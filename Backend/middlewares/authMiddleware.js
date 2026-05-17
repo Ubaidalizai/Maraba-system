@@ -23,7 +23,7 @@ const authenticate = asyncHandler(async (req, res, next) => {
   if (!token) {
     return res.status(401).json({
       success: false,
-      message: "Not authorized, no access token",
+      message: "اجازه نشته، د لاسرسي ټوکن شتون نلري",
     });
   }
 
@@ -34,14 +34,14 @@ const authenticate = asyncHandler(async (req, res, next) => {
     if (!currentUser) {
       return res.status(401).json({
         success: false,
-        message: "User no longer exists",
+        message: "کاروونکی نور شتون نلري",
       });
     }
 
     if (currentUser.changedPasswordAfter(decoded.iat)) {
       return res.status(401).json({
         success: false,
-        message: "User recently changed password",
+        message: "کاروونکي په وروستي کې پاسورډ بدل کړی دی",
       });
     }
 
@@ -51,7 +51,7 @@ const authenticate = asyncHandler(async (req, res, next) => {
     console.error("Auth middleware error:", error);
     return res.status(401).json({
       success: false,
-      message: "Not authorized, token invalid or expired",
+      message: "اجازه نشته، ټوکن ناسم یا مهال تیر شوی دی",
     });
   }
 });
@@ -63,7 +63,7 @@ const authorizeAdmin = (req, res, next) => {
   } else {
     return res.status(403).send({
       success: false,
-      message: "Access denied: Admin authorization required.",
+      message: "لاسرسی رد شو: د ادمین اجازه اړینه ده",
     });
   }
 };
@@ -73,7 +73,7 @@ const preventAdminDeletion = (req, res, next) => {
   if (req.user && req.user.role === "admin") {
     return res.status(403).send({
       success: false,
-      message: "Access denied: Admin cannot be deleted.",
+      message: "لاسرسی رد شو: ادمین حذف کیدای نشي",
     });
   }
   next();

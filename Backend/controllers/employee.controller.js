@@ -58,7 +58,7 @@ const getEmployee = asyncHandler(async (req, res, next) => {
   });
 
   if (!employee) {
-    throw new AppError('Employee not found', 404);
+    throw new AppError('کارکوونکی ونه موندل شو', 404);
   }
 
   res.status(200).json({
@@ -78,7 +78,7 @@ const updateEmployee = asyncHandler(async (req, res, next) => {
   );
 
   if (!employee) {
-    throw new AppError('Employee not found or already deleted', 404);
+    throw new AppError('کارکوونکی ونه موندل شو یا دمخه ړنګ شوی دی', 404);
   }
 
   res.status(200).json({
@@ -98,7 +98,7 @@ const deleteEmployee = asyncHandler(async (req, res, next) => {
   );
 
   if (!employee) {
-    throw new AppError('Employee not found or already deleted', 404);
+    throw new AppError('کارکوونکی ونه موندل شو یا دمخه ړنګ شوی دی', 404);
   }
 
   res.status(200).json({

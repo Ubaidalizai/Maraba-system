@@ -27,7 +27,7 @@ const validateAccountBalance = async (accountId, requiredAmount, session) => {
     if (account.type === 'cashier' || account.type === 'safe') {
       if (account.currentBalance < requiredAmount) {
         throw new AppError(
-          `موجودی ناکافی! در حساب ${account.name} موجودی: ${account.currentBalance.toLocaleString()} افغانی، مبلغ مورد نیاز: ${requiredAmount.toLocaleString()} افغانی`,
+          `موجودی ناکافی! په ${account.name} حساب کې موجودی: ${account.currentBalance.toLocaleString()} افغانۍ، اړین مبلغ: ${requiredAmount.toLocaleString()} افغانۍ`,
           400
         );
       }
@@ -44,7 +44,7 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
   const { error } = createPurchaseSchema.validate(req.body);
   if (error) throw new AppError(error.details[0].message, 400);
 
-  const { supplier, purchaseDate, items, paidAmount, paymentAccount, stockLocation = 'warehouse' } =
+  const { supplier, purchaseDate, items, paidAmount, paymentAccount, stockLocation = 'warehouse', description } =
     req.body;
 
   // 1️⃣ Start transaction session
@@ -106,6 +106,7 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
           supplierAccount: supplierAccount._id,
           supplierName: supplierDoc ? supplierDoc.name : supplierAccount.name,
           purchaseDate,
+          description: description || undefined,
           totalAmount,
           paidAmount,
           dueAmount,
@@ -188,7 +189,7 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
           referenceType: 'purchase',
           referenceId: purchase[0]._id,
           created_by: req.user._id,
-          description: `خریداری از تاجر ${supplierAccount.name}${billRef}`,
+          description: `د تاجر ${supplierAccount.name} څخه پېرود${billRef}`,
         },
       ],
       { session }
@@ -209,7 +210,7 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
             referenceType: 'purchase',
             referenceId: purchase[0]._id,
             created_by: req.user._id,
-          description: `پرداخت برای خریداری${billRef}`,
+          description: `د پېرود لپاره تادیه${billRef}`,
           },
         ],
         { session }
@@ -228,7 +229,7 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
             referenceType: 'purchase',
             referenceId: purchase[0]._id,
             created_by: req.user._id,
-          description: `پرداخت برای خریداری${billRef}`,
+          description: `د پېرود لپاره تادیه${billRef}`,
           },
         ],
         { session }
@@ -379,7 +380,7 @@ exports.updatePurchase = asyncHandler(async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const { supplier, purchaseDate, paidAmount, items, reason, stockLocation = 'warehouse', paymentAccount } = req.body;
+    const { supplier, purchaseDate, paidAmount, items, reason, stockLocation = 'warehouse', paymentAccount, description } = req.body;
 
     // 1️⃣ Fetch existing purchase and items
     const purchase = await Purchase.findById(req.params.id).session(session);
@@ -413,6 +414,7 @@ exports.updatePurchase = asyncHandler(async (req, res, next) => {
     }
 
     if (purchaseDate) purchase.purchaseDate = purchaseDate;
+    if (description !== undefined) purchase.description = description;
     if (paidAmount !== undefined) {
       // Check if payment account has enough balance (for non-saraf accounts)
       const payTxn = await AccountTransaction.findOne({
@@ -831,7 +833,7 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
     
     if (amount > remainingDue) {
       throw new AppError(
-        `Payment amount (${amount}) exceeds remaining due (${remainingDue})`,
+        `د تادیې مبلغ (${amount}) د پاتې پور (${remainingDue}) څخه زیات دی`,
         400
       );
     }

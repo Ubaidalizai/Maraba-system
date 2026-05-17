@@ -1,3 +1,4 @@
+import { CgCloseO } from "react-icons/cg";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext";
@@ -6,7 +7,6 @@ import UnitManagement from "../components/UnitManagement";
 import CustomerManagement from "../components/CustomerManagement";
 import EmployeeManagement from "../components/EmployeeManagement";
 import SettingsManagement from "../components/SettingsManagement";
-import SarafManagement from "../components/SarafManagement";
 import {
   BuildingOfficeIcon,
   ShieldCheckIcon,
@@ -15,7 +15,6 @@ import {
   UserIcon,
   TagIcon,
   IdentificationIcon,
-  BanknotesIcon,
 } from "@heroicons/react/24/outline";
 import { inputStyle } from "../components/ProductForm";
 import GloableModal from "../components/GloableModal";
@@ -42,6 +41,7 @@ const AdminPanel = () => {
   const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
   const [activeSection, setActiveSection] = useState("suppliers");
+
   const adminSections = useMemo(
     () => [
       {
@@ -52,9 +52,9 @@ const AdminPanel = () => {
       },
       {
         id: "settings",
-        name: t("admin.sections.settings.name"),
+        name: "تنظیمات شرکت",
         icon: BuildingOfficeIcon,
-        description: "Manage application settings and configurations",
+        description: "مدیریت معلومات شرکت، لوگو و تماس",
       },
       {
         id: "users",
@@ -81,12 +81,6 @@ const AdminPanel = () => {
         description: t("admin.sections.customers.description"),
       },
       {
-        id: "sarafs",
-        name: "صرافان",
-        icon: BanknotesIcon,
-        description: "د صرافانو معلومات اداره کړئ",
-      },
-      {
         id: "employees",
         name: t("admin.sections.employees.name"),
         icon: UserIcon,
@@ -101,6 +95,7 @@ const AdminPanel = () => {
     ],
     [t]
   );
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -113,6 +108,7 @@ const AdminPanel = () => {
       </div>
     );
   }
+
   const renderSectionContent = () => {
     switch (activeSection) {
       case "profile":
@@ -127,8 +123,6 @@ const AdminPanel = () => {
         return <CategoryManagement />;
       case "customers":
         return <CustomerManagement />;
-      case "sarafs":
-        return <SarafManagement />;
       case "employees":
         return <EmployeeManagement />;
       case "units":
@@ -137,6 +131,7 @@ const AdminPanel = () => {
         return <SupplierManagement />;
     }
   };
+
   return (
     <div
       className="min-h-screen"
@@ -173,6 +168,7 @@ const AdminPanel = () => {
             </div>
           </div>
         </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar */}
           <div className="lg:col-span-1">
@@ -208,6 +204,7 @@ const AdminPanel = () => {
               </nav>
             </div>
           </div>
+
           {/* Main Content */}
           <div className="lg:col-span-3">{renderSectionContent()}</div>
         </div>
@@ -215,7 +212,9 @@ const AdminPanel = () => {
     </div>
   );
 };
+
 export default AdminPanel;
+
 // Category Management Component
 const CategoryManagement = () => {
   const { t } = useTranslation();
@@ -230,6 +229,7 @@ const CategoryManagement = () => {
     color: "#95684c",
     isActive: true,
   });
+
   const { data, isLoading } = useQuery({
     queryKey: ["categories", { search, typeFilter }],
     queryFn: async () => {
@@ -242,6 +242,7 @@ const CategoryManagement = () => {
       );
     },
   });
+
   const createMutation = useMutation({
     mutationFn: async (payload) =>
       apiRequest(API_ENDPOINTS.CATEGORIES.CREATE, {
@@ -258,6 +259,7 @@ const CategoryManagement = () => {
     onError: (e) =>
       toast.error(e.message || t("admin.categoriesPage.errCreate")),
   });
+
   const updateMutation = useMutation({
     mutationFn: async ({ id, payload }) =>
       apiRequest(API_ENDPOINTS.CATEGORIES.UPDATE(id), {
@@ -275,6 +277,7 @@ const CategoryManagement = () => {
     onError: (e) =>
       toast.error(e.message || t("admin.categoriesPage.errUpdate")),
   });
+
   const deleteMutation = useMutation({
     mutationFn: async (id) =>
       apiRequest(API_ENDPOINTS.CATEGORIES.DELETE(id), { method: "DELETE" }),
@@ -286,13 +289,16 @@ const CategoryManagement = () => {
     onError: (e) =>
       toast.error(e.message || t("admin.categoriesPage.errDelete")),
   });
+
   const categories = data?.data || [];
+
   const categoryTypeLabel = (type) => {
     if (type === "expense") return t("admin.categoriesPage.typeExpenseShort");
     if (type === "income") return t("admin.categoriesPage.typeIncomeShort");
     if (type === "both") return t("admin.categoriesPage.typeBothShort");
-    return type || "ΓÇö";
+    return type || "—";
   };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -325,6 +331,7 @@ const CategoryManagement = () => {
           <span>{t("admin.categoriesPage.add")}</span>
         </button>
       </div>
+
       {/* Search and Filters */}
       <div className="card">
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -356,6 +363,7 @@ const CategoryManagement = () => {
           </div>
         </div>
       </div>
+
       {/* Table */}
       <div className="card">
         <div className="overflow-x-auto">
@@ -454,6 +462,7 @@ const CategoryManagement = () => {
           </table>
         </div>
       </div>
+
       {/* Add/Edit Modal */}
       <GloableModal open={isModalOpen} setOpen={setIsModalOpen} isClose={true}>
         <div className=" w-[480px] max-h-[80vh] bg-white overflow-y-auto rounded-md">
@@ -576,6 +585,7 @@ const CategoryManagement = () => {
     </div>
   );
 };
+
 // Profile Management Component
 const ProfileManagement = () => {
   const { t } = useTranslation();
@@ -598,7 +608,9 @@ const ProfileManagement = () => {
   } = useForm();
   const passwordSubmitLock = useSubmitLock();
   const emailSubmitLock = useSubmitLock();
+
   const updateEmailMutation = useUpdateProfile();
+
   const runMutation = (mutateFn, payload, callbacks = {}) =>
     new Promise((resolve, reject) => {
       mutateFn(payload, {
@@ -612,10 +624,12 @@ const ProfileManagement = () => {
         },
       });
     });
+
   const handlePassword = passwordSubmitLock.wrapSubmit(async (data) => {
     await runMutation(updatePassword, data);
     Navigate("/login");
   });
+
   const handleEmail = emailSubmitLock.wrapSubmit(async (data) => {
     // Filter out empty fields - only send fields that have values
     const updateData = Object.keys(data).reduce((acc, key) => {
@@ -633,11 +647,13 @@ const ProfileManagement = () => {
       }
       return acc;
     }, {});
+
     // Only submit if at least one field has a value
     if (Object.keys(updateData).length === 0) {
       toast.error(t("admin.profilePage.toastMinField"));
       return;
     }
+
     await runMutation(updateEmailMutation.mutate, updateData, {
       onSuccess: async () => {
         setChangeEmail(false);
@@ -654,6 +670,7 @@ const ProfileManagement = () => {
       },
     });
   });
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -664,7 +681,9 @@ const ProfileManagement = () => {
       reader.readAsDataURL(file);
     }
   };
+
   const displayData = user;
+
   return (
     <div className="space-y-4">
       {/* Profile Picture Only */}
@@ -685,6 +704,7 @@ const ProfileManagement = () => {
           </div>
         </div>
       </div>
+
       {/* Profile Information - Row Layout */}
       <div className="card">
         <h4 className="text-sm font-semibold mb-3" style={{ color: "var(--text-dark)" }}>
@@ -719,6 +739,7 @@ const ProfileManagement = () => {
           </div>
         </div>
       </div>
+
       {/* Security Settings - Compact */}
       <div className="card">
         <h4 className="text-sm font-semibold mb-3" style={{ color: "var(--text-dark)" }}>
@@ -734,8 +755,9 @@ const ProfileManagement = () => {
                 {t("admin.profilePage.changePassword")}
               </span>
           </div>
-            <span className="text-xs" style={{ color: "var(--text-medium)" }}>Γ£Ä</span>
+            <span className="text-xs" style={{ color: "var(--text-medium)" }}>✎</span>
           </button>
+          
           <button
             onClick={() => setChangeEmail(true)}
             className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-amber-400 hover:bg-amber-50 transition-all"
@@ -745,10 +767,11 @@ const ProfileManagement = () => {
                 {t("admin.profilePage.editProfile")}
             </span>
           </div>
-            <span className="text-xs" style={{ color: "var(--text-medium)" }}>Γ£Ä</span>
+            <span className="text-xs" style={{ color: "var(--text-medium)" }}>✎</span>
           </button>
         </div>
       </div>
+
       {/* Password Update Modal */}
       <GloableModal open={changeSetting} setOpen={setChangeSetting} isClose={true}>
         <div className="w-[500px] max-h-[80vh] bg-white overflow-y-auto rounded-md">
@@ -766,39 +789,39 @@ const ProfileManagement = () => {
               <div>
                 <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-dark)" }}>
                   {t("admin.profilePage.currentPassword")}
-                </label>
-                <input
-                  type="password"
-                  {...register("currentPassword", {
-                    required: t("admin.profilePage.currentPasswordRequired"),
-                  })}
+                  </label>
+                  <input
+                    type="password"
+                    {...register("currentPassword", {
+                      required: t("admin.profilePage.currentPasswordRequired"),
+                    })}
                   placeholder={t("admin.profilePage.currentPasswordPh")}
-                  className={inputStyle}
-                />
-                {errors.currentPassword && (
+                    className={inputStyle}
+                  />
+                  {errors.currentPassword && (
                   <p className="text-xs text-red-500 mt-1">
-                    {errors.currentPassword.message}
-                  </p>
-                )}
-              </div>
+                      {errors.currentPassword.message}
+                    </p>
+                  )}
+                </div>
               <div>
                 <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-dark)" }}>
                   {t("admin.profilePage.newPassword")}
-                </label>
-                <input
-                  type="password"
-                  {...register("newPassword", {
-                    required: t("admin.profilePage.newPasswordRequired"),
-                  })}
+                  </label>
+                  <input
+                    type="password"
+                    {...register("newPassword", {
+                      required: t("admin.profilePage.newPasswordRequired"),
+                    })}
                   placeholder={t("admin.profilePage.newPasswordPh")}
-                  className={inputStyle}
-                />
-                {errors.newPassword && (
+                    className={inputStyle}
+                  />
+                  {errors.newPassword && (
                   <p className="text-xs text-red-500 mt-1">
-                    {errors.newPassword.message}
-                  </p>
-                )}
-              </div>
+                      {errors.newPassword.message}
+                    </p>
+                  )}
+                </div>
               <div className="flex items-center justify-end gap-2 mt-6">
                 <button
                   type="button"
@@ -825,6 +848,7 @@ const ProfileManagement = () => {
           </div>
         </div>
       </GloableModal>
+
       {/* Profile Update Modal */}
       <GloableModal open={changeEmail} setOpen={setChangeEmail} isClose={true}>
         <div className="w-[500px] max-h-[80vh] bg-white overflow-y-auto rounded-md">
@@ -953,6 +977,7 @@ const ProfileManagement = () => {
     </div>
   );
 };
+
 // User Management Component
 const UserManagement = () => {
   const { t } = useTranslation();
@@ -960,6 +985,7 @@ const UserManagement = () => {
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+
   const { data, isLoading } = useQuery({
     queryKey: ["users", { search }],
     queryFn: async () => {
@@ -968,6 +994,7 @@ const UserManagement = () => {
       return apiRequest(`${API_ENDPOINTS.AUTH.UPDATEUSERS}?${params.toString()}`);
     },
   });
+
   const deleteMutation = useMutation({
     mutationFn: async (id) =>
       apiRequest(`${API_ENDPOINTS.AUTH.UPDATEUSERS}/${id}`, { method: "DELETE" }),
@@ -978,7 +1005,9 @@ const UserManagement = () => {
     onError: (e) =>
       toast.error(e.message || t("admin.usersPage.errDelete")),
   });
+
   const users = data?.data?.results || [];
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -989,6 +1018,7 @@ const UserManagement = () => {
           <p className="text-gray-600 mt-1">{t("admin.usersPage.subtitle")}</p>
         </div>
       </div>
+
       <div className="card">
         <div className="relative max-w-md">
           <MagnifyingGlassIcon className="h-5 w-5 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -1001,6 +1031,7 @@ const UserManagement = () => {
           />
         </div>
       </div>
+
       <div className="card">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -1100,6 +1131,238 @@ const UserManagement = () => {
           </table>
         </div>
       </div>
+    </div>
+  );
+};
+
+// Settings Management Component
+const SettingsManagement = () => {
+  const { t } = useTranslation();
+  const { data: settingsData, isLoading } = useSettings();
+  const updateMutation = useUpdateSettings();
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [form, setForm] = useState({
+    companyName: "",
+    companyNameEnglish: "",
+    address: "",
+    phone: "",
+    email: "",
+    website: "",
+    taxId: "",
+    description: "",
+  });
+
+  React.useEffect(() => {
+    if (settingsData?.data?.settings) {
+      const s = settingsData.data.settings;
+      setForm({
+        companyName: s.companyName || "",
+        companyNameEnglish: s.companyNameEnglish || "",
+        address: s.address || "",
+        phone: s.phone || "",
+        email: s.email || "",
+        website: s.website || "",
+        taxId: s.taxId || "",
+        description: s.description || "",
+      });
+    }
+  }, [settingsData]);
+
+  const handleLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => setLogoPreview(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    Object.keys(form).forEach(key => {
+      if (form[key]) formData.append(key, form[key]);
+    });
+    const logoInput = document.getElementById('logo-input');
+    if (logoInput?.files[0]) {
+      formData.append('logo', logoInput.files[0]);
+    }
+    updateMutation.mutate(formData);
+  };
+
+  const currentLogo = settingsData?.data?.settings?.logo;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold" style={{ color: "var(--primary-brown)" }}>
+          تنظیمات شرکت
+        </h2>
+        <p className="text-gray-600 mt-1">مدیریت معلومات شرکت، لوگو و تماس</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Logo Upload */}
+        <div className="card">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--text-dark)" }}>
+            لوگو شرکت
+          </h3>
+          <div className="flex items-center gap-6">
+            <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden">
+              {logoPreview ? (
+                <img src={logoPreview} alt="Logo Preview" className="w-full h-full object-contain" />
+              ) : currentLogo ? (
+                <img src={`${BACKEND_BASE_URL}/public/images/settings/${currentLogo}`} alt="Current Logo" className="w-full h-full object-contain" />
+              ) : (
+                <PhotoIcon className="h-12 w-12 text-gray-400" />
+              )}
+            </div>
+            <div>
+              <label htmlFor="logo-input" className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors">
+                <PhotoIcon className="h-5 w-5" />
+                <span>انتخاب لوگو</span>
+              </label>
+              <input
+                id="logo-input"
+                type="file"
+                accept="image/*"
+                onChange={handleLogoChange}
+                className="hidden"
+              />
+              <p className="text-xs text-gray-500 mt-2">JPG, PNG یا GIF (حداکثر 5MB)</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Company Information */}
+        <div className="card">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--text-dark)" }}>
+            معلومات شرکت
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-medium)" }}>
+                نام شرکت (پشتو/دری)
+              </label>
+              <input
+                type="text"
+                value={form.companyName}
+                onChange={(e) => setForm({ ...form, companyName: e.target.value })}
+                className={inputStyle}
+                placeholder="بلال سدیس د مربا شرکت"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-medium)" }}>
+                نام شرکت (انگلیسی)
+              </label>
+              <input
+                type="text"
+                value={form.companyNameEnglish}
+                onChange={(e) => setForm({ ...form, companyNameEnglish: e.target.value })}
+                className={inputStyle}
+                placeholder="Bilal Sudaice LTD"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-medium)" }}>
+                آدرس
+              </label>
+              <textarea
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                className={inputStyle}
+                rows={2}
+                placeholder="آدرس کامل شرکت"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Information */}
+        <div className="card">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--text-dark)" }}>
+            معلومات تماس
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-medium)" }}>
+                تلیفون
+              </label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                className={inputStyle}
+                placeholder="+93 XXX XXX XXX"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-medium)" }}>
+                ایمیل
+              </label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className={inputStyle}
+                placeholder="info@company.com"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-medium)" }}>
+                ویب سایت
+              </label>
+              <input
+                type="url"
+                value={form.website}
+                onChange={(e) => setForm({ ...form, website: e.target.value })}
+                className={inputStyle}
+                placeholder="https://www.company.com"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-medium)" }}>
+                شماره مالیاتی
+              </label>
+              <input
+                type="text"
+                value={form.taxId}
+                onChange={(e) => setForm({ ...form, taxId: e.target.value })}
+                className={inputStyle}
+                placeholder="TAX-XXXXX"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block mb-2 text-sm font-medium" style={{ color: "var(--text-medium)" }}>
+                توضیحات
+              </label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className={inputStyle}
+                rows={3}
+                placeholder="توضیحات مختصر در مورد شرکت"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Submit Button */}
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={updateMutation.isPending || isLoading}
+            className={`px-6 py-2 rounded-md font-medium text-sm transition-all ${
+              updateMutation.isPending || isLoading
+                ? "bg-amber-600/70 cursor-not-allowed text-white"
+                : "bg-amber-600 hover:bg-amber-700 text-white cursor-pointer"
+            }`}
+          >
+            {updateMutation.isPending ? "در حال ذخیره..." : "ذخیره تغییرات"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };

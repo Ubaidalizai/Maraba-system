@@ -57,6 +57,11 @@ const saleSchema = new mongoose.Schema(
       enum: ['small', 'large'],
       default: 'small',
     },
+    description: {
+      type: String,
+      maxlength: 500,
+      required: false,
+    },
     soldBy: {
       // the cashier / user who created the sale
       type: mongoose.Schema.Types.ObjectId,

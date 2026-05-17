@@ -22,13 +22,13 @@ exports.backupDatabase = asyncHandler(async (req, res) => {
   exec(command, (error) => {
     if (error) {
       console.error("Backup failed:", error);
-      throw new AppError("Backup failed", 500);
+      throw new AppError("بیک اپ ناکام شو", 500);
     }
 
     // Send the backup file to the client
     res.download(backupPath, backupFile, (err) => {
       if (err) {
-        throw new AppError("Failed to send backup file", 500);
+        throw new AppError("د بیک اپ فایل لیږل ناکام شو", 500);
       }
 
       // Delete the backup file from the server after download

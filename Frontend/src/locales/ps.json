@@ -351,7 +351,7 @@
     "unit": "واحد",
     "quantity": "مقدار",
     "unitPrice": "د واحد بیه",
-    "lineTotal": "ټوله کرښه",
+    "lineTotal": "ټوټل ",
     "noItems": "هیڅ توکي ونه موندل شول",
     "grandTotal": "ټوله اندازه:"
   },
@@ -426,23 +426,23 @@
 },
 "purchaseModal": {
   "title": "نوی رانیول",
-  "supplierAccountLabel": "عرضه کوونکی (حساب) *",
+  "supplierAccountLabel": "عرضه کوونکی حساب",
   "selectSupplierAccount": "د عرضه کوونکي حساب وټاکئ",
   "purchaseDate": "د رانیول نېټه",
-  "paymentAccountLabel": "د تادیې حساب *",
+  "paymentAccountLabel": "د تادیې حساب",
   "selectPaymentAccount": "حساب وټاکئ",
   "paidAmount": "ورکړل شوې اندازه",
   "placeholderZero": "۰",
   "placeholderMoney": "۰.۰۰",
   "addItemTitle": "توکی زیات کړئ",
   "addButton": "زیات کړئ",
-  "productLabel": "محصول *",
+  "productLabel": "محصول",
   "selectProduct": "محصول وټاکئ",
-  "unitLabel": "واحد *",
+  "unitLabel": "واحد",
   "selectProductFirst": "لومړی محصول وټاکئ",
   "selectUnit": "واحد وټاکئ",
-  "quantityLabel": "مقدار *",
-  "unitPriceLabel": "د واحد بیه *",
+  "quantityLabel": "مقدار",
+  "unitPriceLabel": "د واحد بیه",
   "batchNumber": "د بچ نمبر",
   "optional": "اختیاري",
   "expiryDate": "د پای نېټه",
@@ -523,13 +523,14 @@
     "saleDate": "د خرڅلاو نېټه",
     "customer": "مشتري",
     "paymentStatus": "د تادیې حالت",
+    "description": "یادښت",
     "itemsTitle": "پلورل شوي توکي",
     "product": "محصول",
     "unit": "واحد",
     "quantity": "مقدار",
     "cartonCount": "کارتنونه",
     "unitPrice": "د واحد بیه",
-    "lineTotal": "ټوله کرښه",
+    "lineTotal": "ټوټل",
     "noItems": "هیڅ توکي نشته",
     "grandTotal": "ټوله اندازه:",
     "recordPayment": "تادیه ثبت کړئ"
@@ -581,13 +582,14 @@
     "actions": "عملیات"
   },
   "productHeaders": {
+    "serial": "شمېره",
     "product": "محصول",
     "unit": "واحد",
     "batch": "بیچ",
     "quantity": "شمېر",
     "cartonCount": "کارتنونه",
     "unitPrice": "د واحد بیه",
-    "lineTotal": "ټوله کرښه"
+    "lineTotal": "ټوټل"
   },
   "searchPlaceholder": "لټون...",
   "filterByPayment": "د تادیې له مخې",
@@ -629,7 +631,16 @@
   "thanksSubtitle": "هیله لرو بیا ستاسو خدمت وکړو",
   "printError": "د فاکتور په چاپ کې ستونزه. بیا کوښښ وکړئ.",
   "pdfError": "د PDF په جوړولو کې ستونزه. بیا کوښښ وکړئ.",
-  "address": "افغانستان، کندهار، سرک نو احمدي مارکیټ، دوکان شمېر ۳ او ۴"
+  "printTitle": "د فاکتور چاپ",
+  "printTwoCopies": "دوه کاپي چاپ",
+  "printOneCopy": "یو کاپي چاپ",
+  "invoiceFor": "فاکتور لپاره:",
+  "invoiceNumber": "د فاکتور شمېره",
+  "customerBalance": "د پېرودونکي حساب بیلانس",
+  "totalUnit": "ټول",
+  "grandTotal": "ټوله اندازه",
+  "amountReceived": "ترلاسه شوې اندازه",
+  "remaining": "پاتې"
 },
 
  "saleForm": {
@@ -655,7 +666,7 @@
   "saleDate": "د خرڅلاو نېټه",
   "datePlaceholder": "نېټه وټاکئ",
   "saleDateRequired": "د خرڅلاو نېټه اړینه ده",
-  "itemsTitle": "توکي",
+  "itemsTitle": "اجناس",
   "addItem": "زیات کړئ",
   "addItemSaving": "اضافه کول روان دي...",
   "productName": "د محصول نوم",
@@ -701,7 +712,16 @@
   },
   "validation": {
     "paidExceedsTotal": "ورکړل شوې اندازه ({{paid}}) باید له ټولې اندازې ({{total}}) زیاته نه وي",
-    "paidExceedsTotalField": "ورکړل شوې اندازه باید له ټولې اندازې ({{total}}) زیاته نه وي"
+    "paidExceedsTotalField": "ورکړل شوې اندازه باید له ټولې اندازې ({{total}}) زیاته نه وي",
+    "customerRequired": "مهرباني وکړئ د مشتري حساب وټاکئ",
+    "employeeRequired": "مهرباني وکړئ د کارمند حساب وټاکئ",
+    "walkinMustBePaid": "د عادي مشتري لپاره باید بشپړه پیسې ورکړي"
+  }
+},
+"purchaseForm": {
+  "validation": {
+    "supplierRequired": "مهرباني وکړئ د عرضه کوونکي حساب وټاکئ",
+    "paidExceedsTotal": "ورکړل شوې اندازه ({{paid}}) باید له ټولې اندازې ({{total}}) زیاته نه وي"
   }
 },
 "expenses": {
@@ -818,6 +838,9 @@
   "title": "د حسابونو مدیریت",
   "subtitle": "د سیسټم حسابونه جوړ او اداره کړئ",
   "newAccount": "نوی حساب",
+  "summary": {
+    "accounts": "حسابونه"
+  },
   "types": {
     "supplier": "عرضه کوونکی",
     "customer": "مشتري",
@@ -971,6 +994,10 @@
     "profile": {
       "name": "د کارونکي پروفایل",
       "description": "خپل پروفایل وګورئ او سم یې کړئ"
+    },
+    "settings": {
+      "name": "د شرکت تنظیمات",
+      "description": "د شرکت معلومات، لوګو او اړیکې اداره کړئ"
     },
     "users": {
       "name": "د کاروونکو اداره",
@@ -1288,6 +1315,37 @@
       "confirm": "حذف",
       "deleting": "حذف روان دی..."
     }
+  },
+  "settingsPage": {
+    "title": "د شرکت تنظیمات",
+    "subtitle": "د شرکت معلومات، لوګو او اړیکې اداره کړئ",
+    "logoSection": "د شرکت لوګو",
+    "logoPreview": "د لوګو مخکتنه",
+    "currentLogo": "اوسنی لوګو",
+    "chooseLogo": "لوګو وټاکئ",
+    "logoHint": "JPG, PNG یا GIF (حداکثر 5MB)",
+    "companyInfo": "د شرکت معلومات",
+    "companyNamePs": "د شرکت نوم (پشتو/دری)",
+    "companyNameEn": "د شرکت نوم (انګلیسي)",
+    "companyNamePsPlaceholder": "بلال سدیس د مربا شرکت",
+    "companyNameEnPlaceholder": "Bilal Sudaice LTD",
+    "address": "پته",
+    "addressPlaceholder": "د شرکت بشپړه پته",
+    "contactInfo": "د اړیکې معلومات",
+    "phone1": "تلیفون ۱",
+    "phone2": "تلیفون ۲",
+    "phone3": "تلیفون ۳",
+    "phonePlaceholder": "+93 XXX XXX XXX",
+    "email": "ایمیل",
+    "emailPlaceholder": "info@company.com",
+    "website": "ویب سایټ",
+    "websitePlaceholder": "https://www.company.com",
+    "taxId": "د مالیې شمېره",
+    "taxIdPlaceholder": "TAX-XXXXX",
+    "description": "تشریح",
+    "descriptionPlaceholder": "د شرکت لنډ تشریح",
+    "saveChanges": "بدلونونه ثبت کړئ",
+    "saving": "ثبت روان دی..."
   }
 }
 ,

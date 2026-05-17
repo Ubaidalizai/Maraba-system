@@ -10,7 +10,7 @@ const createCompany = asyncHandler(async (req, res, next) => {
 
   const companyExists = await Company.findOne({ name, isDeleted: false });
   if (companyExists) {
-    throw new AppError("Company with this name already exists", 400);
+    throw new AppError("د دې نوم سره شرکت دمخه شتون لري", 400);
   }
 
   const company = await Company.create({ name, address, contactNumber, email });
@@ -58,7 +58,7 @@ const getCompany = asyncHandler(async (req, res, next) => {
   });
 
   if (!company) {
-    throw new AppError("Company not found", 404);
+    throw new AppError("شرکت ونه موندل شو", 404);
   }
 
   res.status(200).json({
@@ -78,7 +78,7 @@ const updateCompany = asyncHandler(async (req, res, next) => {
   );
 
   if (!company) {
-    throw new AppError("Company not found or already deleted", 404);
+    throw new AppError("شرکت ونه موندل شو یا دمخه ړنګ شوی دی", 404);
   }
 
   res.status(200).json({
@@ -98,12 +98,12 @@ const deleteCompany = asyncHandler(async (req, res, next) => {
   );
 
   if (!company) {
-    throw new AppError("Company not found or already deleted", 404);
+    throw new AppError("شرکت ونه موندل شو یا دمخه ړنګ شوی دی", 404);
   }
 
   res.status(200).json({
     status: "success",
-    message: "Company deleted successfully (soft delete applied)",
+    message: "شرکت په بریالیتوب سره ړنګ شو",
   });
 });
 

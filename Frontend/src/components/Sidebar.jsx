@@ -13,6 +13,7 @@ import {
   ShieldCheckIcon,
   ArrowTrendingUpIcon,
 } from "@heroicons/react/24/outline";
+import { useSettings } from "../services/useApi";
 
 // Flat items and grouped sections
 const navigation = [
@@ -37,6 +38,9 @@ const navigation = [
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const [isFinanceOpen, setIsFinanceOpen] = React.useState(false);
+  const { data: settings } = useSettings();
+
+  const companyName = settings?.data?.settings?.companyName || "سیستم مدیریت";
 
   // Auto-open finance section if current route is in finance group
   React.useEffect(() => {
@@ -75,7 +79,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             className="font-bold text-white"
             style={{ fontSize: "var(--h4-size)" }}
           >
-            سیستم مدیریت
+            {companyName}
           </h2>
           <button
             onClick={onClose}
@@ -97,7 +101,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               className="font-bold text-white"
               style={{ fontSize: "var(--h3-size)" }}
             >
-              سیستم مدیریت
+              {companyName}
             </h1>
             <p
               className="text-sm"

@@ -255,7 +255,7 @@ function Store() {
                 <div className=" flex flex-col  items-start gap-x-2">
                   <h3 className="text-sm  font-medium text-gray-500 mb-1 flex items-center justify-end gap-1">
                     <Package className=" text-2xl text-palm-500" />
-                    <span className="text-lg text-palm-500">واحد</span>
+                    <span className="ext-lg text-palm-500">واحد</span>
                   </h3>
                   <p className="text-lg font-semibold text-palm-400">
                     {selectedData?.unit?.name || selectedData?.unit}
@@ -277,7 +277,7 @@ function Store() {
                 <div className="flex flex-col  items-start gap-x-2">
                   <h3 className="text-sm font-medium text-gray-500 mb-1 flex items-center justify-end gap-1">
                     <ImPriceTag className="text-2xl text-palm-500" />
-                    <span className="ext-lg text-palm-500">قیمت</span>
+                    <span className="ext-lg text-palm-500">بیه</span>
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
                     {selectedData?.purchasePricePerBaseUnit}
@@ -288,7 +288,7 @@ function Store() {
                 <div className="flex flex-col  items-start gap-x-2">
                   <h3 className="text-sm font-medium text-gray-500 mb-1 flex items-center justify-end gap-1">
                     <CalendarDays className="text-2xl text-palm-500" />
-                    <span className="ext-lg text-palm-500">تاریخ انقضا</span>
+                    <span className="ext-lg text-palm-500">د پای نېټه</span>
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
                     {selectedData?.expiryDate
@@ -307,7 +307,7 @@ function Store() {
                   <h3 className="text-sm font-medium text-gray-500 mb-2 flex items-center justify-end gap-1">
                     <Info className="text-2xl text-palm-500" />
                     <span className="ext-[16px] text-palm-500">
-                      نمبر ردیابی
+                      د ردیابۍ شمېره
                     </span>
                   </h3>
                   <p className="text-gray-800 leading-relaxed text-right">
@@ -317,10 +317,10 @@ function Store() {
                 <div className="flex flex-col  items-start gap-x-2">
                   <h3 className="text-sm font-medium text-gray-500 mb-2 flex items-center justify-end gap-1">
                     <MdOutlineDescription className="text-2xl text-yellow-500" />
-                    <span className="ext-[16px] text-palm-500">توضیحات</span>
+                    <span className="ext-[16px] text-palm-500">تشریح</span>
                   </h3>
                   <p className="text-gray-800 leading-relaxed text-right">
-                    {selectedData.description || "No description provided"}
+                    {selectedData.description || "هیڅ تشریح نه دی ورکړ شوی"}
                   </p>
                 </div>
               </div>

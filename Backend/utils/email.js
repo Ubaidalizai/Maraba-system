@@ -25,7 +25,7 @@ class Email {
       from: this.from,
       to: this.to,
       subject,
-      text: `Please click on the following link to reset your password: ${this.url}`,
+      text: `مهرباني وکړئ د خپل پاسورډ د بیرته تنظیمولو لپاره په لاندې لینک کلیک وکړئ: ${this.url}`,
     };
 
     // Create a transport and send email
@@ -35,7 +35,7 @@ class Email {
   async sendPasswordReset() {
     await this.send(
       "passwordReset",
-      "Your password reset token (valid for only 10 minutes)",
+      "ستاسو د پاسورډ بیرته تنظیمولو ټوکن (یوازې د 10 دقیقو لپاره اعتبار لري)",
     );
   }
 }

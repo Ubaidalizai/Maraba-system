@@ -333,7 +333,7 @@ exports.updateExpense = asyncHandler(async (req, res, next) => {
     });
     if (!categoryDoc) {
       throw new AppError(
-        'Invalid category or category not available for expenses',
+        'ناسم کېټګورۍ یا کېټګورۍ د هزینې لپاره شتون نلري',
         400
       );
     }

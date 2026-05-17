@@ -10,7 +10,7 @@ const createCustomer = asyncHandler(async (req, res, next) => {
 
   const customerExists = await Customer.findOne({ name, isDeleted: false });
   if (customerExists) {
-    throw new AppError('Customer with this name already exists', 400);
+    throw new AppError('د دې نوم سره پیرودونکی دمخه شتون لري', 400);
   }
 
   const customer = await Customer.create({ name, contact_info });
@@ -58,7 +58,7 @@ const getCustomer = asyncHandler(async (req, res, next) => {
   });
 
   if (!customer) {
-    throw new AppError('Customer not found', 404);
+    throw new AppError('پیرودونکی ونه موندل شو', 404);
   }
 
   res.status(200).json({
@@ -78,7 +78,7 @@ const updateCustomer = asyncHandler(async (req, res, next) => {
   );
 
   if (!customer) {
-    throw new AppError('Customer not found or already deleted', 404);
+    throw new AppError('پیرودونکی ونه موندل شو یا دمخه ړنګ شوی دی', 404);
   }
 
   res.status(200).json({
@@ -98,7 +98,7 @@ const deleteCustomer = asyncHandler(async (req, res, next) => {
   );
 
   if (!customer) {
-    throw new AppError('Customer not found or already deleted', 404);
+    throw new AppError('پیرودونکی ونه موندل شو یا دمخه ړنګ شوی دی', 404);
   }
 
   res.status(200).json({

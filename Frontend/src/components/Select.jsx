@@ -55,7 +55,7 @@ function Select({
       {/* Select Box */}
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full bg-transparent capitalize  placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm pr-3 pl-4 py-1 transition duration-300 ease focus:outline-none hover:border-slate-300 shadow-sm focus:shadow cursor-pointer flex justify-between items-center`}
+        className={`w-full bg-transparent capitalize  placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm pr-3 pl-4 py-1.5 transition duration-300 ease focus:outline-none hover:border-slate-300 focus:shadow cursor-pointer flex justify-between items-center`}
       >
         <span className=" text-[15px] font-[400]">{getSelectedLabel()}</span>
         <RiArrowDownSLine
@@ -78,7 +78,7 @@ function Select({
           />
 
           {/* Scrollable options */}
-          <div className="max-h-40 overflow-y-auto">
+          <div className="max-h-84 overflow-y-auto">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option, index) => (
                 <div

@@ -432,7 +432,7 @@ exports.updateIncome = asyncHandler(async (req, res, next) => {
 
     if (!categoryDoc) {
       throw new AppError(
-        'Invalid category or category not available for income',
+        'ناسم کېټګورۍ یا کېټګورۍ د عاید لپاره شتون نلري',
         400
       );
     }

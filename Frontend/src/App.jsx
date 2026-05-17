@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Bounce, ToastContainer } from "react-toastify";
+import useConvertPashtoDigits from "./hooks/useConvertPashtoDigits";
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -21,8 +22,13 @@ import Income from "./pages/Income";
 import Inventory from "./pages/Inventory";
 import Login from "./pages/Login";
 import Purchases from "./pages/Purchases";
+import PurchaseDetails from "./pages/PurchaseDetails";
 import Reports from "./pages/Reports";
 import Sales from "./pages/Sales";
+import SaleDetails from "./pages/SaleDetails";
+import AddSale from "./pages/AddSale";
+import EditSale from "./pages/EditSale";
+import AddPurchase from "./pages/AddPurchase";
 import SaleBill from "./pages/SaleBill";
 import PrintSimple from "./pages/PrintSimple";
 import TestPDF from "./components/TestPDF";
@@ -57,6 +63,8 @@ function AppToastContainer() {
 }
 
 function App() {
+  useConvertPashtoDigits();
+  
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -79,7 +87,12 @@ function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="/inventory" element={<Inventory />} />
                 <Route path="/purchases" element={<Purchases />} />
+                <Route path="/purchases/add" element={<AddPurchase />} />
+                <Route path="/purchases/:id" element={<PurchaseDetails />} />
                 <Route path="/sales" element={<Sales />} />
+                <Route path="/sales/add" element={<AddSale />} />
+                <Route path="/sales/edit/:id" element={<EditSale />} />
+                <Route path="/sales/:id" element={<SaleDetails />} />
                 <Route path="/expenses" element={<Expenses />} />
                 <Route path="/income" element={<Income />} />
                 <Route path="/accounts" element={<Accounts />} />

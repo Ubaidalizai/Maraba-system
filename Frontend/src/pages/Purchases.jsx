@@ -125,10 +125,7 @@ const Purchases = () => {
   };
 
   const handleViewDetails = (purchaseId) => {
-    setSelectedPurchaseId(purchaseId);
-    const summary = purchases.find((p) => p._id === purchaseId) || null;
-    setSelectedPurchaseSummary(summary);
-    setShowDetailsModal(true);
+    navigate(`/purchases/${purchaseId}`);
   };
 
   const handleEditPurchase = (purchase) => {
@@ -170,15 +167,7 @@ const Purchases = () => {
 
   // Handle URL parameters for modal flow
   useEffect(() => {
-    if (openId && action === "view") {
-      // Find the purchase with the given ID
-      const purchase = purchases.find((p) => p._id === openId);
-      if (purchase) {
-        setSelectedPurchaseId(openId);
-        setShowDetailsModal(true);
-        setSelectedPurchaseSummary(purchase);
-      }
-    }
+    // Removed view action handling since it's now a separate page
   }, [openId, action, purchases]);
 
   // Clear openId/action from URL (used when closing modals opened via link)
@@ -513,7 +502,7 @@ const Purchases = () => {
             </select>
           </div>
           <button
-            onClick={() => setShowPurchaseModal(true)}
+            onClick={() => navigate('/purchases/add')}
             className="flex max-md:flex-1 max-md:text-[14px]  items-center gap-2 md:px-4 md:py-2 p-2 bg-amber-600 text-white rounded-sm hover:bg-amber-700 transition-colors"
           >
             <PlusIcon className="h-5 w-5" />
@@ -664,10 +653,10 @@ const Purchases = () => {
       </div>
 
       {/* Purchase Modal */}
-      <PurchaseModal
+      {/* <PurchaseModal
         isOpen={showPurchaseModal}
         onClose={() => setShowPurchaseModal(false)}
-      />
+      /> */}
 
       {/* Purchase Details Modal */}
       <GloableModal

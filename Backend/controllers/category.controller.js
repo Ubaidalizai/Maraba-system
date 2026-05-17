@@ -67,7 +67,7 @@ exports.getCategoriesByType = asyncHandler(async (req, res, next) => {
 
   if (!['expense', 'income', 'both'].includes(type)) {
     throw new AppError(
-      'Invalid category type. Must be expense, income, or both',
+      'ناسم کېټګورۍ ډول. باید لګښت، عاید یا دواړه وي',
       400
     );
   }
@@ -98,7 +98,7 @@ exports.getCategoryById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid category ID', 400);
+    throw new AppError('ناسم کېټګورۍ پیژندنه', 400);
   }
 
   const category = await Category.findOne({ _id: id, isDeleted: false })
@@ -106,7 +106,7 @@ exports.getCategoryById = asyncHandler(async (req, res, next) => {
     .lean();
 
   if (!category) {
-    throw new AppError('Category not found', 404);
+    throw new AppError('کېټګورۍ ونه موندل شوه', 404);
   }
 
   res.status(200).json({
@@ -121,11 +121,11 @@ exports.createCategory = asyncHandler(async (req, res, next) => {
   const { name, type, description, color } = req.body;
 
   if (!name || !type) {
-    throw new AppError('Name and type are required', 400);
+    throw new AppError('نوم او ډول اړین دي', 400);
   }
 
   if (!['expense', 'income', 'both'].includes(type)) {
-    throw new AppError('Type must be expense, income, or both', 400);
+    throw new AppError('ډول باید لګښت، عاید یا دواړه وي', 400);
   }
 
   // Check if category with same name already exists
@@ -135,7 +135,7 @@ exports.createCategory = asyncHandler(async (req, res, next) => {
   });
 
   if (existingCategory) {
-    throw new AppError('Category with this name already exists', 400);
+    throw new AppError('د دې نوم سره کېټګورۍ دمخه شتون لري', 400);
   }
 
   const category = await Category.create({
@@ -155,7 +155,7 @@ exports.createCategory = asyncHandler(async (req, res, next) => {
     operation: 'INSERT',
     oldData: null,
     newData: category.toObject(),
-    reason: `Category created: ${name}`,
+    reason: `کېټګورۍ جوړه شوه: ${name}`,
     changedBy: req.user?.name || 'System',
     changedAt: new Date(),
   });
@@ -174,12 +174,12 @@ exports.updateCategory = asyncHandler(async (req, res, next) => {
   const { name, type, description, color, isActive } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid category ID', 400);
+    throw new AppError('ناسم کېټګورۍ پیژندنه', 400);
   }
 
   const category = await Category.findOne({ _id: id, isDeleted: false });
   if (!category) {
-    throw new AppError('Category not found', 404);
+    throw new AppError('کېټګورۍ ونه موندل شوه', 404);
   }
 
   // Check if new name conflicts with existing categories
@@ -191,13 +191,13 @@ exports.updateCategory = asyncHandler(async (req, res, next) => {
     });
 
     if (existingCategory) {
-      throw new AppError('Category with this name already exists', 400);
+      throw new AppError('د دې نوم سره کېټګورۍ دمخه شتون لري', 400);
     }
   }
 
   // Validate type if provided
   if (type && !['expense', 'income', 'both'].includes(type)) {
-    throw new AppError('Type must be expense, income, or both', 400);
+    throw new AppError('ډول باید لګښت، عاید یا دواړه وي', 400);
   }
 
   const oldData = category.toObject();
@@ -219,7 +219,7 @@ exports.updateCategory = asyncHandler(async (req, res, next) => {
     operation: 'UPDATE',
     oldData,
     newData: category.toObject(),
-    reason: `Category updated: ${category.name}`,
+    reason: `کېټګورۍ تازه شوه: ${category.name}`,
     changedBy: req.user?.name || 'System',
     changedAt: new Date(),
   });
@@ -237,12 +237,12 @@ exports.deleteCategory = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid category ID', 400);
+    throw new AppError('ناسم کېټګورۍ پیژندنه', 400);
   }
 
   const category = await Category.findOne({ _id: id, isDeleted: false });
   if (!category) {
-    throw new AppError('Category not found', 404);
+    throw new AppError('کېټګورۍ ونه موندل شوه', 404);
   }
 
   const oldData = category.toObject();
@@ -259,7 +259,7 @@ exports.deleteCategory = asyncHandler(async (req, res, next) => {
     operation: 'DELETE',
     oldData,
     newData: { isDeleted: true, isActive: false },
-    reason: `Category deleted: ${category.name}`,
+    reason: `کېټګورۍ حذف شوه: ${category.name}`,
     changedBy: req.user?.name || 'System',
     changedAt: new Date(),
   });

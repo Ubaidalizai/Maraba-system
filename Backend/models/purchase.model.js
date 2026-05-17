@@ -46,6 +46,11 @@ const purchaseSchema = new mongoose.Schema(
       enum: ['warehouse', 'store'],
       default: 'warehouse',
     },
+    description: {
+      type: String,
+      maxlength: 500,
+      required: false,
+    },
     isDeleted: {
       type: Boolean,
       default: false,

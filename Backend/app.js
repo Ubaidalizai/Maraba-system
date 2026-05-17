@@ -17,6 +17,7 @@ const companyRoutes = require('./routes/company.routes');
 const supplierRoutes = require('./routes/supplier.routes');
 const employeeRoutes = require('./routes/employee.routes');
 const customerRoutes = require('./routes/customer.routes');
+const sarafRoutes = require('./routes/saraf.routes');
 const typeRoutes = require('./routes/type.routes');
 const unitRoutes = require('./routes/unit.routes');
 const productRoutes = require('./routes/product.routes');
@@ -34,11 +35,24 @@ const expenseRoutes = require('./routes/expense.routes');
 const incomeRoutes = require('./routes/income.routes');
 const profitRoutes = require('./routes/profit.routes');
 const reportsRoutes = require('./routes/reports.routes');
+const settingsRoutes = require('./routes/settings.routes');
 
 const app = express();
 
 // GLOBAL MIDDLEWARES
-// Serving static files
+// Configure CORS middleware FIRST (before static files)
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:4173', 'http://localhost:3000'];
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true, // Allow credentials (cookies, authorization headers)
+  })
+);
+
+// Serving static files (after CORS)
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Set security HTTP headers
@@ -81,24 +95,13 @@ app.use(
   })
 );
 
-// Configure CORS middleware
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:4173', 'http://localhost:3000'];
-
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true, // Allow credentials (cookies, authorization headers)
-  })
-);
-
 // Routes
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/companies', companyRoutes);
 app.use('/api/v1/suppliers', supplierRoutes);
 app.use('/api/v1/employees', employeeRoutes);
 app.use('/api/v1/customers', customerRoutes);
+app.use('/api/v1/sarafs', sarafRoutes);
 app.use('/api/v1/types', typeRoutes);
 app.use('/api/v1/units', unitRoutes);
 app.use('/api/v1/brands', brandRoutes);
@@ -116,6 +119,7 @@ app.use('/api/v1/expenses', expenseRoutes);
 app.use('/api/v1/income', incomeRoutes);
 app.use('/api/v1/profit', profitRoutes);
 app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/settings', settingsRoutes);
 
 app.all('*', (req, res) => {
   throw new AppError(`Can't find ${req.originalUrl} on this server!`, 404);

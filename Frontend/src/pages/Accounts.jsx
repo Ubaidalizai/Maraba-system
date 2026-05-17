@@ -26,15 +26,17 @@ import {
   useSuppliers,
   useCustomers,
   useEmployees,
+  useSarafs,
   useCreateTransaction,
   useTransferBetweenAccounts,
   useSystemAccounts,
+  useAccountTotals,
 } from "../services/useApi";
 import { fetchAccounts } from "../services/apiUtiles";
 import GloableModal from "../components/GloableModal";
 import { inputStyle } from "../components/ProductForm";
 import { toast } from "react-toastify";
-import { formatNumber } from "../utilies/helper";
+import { formatNumber, formatCurrency } from "../utilies/helper";
 import { useSubmitLock } from "../hooks/useSubmitLock.js";
 import AccountsPDF from "../components/AccountsPDF";
 
@@ -90,6 +92,7 @@ const Accounts = () => {
   const { data: suppliersData } = useSuppliers();
   const { data: customersData } = useCustomers();
   const { data: employeesData } = useEmployees();
+  const { data: sarafsData } = useSarafs();
 
   const { mutate: createAccountMutation } = useCreateAccount();
   const { mutate: updateAccountMutation } = useUpdateAccount();
@@ -99,9 +102,10 @@ const Accounts = () => {
   const { mutate: transferMutation, isPending: isTransferring } =
     useTransferBetweenAccounts();
   const { data: systemAccountsData } = useSystemAccounts();
+  const { data: accountTotalsData } = useAccountTotals();
   // Helper functions
   const isSystemAccount = (accountType) => {
-    return ["cashier", "safe", "saraf"].includes(accountType);
+    return ["cashier", "safe"].includes(accountType);
   };
 
   const getReferenceOptions = (accountType) => {
@@ -112,6 +116,8 @@ const Accounts = () => {
         return customersData?.data || [];
       case "employee":
         return employeesData?.data || [];
+      case "saraf":
+        return sarafsData?.data || [];
       default:
         return [];
     }
@@ -133,7 +139,7 @@ const Accounts = () => {
   const onSubmitAccount = accountSubmitLock.wrapSubmit(async (data) => {
     const accountData = {
       ...data,
-      refId: isSystemAccount(data.type) ? null : data.refId,
+      refId: isSystemAccount(data.type) ? null : (data.refId || null),
     };
 
     // Handle Saraf balance type conversion
@@ -394,6 +400,33 @@ const Accounts = () => {
           </button>
         </div>
       </div>
+
+      {/* Summary Cards */}
+      {accountTotalsData?.data && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {[
+            { key: "supplier", label: t("accounts.types.supplier") },
+            { key: "customer", label: t("accounts.types.customer") },
+            { key: "employee", label: t("accounts.types.employee") },
+            { key: "cashier", label: t("accounts.types.cashier") },
+            { key: "safe", label: t("accounts.types.safe") },
+            { key: "saraf", label: t("accounts.types.saraf") },
+          ].map((item) => {
+            const data = accountTotalsData.data[item.key] || { totalBalance: 0, count: 0 };
+            return (
+              <div key={item.key} className="bg-white border border-gray-200 rounded-sm p-4">
+                <p className="text-sm font-semibold text-gray-600 mb-2">{item.label}</p>
+                <p className="text-xl font-semibold text-gray-900">
+                  {formatCurrency(data.totalBalance)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {data.count} {t("accounts.summary.accounts")}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Type filter and search */}
       <div className="bg-white rounded-lg  border border-gray-200 p-6">
@@ -666,7 +699,7 @@ const Accounts = () => {
               </div>
 
               {/* Reference field - only show for entity accounts */}
-              {!isSystemAccount(watch("type") || type) && (
+              {!isSystemAccount(watch("type") || type) && (watch("type") || type) !== "saraf" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     {t("accounts.modal.reference")}
@@ -674,11 +707,29 @@ const Accounts = () => {
                   <select
                     className={inputStyle}
                     {...register("refId", {
-                      required: !isSystemAccount(watch("type") || type),
+                      required: !isSystemAccount(watch("type") || type) && (watch("type") || type) !== "saraf",
                     })}
                   >
                     <option value="">{t("accounts.modal.selectReference")}</option>
                     {getReferenceOptions(watch("type") || type).map((entity) => (
+                      <option key={entity._id} value={entity._id}>
+                        {entity.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {(watch("type") || type) === "saraf" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    صراف وټاکئ
+                  </label>
+                  <select
+                    className={inputStyle}
+                    {...register("refId")}
+                  >
+                    <option value="">صراف وټاکئ</option>
+                    {getReferenceOptions("saraf").map((entity) => (
                       <option key={entity._id} value={entity._id}>
                         {entity.name}
                       </option>
@@ -699,12 +750,11 @@ const Accounts = () => {
               {!editingAccount && (
                 <>
                   {(watch("type") || type) === 'saraf' && (
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="mr-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-3 mt-2">
                         د بیلانس ډول
                       </label>
                       <div className="flex gap-4">
-                        
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
                             type="radio"

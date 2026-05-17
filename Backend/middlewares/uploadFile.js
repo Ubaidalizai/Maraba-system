@@ -54,7 +54,7 @@ const multerFilter = (req, file, cb) => {
   if (!allowedMimeTypes) {
     cb(
       new AppError(
-        `Invalid file field: ${file.fieldname}. Allowed fields: ${Object.keys(FIELD_TYPE_MAP).join(", ")}`,
+        `ناسم د فایل ساحه: ${file.fieldname}. اجازه لرونکې ساحې: ${Object.keys(FIELD_TYPE_MAP).join(", ")}`,
         400,
       ),
       false,
@@ -67,7 +67,7 @@ const multerFilter = (req, file, cb) => {
   } else {
     cb(
       new AppError(
-        `Invalid file type for ${file.fieldname}. Allowed types: ${allowedMimeTypes.join(", ")}`,
+        `د ${file.fieldname} لپاره ناسم د فایل ډول. اجازه لرونکي ډولونه: ${allowedMimeTypes.join(", ")}`,
         400,
       ),
       false,
@@ -122,7 +122,7 @@ const ensureDirectoryExists = (dirPath) => {
     try {
       fs.mkdirSync(dirPath, { recursive: true });
     } catch (error) {
-      throw new AppError(`Failed to create directory: ${dirPath}`, 500);
+      throw new AppError(`د ډیرکټوری جوړول ناکام شو: ${dirPath}`, 500);
     }
   }
 };
@@ -151,7 +151,7 @@ const processImage = async (file, options = {}) => {
 
     return processor;
   } catch (error) {
-    throw new AppError(`Error processing image: ${error.message}`, 500);
+    throw new AppError(`د انځور په پروسس کولو کې ستونزه: ${error.message}`, 500);
   }
 };
 
@@ -285,7 +285,7 @@ const handleFileUploadErrors = (err, req, res, next) => {
     if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({
         status: "error",
-        message: `File too large. Maximum size allowed: ${
+        message: `فایل دېر لوی دی. د اجازه لرونکی اعظمي اندازه: ${
           FILE_SIZE_LIMITS[err.field] / (1024 * 1024)
         }MB`,
       });

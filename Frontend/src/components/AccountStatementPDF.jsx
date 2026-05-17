@@ -1,7 +1,8 @@
 import React from "react";
+import { useSettings } from "../services/useApi";
+import { useTranslation } from "react-i18next";
 
-const AccountStatementPDF = React.forwardRef(({ 
-  account, 
+const AccountStatementPDF = React.forwardRef(({
   accountType, 
   currentBalance, 
   ledger,
@@ -9,13 +10,17 @@ const AccountStatementPDF = React.forwardRef(({
   formatDate,
   getTransactionTypeLabel
 }, ref) => {
+  const { data: settings } = useSettings();
+  const { t } = useTranslation();
+  
+  const companyName = settings?.data?.settings?.companyName || t("brand.title");
   return (
     <div ref={ref} style={{ width: "210mm", padding: "20mm", backgroundColor: "white", fontFamily: "Arial, sans-serif" }}>
       {/* PDF Header */}
       <div style={{ textAlign: "center", marginBottom: "30px", borderBottom: "2px solid #333", paddingBottom: "15px" }}>
-        <h1 style={{ fontSize: "24px", fontWeight: "bold", margin: "0 0 10px 0", color: "#1f2937" }}>{account}</h1>
+        <h1 style={{ fontSize: "28px", fontWeight: "bold", margin: "0 0 10px 0", color: "#1f2937" }}>{companyName}</h1>
         <p style={{ fontSize: "14px", color: "#6b7280", margin: 0 }}>
-          {accountType === "customer" ? "د پیرودونکي حساب" : "د عرضه کوونکي حساب"}
+          {accountType === "customer" ? "د پیرودونکي حساب" : accountType === "supplier" ? "د عرضه کوونکي حساب" : "د صراف حساب"}
         </p>
       </div>
 
@@ -23,7 +28,13 @@ const AccountStatementPDF = React.forwardRef(({
       <div style={{ marginBottom: "30px" }}>
         <div style={{ padding: "30px", backgroundColor: "#ffffff", borderRadius: "8px", border: "2px solid #e5e7eb", textAlign: "center" }}>
           <p style={{ fontSize: "16px", color: "#6b7280", margin: "0 0 15px 0", fontWeight: "600" }}>
-            {accountType === "customer" ? "تاسی پوروړي یاست" : "موږ مو پوروړي یو"}
+            {accountType === "customer" 
+              ? "تاسی پوروړي یاست" 
+              : accountType === "supplier" 
+              ? "موږ مو پوروړي یو" 
+              : currentBalance < 0 
+              ? "موږ پوروړي یو" 
+              : "صراف پوروړي دی"}
           </p>
           <p style={{ fontSize: "36px", fontWeight: "bold", margin: "0", color: "#1f2937" }}>
             {formatCurrency(Math.abs(currentBalance))} افغانی

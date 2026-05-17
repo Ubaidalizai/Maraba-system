@@ -40,7 +40,7 @@ const DARI_LOCALE = {
 };
 
 const DATE_INPUT_CLASS =
-  "w-full font-custom dark:text-slate-500 bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md pr-3 pl-3 py-[14px] transition duration-300 ease focus:outline-none focus:border-slate-300 hover:border-slate-300 shadow-sm focus:shadow";
+  "w-full font-custom dark:text-slate-500 bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-md pr-3 pl-3 py-2 transition duration-300 ease focus:outline-none focus:border-slate-300 hover:border-slate-300 focus:shadow";
 
 const toPersianDateObject = (isoString) => {
   if (!isoString) return null;
@@ -138,7 +138,7 @@ const JalaliDatePicker = ({
     <div className={`flex flex-col gap-1 w-full ${className}`}>
       {label && (
         <label
-          className="text-[12px] font-medium text-gray-700"
+          className="text-[12px] font-medium text-gray-700 mb-1"
           htmlFor={name}
         >
           {label}
@@ -151,7 +151,7 @@ const JalaliDatePicker = ({
           calendar={persianCalendar}
           locale={DARI_LOCALE}
           inputClass={
-            "w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm  px-3 py-1.5 transition duration-300 ease focus:outline-none  hover:border-slate-300 focus:border-slate-300  shadow-sm"
+            "w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm px-3 py-2 transition duration-300 ease focus:outline-none  hover:border-slate-300 focus:border-slate-300"
           }
           placeholder={placeholder}
           format="YYYY/MM/DD"

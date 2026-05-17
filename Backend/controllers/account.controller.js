@@ -10,7 +10,7 @@ exports.createAccount = asyncHandler(async (req, res, next) => {
   const { type, refId, name, openingBalance, currency } = req.body;
 
   // Validation
-  if (!type || !name) throw new AppError('Type and Name are required', 400);
+  if (!type || !name) throw new AppError('ډول او نوم اړین دی', 400);
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -24,7 +24,7 @@ exports.createAccount = asyncHandler(async (req, res, next) => {
         isDeleted: false,
       }).session(session);
       if (existing)
-        throw new AppError('Account already exists for this entity', 400);
+        throw new AppError('د دې موجودیت لپاره حساب دمخه شتون لري', 400);
     }
 
     const account = await Account.create(
@@ -50,7 +50,7 @@ exports.createAccount = asyncHandler(async (req, res, next) => {
           operation: 'INSERT',
           oldData: null,
           newData: account[0],
-          reason: 'Account created',
+          reason: 'حساب جوړ شو',
           changedBy: req.user?.name || 'System',
         },
       ],
@@ -68,7 +68,7 @@ exports.createAccount = asyncHandler(async (req, res, next) => {
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to create account', 500);
+    throw new AppError(err.message || 'حساب جوړول ناکام شو', 500);
   }
 });
 
@@ -118,7 +118,7 @@ exports.getSystemAccounts = asyncHandler(async (req, res, next) => {
 exports.getAccount = asyncHandler(async (req, res, next) => {
   const accountId = req.params.id;
   const account = await Account.findOne({ _id: accountId, isDeleted: false });
-  if (!account) throw new AppError('Account not found', 404);
+  if (!account) throw new AppError('حساب ونه موندل شو', 404);
 
   res.status(200).json({ success: true, account });
 });
@@ -126,7 +126,7 @@ exports.getAccount = asyncHandler(async (req, res, next) => {
 // @desc    Update account details
 // @route   PATCH /api/v1/accounts/:id
 exports.updateAccount = asyncHandler(async (req, res, next) => {
-  const { name, openingBalance, currency } = req.body;
+  const { name, openingBalance, currency, refId } = req.body;
   const accountId = req.params.id;
 
   const session = await mongoose.startSession();
@@ -135,13 +135,14 @@ exports.updateAccount = asyncHandler(async (req, res, next) => {
   try {
     const account = await Account.findById(accountId).session(session);
     if (!account || account.isDeleted)
-      throw new AppError('Account not found', 404);
+      throw new AppError('حساب ونه موندل شو', 404);
 
     const oldData = { ...account.toObject() };
 
     if (name) account.name = name;
     if (openingBalance !== undefined) account.openingBalance = openingBalance;
     if (currency) account.currency = currency;
+    if (refId !== undefined) account.refId = refId || null;
 
     await account.save({ session });
 
@@ -153,7 +154,7 @@ exports.updateAccount = asyncHandler(async (req, res, next) => {
           operation: 'UPDATE',
           oldData,
           newData: account.toObject(),
-          reason: req.body.reason || 'Account updated',
+          reason: req.body.reason || 'حساب تازه شو',
           changedBy: req.user?.name || 'System',
         },
       ],
@@ -171,7 +172,7 @@ exports.updateAccount = asyncHandler(async (req, res, next) => {
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to update account', 500);
+    throw new AppError(err.message || 'حساب تازه کول ناکام شو', 500);
   }
 });
 
@@ -186,7 +187,7 @@ exports.deleteAccount = asyncHandler(async (req, res, next) => {
   try {
     const account = await Account.findById(accountId).session(session);
     if (!account || account.isDeleted)
-      throw new AppError('Account not found', 404);
+      throw new AppError('حساب ونه موندل شو', 404);
 
     const oldData = { ...account.toObject() };
     account.isDeleted = true;
@@ -199,7 +200,7 @@ exports.deleteAccount = asyncHandler(async (req, res, next) => {
           recordId: account._id,
           operation: 'DELETE',
           oldData,
-          reason: req.body.reason || 'Account soft deleted',
+          reason: req.body.reason || 'حساب حذف شو',
           changedBy: req.user?.name || 'System',
         },
       ],
@@ -216,7 +217,7 @@ exports.deleteAccount = asyncHandler(async (req, res, next) => {
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to delete account', 500);
+    throw new AppError(err.message || 'حساب حذف کول ناکام شو', 500);
   }
 });
 
@@ -230,9 +231,9 @@ exports.restoreAccount = asyncHandler(async (req, res, next) => {
 
   try {
     const account = await Account.findById(accountId).session(session);
-    if (!account) throw new AppError('Account not found', 404);
+    if (!account) throw new AppError('حساب ونه موندل شو', 404);
     if (!account.isDeleted)
-      throw new AppError('Account is already active', 400);
+      throw new AppError('حساب دمخه فعال دی', 400);
 
     account.isDeleted = false;
     await account.save({ session });
@@ -245,7 +246,7 @@ exports.restoreAccount = asyncHandler(async (req, res, next) => {
           operation: 'RESTORE',
           oldData: null,
           newData: account.toObject(),
-          reason: req.body.reason || 'Account restored',
+          reason: req.body.reason || 'حساب بیرته راستون شو',
           changedBy: req.user?.name || 'System',
         },
       ],
@@ -263,7 +264,7 @@ exports.restoreAccount = asyncHandler(async (req, res, next) => {
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'Failed to restore account', 500);
+    throw new AppError(err.message || 'حساب بیرته راستنیدل ناکام شو', 500);
   }
 });
 
@@ -465,13 +466,50 @@ exports.getAccountBalances = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc    Get account totals by type
+// @route   GET /api/v1/accounts/totals
+exports.getAccountTotals = asyncHandler(async (req, res, next) => {
+  const totals = await Account.aggregate([
+    {
+      $match: { isDeleted: false }
+    },
+    {
+      $group: {
+        _id: '$type',
+        totalBalance: { $sum: '$currentBalance' },
+        count: { $sum: 1 }
+      }
+    },
+    {
+      $sort: { _id: 1 }
+    }
+  ]);
+
+  // Format response with all account types
+  const accountTypes = ['cashier', 'safe', 'saraf', 'supplier', 'customer', 'employee'];
+  const formattedTotals = {};
+
+  accountTypes.forEach(type => {
+    const found = totals.find(t => t._id === type);
+    formattedTotals[type] = {
+      totalBalance: found?.totalBalance || 0,
+      count: found?.count || 0
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    data: formattedTotals
+  });
+});
+
 // @desc    Get total transaction volume for an account
 // @route   GET /api/v1/accounts/:id/transaction-volume
 exports.getAccountTransactionVolume = asyncHandler(async (req, res, next) => {
   const accountId = req.params.id;
 
   const account = await Account.findOne({ _id: accountId, isDeleted: false });
-  if (!account) throw new AppError('Account not found', 404);
+  if (!account) throw new AppError('حساب ونه موندل شو', 404);
 
   const AccountTransaction = require('../models/accountTransaction.model');
 
@@ -513,7 +551,7 @@ exports.getCashFlowReport = asyncHandler(async (req, res, next) => {
   const { startDate, endDate, groupBy = 'day' } = req.query;
 
   if (!startDate || !endDate) {
-    throw new AppError('Start date and end date are required', 400);
+    throw new AppError('د پیل او پای نیټه اړینه ده', 400);
   }
 
   const AccountTransaction = require('../models/accountTransaction.model');
@@ -556,7 +594,7 @@ exports.getCashFlowReport = asyncHandler(async (req, res, next) => {
       break;
     default:
       throw new AppError(
-        'Invalid groupBy parameter. Must be day, week, or month',
+        'ناسم groupBy پیرامیټر. باید ورځ، اونۍ، یا میاشت وي',
         400
       );
   }

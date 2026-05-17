@@ -1,8 +1,12 @@
 import { useTranslation } from "react-i18next";
 import { formatNumber } from "../utilies/helper";
+import { useSettings } from "../services/useApi";
 
 const AccountsPDF = ({ accounts, accountType, reportDate }) => {
   const { t, i18n } = useTranslation();
+  const { data: settings } = useSettings();
+  
+  const companyName = settings?.data?.settings?.companyName || t("brand.title");
 
   const formatCreatedAt = (iso) => {
     if (!iso) return "—";
@@ -38,11 +42,16 @@ const AccountsPDF = ({ accounts, accountType, reportDate }) => {
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: "2rem" }}>
         <h1 style={{ fontSize: "3.5rem", margin: "0 0 0.5rem 0", color: "#1f2937" }}>
-          {title}
+          {companyName}
         </h1>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "5rem" }}>
+        <h2 style={{ fontSize: "2.5rem", margin: "0 0 0.5rem 0", color: "#4b5563" }}>
+          {title}
+        </h2>
         <p style={{ fontSize: "2rem", margin: "0", color: "#6b7280" }}>
           {t("accountsPDF.date")}: {formatCreatedAt(reportDate)}
         </p>
+        </div>
       </div>
 
       {/* Total Balance Summary - Simple Style */}

@@ -75,6 +75,8 @@ const createSaleSchema = Joi.object({
     .required()
     .messages({ 'number.min': 'Paid amount must be 0 or greater' }),
 
+  description: Joi.string().max(500).optional().allow('', null),
+
   items: Joi.array()
     .items(
       Joi.object({
@@ -136,6 +138,8 @@ const updateSaleSchema = Joi.object({
   invoiceType: Joi.string().valid('small', 'large').optional(),
 
   paidAmount: Joi.number().min(0).optional(),
+
+  description: Joi.string().max(500).optional().allow('', null),
 
   reason: Joi.string().max(200).optional(),
 

@@ -214,6 +214,35 @@ export const deleteCustomer = async (id) => {
   });
 };
 
+// Sarafs
+export const fetchSarafs = async () => {
+  return await apiRequest(`${API_ENDPOINTS.SARAFS.LIST}?limit=1000`);
+};
+
+export const fetchSaraf = async (id) => {
+  return await apiRequest(API_ENDPOINTS.SARAFS.DETAIL(id));
+};
+
+export const createSaraf = async (sarafData) => {
+  return await apiRequest(API_ENDPOINTS.SARAFS.CREATE, {
+    method: "POST",
+    body: JSON.stringify(sarafData),
+  });
+};
+
+export const updateSaraf = async (id, sarafData) => {
+  return await apiRequest(API_ENDPOINTS.SARAFS.UPDATE(id), {
+    method: "PATCH",
+    body: JSON.stringify(sarafData),
+  });
+};
+
+export const deleteSaraf = async (id) => {
+  return await apiRequest(API_ENDPOINTS.SARAFS.DELETE(id), {
+    method: "DELETE",
+  });
+};
+
 // Employees
 export const fetchEmployees = async () => {
   return await apiRequest(`${API_ENDPOINTS.EMPLOYEES.LIST}?limit=1000`);
@@ -579,6 +608,10 @@ export const fetchCategoriesByType = async (type = "expense") => {
 // Account Reports
 export const fetchAccountBalances = async () => {
   return await apiRequest(API_ENDPOINTS.ACCOUNTS.BALANCES);
+};
+
+export const fetchAccountTotals = async () => {
+  return await apiRequest(`${API_ENDPOINTS.ACCOUNTS.LIST}/totals`);
 };
 
 export const fetchCashFlowReport = async (params = {}) => {
@@ -1309,4 +1342,46 @@ export const fetchDailyReport = async (params = {}) => {
     : API_ENDPOINTS.REPORTS.DAILY;
 
   return await apiRequest(url);
+};
+
+// Settings
+export const fetchSettings = async () => {
+  return await apiRequest(API_ENDPOINTS.SETTINGS.GET);
+};
+
+export const updateSettings = async (settingsData) => {
+  const hasFile = settingsData instanceof FormData || (settingsData.logo && settingsData.logo instanceof File);
+  
+  if (hasFile || settingsData instanceof FormData) {
+    const formData = settingsData instanceof FormData ? settingsData : new FormData();
+    if (!(settingsData instanceof FormData)) {
+      Object.keys(settingsData).forEach(key => {
+        if (settingsData[key] !== undefined && settingsData[key] !== null) {
+          formData.append(key, settingsData[key]);
+        }
+      });
+    }
+
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.SETTINGS.UPDATE}`, {
+      method: "PUT",
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      credentials: "include",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Settings update failed");
+    }
+
+    return response.json();
+  } else {
+    return await apiRequest(API_ENDPOINTS.SETTINGS.UPDATE, {
+      method: "PUT",
+      body: JSON.stringify(settingsData),
+    });
+  }
 };

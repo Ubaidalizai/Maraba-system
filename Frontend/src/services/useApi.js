@@ -10,6 +10,7 @@ import {
   createProductItem,
   createPurchase,
   createSale,
+  createSaraf,
   createStockTransfer,
   createStore,
   createSupplier,
@@ -22,6 +23,7 @@ import {
   deleteProductItem,
   deletePurchase,
   deleteSale,
+  deleteSaraf,
   deleteStockTransfer,
   deleteStore,
   deleteSupplier,
@@ -52,6 +54,7 @@ import {
   fetchExpenseSummary,
   fetchCategoriesByType,
   fetchAccountBalances,
+  fetchAccountTotals,
   fetchCashFlowReport,
   fetchStockReport,
   fetchDailyReport,
@@ -86,12 +89,17 @@ import {
   updateProductItem,
   updatePurchase,
   updateSale,
+  updateSaraf,
   updateStockItem,
   updateStore,
   updateSupplier,
   updateUnit,
   getProfile,
   updateCurrentUser,
+  fetchSettings,
+  updateSettings,
+  fetchSaraf,
+  fetchSarafs,
 } from "./apiUtiles";
 
 // Authentication hooks
@@ -622,6 +630,14 @@ export const useAccountBalances = () => {
   });
 };
 
+export const useAccountTotals = () => {
+  return useQuery({
+    queryKey: ["accountTotals"],
+    queryFn: () => fetchAccountTotals(),
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+  });
+};
+
 export const useCashFlowReport = (params = {}) => {
   return useQuery({
     queryKey: ["cashFlowReport", params],
@@ -765,6 +781,66 @@ export const useDeleteCustomer = () => {
     },
     onError: (error) => {
       toast.error(error.message || "متاسفانه در حذف کردن مشتری مورد نظر مشکلی پیش آمده است ");
+    },
+  });
+};
+
+// Sarafs
+export const useSarafs = () => {
+  return useQuery({
+    queryKey: ["allSarafs"],
+    queryFn: fetchSarafs,
+  });
+};
+
+export const useSaraf = (id) =>
+  useQuery({
+    queryKey: ["saraf", id],
+    queryFn: () => fetchSaraf(id),
+    enabled: !!id,
+  });
+
+export const useCreateSaraf = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createSaraf,
+    mutationKey: ["newSaraf"],
+    onSuccess: () => {
+      queryClient.invalidateQueries(["allSarafs"]);
+      toast.success("موفقانه صراف مورد نظر ایجاد  گردید!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "متاسفانه در ایجاد کردن صراف مورد نظر مشکلی پیش آمده است ");
+    },
+  });
+};
+
+export const useUpdateSaraf = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["updateSaraf"],
+    mutationFn: ({ id, sarafData }) => updateSaraf(id, sarafData),
+    onSuccess: () => {
+      queryClient.invalidateQueries(["allSarafs"]);
+      toast.success("موفقانه صراف مورد نظر  بروز رسانی  گردید!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "متاسفانه در بروز رسانی  کردن صراف مورد نظر مشکلی پیش آمده است ");
+    },
+  });
+};
+
+export const useDeleteSaraf = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["deleteSaraf"],
+    mutationFn: deleteSaraf,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["allSarafs"]);
+      toast.success("موفقانه صراف مورد نظر حذف گردید!");
+    },
+    onError: (error) => {
+      toast.error(error.message || "متاسفانه در حذف کردن صراف مورد نظر مشکلی پیش آمده است ");
     },
   });
 };
@@ -1286,6 +1362,30 @@ export const useUpdateProfile = () => {
     },
     onError: (error) => {
       toast.error(error.message || "متاسفانه مشکلی پیش آمده است");
+    },
+  });
+};
+
+// Settings
+export const useSettings = () => {
+  return useQuery({
+    queryKey: ["settings"],
+    queryFn: fetchSettings,
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+  });
+};
+
+export const useUpdateSettings = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ["updateSettings"],
+    mutationFn: updateSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["settings"]);
+      toast.success("تنظیمات با موفقیت بروز رسانی شد");
+    },
+    onError: (error) => {
+      toast.error(error.message || "خطا در بروز رسانی تنظیمات");
     },
   });
 };

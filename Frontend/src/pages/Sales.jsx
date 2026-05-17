@@ -14,20 +14,15 @@ import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { formatCurrency, formatNumber } from "../utilies/helper";
-import { useForm } from "react-hook-form";
 import {
   useSales,
   useSale,
   useCustomers,
   useEmployees,
   useDeleteSales,
-  useCreateSale,
   useAccounts,
-  useUpdateSale,
 } from "../services/useApi";
 import { useQueryClient } from "@tanstack/react-query";
-import SaleForm from "../components/SaleForm";
-import { XCircleIcon } from "lucide-react";
 import {
   recordSalePayment,
   fetchAccounts,
@@ -41,6 +36,7 @@ import Pagination from "../components/Pagination";
 
 const Sales = () => {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   // URL parameters for payment flow
   const [searchParams, setSearchParams] = useSearchParams();
   const openId = searchParams.get("openId");
@@ -53,11 +49,7 @@ const Sales = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [limit, setLimit] = useState(10);
   const [selectedSaleId, setSelectedSaleId] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-  const [showAddSaleModal, setShowAddSaleModal] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [saleToEdit, setSaleToEdit] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedAccount, setSelectedAccount] = useState("");
@@ -68,21 +60,6 @@ const Sales = () => {
   const [customerToPrint, setCustomerToPrint] = useState(null);
   const [customerAccountToPrint, setCustomerAccountToPrint] = useState(null);
   const [recentlyUpdatedSale, setRecentlyUpdatedSale] = useState(null);
-
-  // Form setup
-  const { register, handleSubmit, watch, setValue } = useForm({
-    defaultValues: {
-      saleDate: new Date().toISOString().slice(0, 10),
-      customer: "",
-      employee: "",
-      saleType: "cash",
-      billType: "small",
-      discount: 0,
-      tax: 0,
-      notes: "",
-      items: [],
-    },
-  });
   // API hooks
   const salesQueryParams = useMemo(
     () => ({
@@ -97,15 +74,12 @@ const Sales = () => {
   const { data: salesResp, isLoading } = useSales(salesQueryParams);
   const { data: customers } = useCustomers();
   const { data: employees } = useEmployees();
-  const { data: selectedSale, isLoading: isLoadingDetails } =
-    useSale(selectedSaleId);
+  const { data: selectedSale } = useSale(selectedSaleId);
   const deleteSaleMutation = useDeleteSales();
   const { data: accountsData } = useAccounts({ type: "cashier" });
   const accounts = accountsData?.accounts || [];
   const { data: customerAccountsData } = useAccounts({ type: "customer" });
   const customerAccounts = customerAccountsData?.accounts || [];
-  const createSaleMutation = useCreateSale();
-  const updateSaleMutation = useUpdateSale();
   const queryClient = useQueryClient();
 
   // Data processing
@@ -117,20 +91,9 @@ const Sales = () => {
     return customers?.data?.find((cust) => cust._id === customerId);
   };
 
-  // const findEmployee = (employeeId) => {
-  //   return employees?.data?.find((emp) => emp._id === employeeId);
-  // };
-
   // Handle URL parameters for modal flow
   useEffect(() => {
-    if (openId && action === "view") {
-      // Find the sale with the given ID
-      const sale = sales.find((s) => s._id === openId);
-      if (sale) {
-        setSelectedSaleId(openId);
-        setShowDetailsModal(true);
-      }
-    } else if (openId && action === "pay") {
+    if (openId && action === "pay") {
       // Find the sale with the given ID
       const sale = sales.find((s) => s._id === openId);
       if (sale && sale.dueAmount > 0) {
@@ -147,8 +110,7 @@ const Sales = () => {
 
   // Event handlers
   const handleViewDetails = (saleId) => {
-    setSelectedSaleId(saleId);
-    setShowDetailsModal(true);
+    navigate(`/sales/${saleId}`);
   };
 
   const handleEditSale = async (sale) => {
@@ -545,18 +507,11 @@ const Sales = () => {
             </select>
           </div>
           <button
-            onClick={() => setShowAddSaleModal(true)}
-            disabled={createSaleMutation?.isPending}
-            className={`flex items-center gap-2 px-4 py-2 rounded-sm transition-colors whitespace-nowrap ${
-              createSaleMutation?.isPending
-                ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                : "bg-amber-600 text-white hover:bg-amber-700"
-            }`}
+            onClick={() => navigate("/sales/add")}
+            className="flex items-center gap-2 px-4 py-2 rounded-sm transition-colors whitespace-nowrap bg-amber-600 text-white hover:bg-amber-700"
           >
             <PlusIcon className="h-5 w-5" />
-            {createSaleMutation?.isPending
-              ? t("sales.filters.addSalePending")
-              : t("sales.filters.addSale")}
+            {t("sales.filters.addSale")}
           </button>
         </div>
       </div>
@@ -672,7 +627,6 @@ const Sales = () => {
                           <button
                             onClick={() => {
                               setSelectedSaleId(sale._id);
-                              setShowDetailsModal(false);
                               setShowPaymentModal(true);
                             }}
                             className="text-green-600 hover:text-green-900 flex items-center gap-1"
@@ -682,7 +636,7 @@ const Sales = () => {
                           </button>
                         )}
                         <button
-                          onClick={() => handleEditSale(sale)}
+                          onClick={() => navigate(`/sales/edit/${sale._id}`)}
                           className="text-green-600 hover:text-green-900 flex items-center gap-1"
                           title={t("sales.actions.edit")}
                         >
@@ -721,248 +675,6 @@ const Sales = () => {
           </div>
         )}
       </div>
-
-      {/* Add Sale Modal */}
-      <GloableModal
-        open={showAddSaleModal}
-        setOpen={setShowAddSaleModal}
-        isClose={true}
-      >
-        <div className="bg-white shadow-none  lg:w-6xl  max-h-[90vh] rounded-md mx-auto overflow-y-auto">
-          <SaleForm
-            register={register}
-            handleSubmit={handleSubmit}
-            watch={watch}
-            setValue={setValue}
-            onClose={() => {
-              setShowAddSaleModal(false);
-              setEditMode(false);
-              setSaleToEdit(null);
-              setSelectedSaleId(null);
-            }}
-            onSubmit={handleCreateSale}
-            editMode={editMode}
-            saleToEdit={saleToEdit}
-          />
-        </div>
-      </GloableModal>
-      {/* Sale Details Modal */}
-      <GloableModal
-        open={showDetailsModal}
-        setOpen={setShowDetailsModal}
-        isClose={true}
-      >
-        {selectedSale && (
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] mx-auto overflow-y-auto">
-            <div className="p-3 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900">
-                {t("sales.details.title")}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowDetailsModal(false);
-                  clearUrlParams();
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <XCircleIcon className="h-6 w-6" />
-              </button>
-            </div>
-
-            {isLoadingDetails ? (
-              <div className="p-8 text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">
-                  {t("sales.details.loading")}
-                </p>
-              </div>
-            ) : (
-              <div className="p-4 space-y-4">
-                {/* Sale Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="bg-purple-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-600">
-                      {t("sales.details.totalAmount")}
-                    </p>
-                    <p className="text-lg font-semibold text-purple-600">
-                      {formatCurrency(selectedSale.totalAmount || 0)}
-                    </p>
-                  </div>
-                  <div className="bg-green-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-600">
-                      {t("sales.details.paidAmount")}
-                    </p>
-                    <p className="text-lg font-semibold text-green-600">
-                      {formatCurrency(selectedSale.paidAmount || 0)}
-                    </p>
-                  </div>
-                  <div className="bg-red-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-600">
-                      {t("sales.details.dueAmount")}
-                    </p>
-                    <p className="text-lg font-semibold text-red-600">
-                      {formatCurrency(selectedSale.dueAmount || 0)}
-                    </p>
-                  </div>
-                  <div className="bg-blue-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-600">
-                      {t("sales.details.itemCount")}
-                    </p>
-                    <p className="text-lg font-semibold text-blue-600">
-                      {formatNumber(selectedSale.items?.length || 0)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Sale Information */}
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">
-                    {t("sales.details.saleInfo")}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <div>
-                      <h4 className="text-xs font-medium text-gray-500 mb-1">
-                        {t("sales.details.billNumber")}
-                      </h4>
-                      <p className="text-sm font-medium text-gray-900">
-                        {selectedSale.billNumber || "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-medium text-gray-500 mb-1">
-                        {t("sales.details.saleDate")}
-                      </h4>
-                      <p className="text-sm font-medium text-gray-900">
-                        {formatDate(selectedSale.saleDate)}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-medium text-gray-500 mb-1">
-                        {t("sales.details.customer")}
-                      </h4>
-                      <p className="text-sm font-medium text-gray-900">
-                        {selectedSale.customerAccount?.name ||
-                          findCustomer(selectedSale.customerAccount)?.name ||
-                          "-"}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-medium text-gray-500 mb-1">
-                        {t("sales.details.paymentStatus")}
-                      </h4>
-                      <span
-                        className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(
-                          selectedSale.dueAmount > 0 ? "partial" : "paid"
-                        )}`}
-                      >
-                        {selectedSale.dueAmount > 0
-                          ? t("sales.table.statusPartialPaid")
-                          : t("sales.table.statusFullyPaid")}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sale Items */}
-                <div className="bg-white border border-gray-200 rounded-lg">
-                  <div className="px-3 py-2 border-b border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-700">
-                      {t("sales.details.itemsTitle")}
-                    </h3>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            {t("sales.details.product")}
-                          </th>
-                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            {t("sales.details.unit")}
-                          </th>
-                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            {t("sales.details.quantity")}
-                          </th>
-                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            {t("sales.details.cartonCount")}
-                          </th>
-                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            {t("sales.details.unitPrice")}
-                          </th>
-                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                            {t("sales.details.lineTotal")}
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {selectedSale.items?.length === 0 ? (
-                          <tr>
-                            <td
-                              colSpan={6}
-                              className="px-3 py-6 text-center text-gray-500 text-sm"
-                            >
-                              {t("sales.details.noItems")}
-                            </td>
-                          </tr>
-                        ) : (
-                          selectedSale.items?.map((item, index) => (
-                            <tr key={index} className="hover:bg-gray-50">
-                              <td className="px-3 py-2 text-sm text-gray-900">
-                                {item.product?.name || "-"}
-                              </td>
-                              <td className="px-3 py-2 text-sm text-gray-900">
-                                {item.unit?.name || "-"}
-                              </td>
-                              <td className="px-3 py-2 text-sm text-gray-900">
-                                {item.quantity || 0}
-                              </td>
-                              <td className="px-3 py-2 text-sm text-gray-900">
-                                {item.cartonCount || "-"}
-                              </td>
-                              <td className="px-3 py-2 text-sm text-gray-900">
-                                {formatCurrency(item.unitPrice || 0)}
-                              </td>
-                              <td className="px-3 py-2 text-sm font-medium text-purple-600">
-                                {formatCurrency(item.totalPrice || 0)}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Total Summary */}
-                  <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        {selectedSale.dueAmount > 0 && (
-                          <button
-                            onClick={() => {
-                              setShowDetailsModal(false);
-                              setShowPaymentModal(true);
-                            }}
-                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm"
-                          >
-                            <BanknotesIcon className="h-4 w-4" />
-                            {t("sales.details.recordPayment")}
-                          </button>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {t("sales.details.grandTotal")}{" "}
-                          {formatCurrency(selectedSale.totalAmount || 0)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </GloableModal>
 
       {/* Payment Modal */}
       {showPaymentModal && selectedSale && (

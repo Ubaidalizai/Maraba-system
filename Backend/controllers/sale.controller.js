@@ -58,6 +58,7 @@ exports.createSale = asyncHandler(async (req, res, next) => {
       paidAmount = 0,
       placedIn,
       invoiceType = 'small',
+      description,
     } = req.body;
 
     // validate placedIn account
@@ -94,6 +95,7 @@ exports.createSale = asyncHandler(async (req, res, next) => {
           dueAmount: 0, // will update later
           placedIn,
           invoiceType,
+          description: description || undefined,
           soldBy: req.user?._id || null,
         },
       ],
@@ -615,6 +617,7 @@ exports.updateSale = asyncHandler(async (req, res, next) => {
       paidAmount,
       placedIn,
       invoiceType,
+      description,
       reason,
     } = req.body;
 
@@ -629,6 +632,7 @@ exports.updateSale = asyncHandler(async (req, res, next) => {
     if (saleDate) sale.saleDate = saleDate;
     if (invoiceType) sale.invoiceType = invoiceType;
     if (paidAmount !== undefined) sale.paidAmount = paidAmount;
+    if (description !== undefined) sale.description = description;
     if (customer) {
       const customerExists = await Customer.findById(customer).session(session);
       if (!customerExists) throw new AppError('ناسم پیرودونکی ID', 400);

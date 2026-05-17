@@ -9,6 +9,7 @@ const {
   deleteAccount,
   restoreAccount,
   getAccountBalances,
+  getAccountTotals,
   getCashFlowReport,
   transferBetweenAccounts,
   getAccountTransactionVolume,
@@ -29,6 +30,7 @@ router.get('/system', getSystemAccounts);
 // Reports routes must come BEFORE /:id routes
 router.get('/reports/balances', getAccountBalances);
 router.get('/reports/cashflow', getCashFlowReport);
+router.get('/totals', getAccountTotals);
 router.route('/:id').get(getAccount).patch(updateAccount).delete(deleteAccount);
 router.patch('/:id/restore', restoreAccount);
 router.get('/:id/ledger', getAccountLedger);

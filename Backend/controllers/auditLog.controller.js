@@ -89,7 +89,7 @@ exports.getAuditLogsByRecord = asyncHandler(async (req, res, next) => {
   } = req.query;
 
   if (!mongoose.Types.ObjectId.isValid(recordId)) {
-    throw new AppError('Invalid record ID', 400);
+    throw new AppError('ناسم ریکارډ پیژندنه', 400);
   }
 
   const filter = { recordId: new mongoose.Types.ObjectId(recordId) };
@@ -185,13 +185,13 @@ exports.getAuditLogById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('Invalid audit log ID', 400);
+    throw new AppError('ناسم تفتیش لاګ پیژندنه', 400);
   }
 
   const auditLog = await AuditLog.findById(id).lean();
 
   if (!auditLog) {
-    throw new AppError('Audit log not found', 404);
+    throw new AppError('د تفتیش لاګ ونه موندل شو', 404);
   }
 
   res.status(200).json({
@@ -252,7 +252,7 @@ exports.cleanupOldAuditLogs = asyncHandler(async (req, res, next) => {
   const { daysOld = 365 } = req.body;
 
   if (daysOld < 30) {
-    throw new AppError('Cannot delete audit logs less than 30 days old', 400);
+    throw new AppError('د تفتیش لاګونه چې د 30 ورځو څخه لړې وي حذف نه شي کېدلی', 400);
   }
 
   const cutoffDate = new Date();

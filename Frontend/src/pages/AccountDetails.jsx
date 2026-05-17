@@ -20,6 +20,7 @@ import Spinner from "../components/Spinner";
 import { toast } from "react-toastify";
 import { usePDF } from "react-to-pdf";
 import AccountStatementPDF from "../components/AccountStatementPDF";
+import { formatWhatsAppBalanceMessage, formatWhatsAppPhone, openWhatsApp } from "../utils/whatsappFormatter";
 
 const EMPTY_LEDGER = [];
 
@@ -234,7 +235,12 @@ const AccountDetails = () => {
       return;
     }
 
-    const transactionType = accountType === "customer" ? "Debit" : "Credit";
+    let transactionType;
+    if (accountType === "customer") {
+      transactionType = "Debit";
+    } else {
+      transactionType = "Credit";
+    }
 
     try {
       await createTransactionMutation.mutateAsync({
@@ -253,8 +259,8 @@ const AccountDetails = () => {
   };
 
   const canRecordPayment = ["customer", "supplier", "employee"].includes(accountType);
-  const canExportPDF = ["customer", "supplier"].includes(accountType);
-  const canSendWhatsApp = ["customer", "supplier"].includes(accountType) && contactInfo?.phone;
+  const canExportPDF = ["customer", "supplier", "saraf"].includes(accountType);
+  const canSendWhatsApp = ["customer", "supplier", "saraf"].includes(accountType) && contactInfo?.phone;
 
   const handleSendWhatsApp = () => {
     if (!contactInfo?.phone) {
@@ -262,66 +268,21 @@ const AccountDetails = () => {
       return;
     }
 
-    // Convert Pashto/Dari digits to English digits
-    const convertToEnglishDigits = (str) => {
-      const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-      return str.split('').map(char => {
-        const index = persianDigits.indexOf(char);
-        return index !== -1 ? index.toString() : char;
-      }).join('');
-    };
-
-    // Format phone number (convert digits, remove spaces, dashes, etc.)
-    let phoneNumber = convertToEnglishDigits(contactInfo.phone).replace(/[^0-9+]/g, '');
-    
-    // If phone doesn't start with +, assume it's Afghan number and add +93
-    if (!phoneNumber.startsWith('+')) {
-      phoneNumber = '+93' + phoneNumber;
-    }
-
-    // Get current date in Jalali format
+    const phoneNumber = formatWhatsAppPhone(contactInfo.phone);
     const today = new Date();
     const formattedDate = formatDate(today.toISOString());
-
-    // Determine balance message based on account type
-    let balanceMessage = '';
     const absBalance = Math.abs(currentBalance);
     const formattedBalance = formatCurrency(absBalance);
 
-    if (accountType === 'supplier') {
-      if (currentBalance > 0) {
-        balanceMessage = ` موږ ستاسی  ${formattedBalance}  افغانۍ پوروړی یو`;
-      } else if (currentBalance < 0) {
-        balanceMessage = `موږ تاسو ته  ${formattedBalance}  افغانۍ پور لرو`;
-      } else {
-        balanceMessage = `ستاسو حساب صفر دی`;
-      }
-    } else if (accountType === 'customer') {
-      if (currentBalance > 0) {
-        balanceMessage = `تاسی زموږ   ${formattedBalance}  افغانۍ پوروړی یاست`;
-      } else if (currentBalance < 0) {
-        balanceMessage = `موږ تاسو ته ${formattedBalance} افغانۍ پور لرو`;
-      } else {
-        balanceMessage = `ستاسو حساب صفر دی`;
-      }
-    }
+    const message = formatWhatsAppBalanceMessage({
+      accountType,
+      currentBalance,
+      contactName: contactInfo.name,
+      formattedBalance,
+      formattedDate,
+    });
 
-    // Create WhatsApp message
-    const companyName = "بلال سدیس د مربا شرکت"; // You can make this dynamic from settings
-const message = `${companyName}\n\n\n` +
-  `${contactInfo.name}\n\n` +
-  `${balanceMessage}\n\n` +
-  `نیټه: ${formattedDate}\n\n` +
-  `مننه`;
-
-
-    // Encode message for URL
-    const encodedMessage = encodeURIComponent(message);
-
-    // Open WhatsApp with pre-filled message
-    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
-
+    openWhatsApp(phoneNumber, message);
   };
 
   const handleExportPDF = () => {
@@ -397,7 +358,6 @@ const message = `${companyName}\n\n\n` +
               <span>PDF ډاونلوډ</span>
             </button>
           )}
-          {canRecordPayment && (
             <button
               onClick={() => setShowPaymentModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"

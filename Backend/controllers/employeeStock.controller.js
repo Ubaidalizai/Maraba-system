@@ -53,7 +53,7 @@ exports.getEmployeeStockRecord = asyncHandler(async (req, res) => {
     .populate('employee', 'name')
     .populate('product', 'name');
 
-  if (!record) throw new AppError('Employee stock record not found', 404);
+  if (!record) throw new AppError('د کارکوونکي سټاک ریکارډ ونه موندل شو', 404);
 
   res.status(200).json({
     success: true,

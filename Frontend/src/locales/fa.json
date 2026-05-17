@@ -1324,3 +1324,7 @@
     }
   }
 }
+
+// Translation keys added:
+// saleForm.validation.customerRequired: "لطفاً حساب مشتری را انتخاب کنید"
+// saleForm.validation.employeeRequired: "لطفاً حساب کارمند را انتخاب کنید"

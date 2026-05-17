@@ -241,7 +241,7 @@ function Warehouse() {
         {selectedPro && (
           <div className="bg-white rounded-sm max-w-2xl w-[700px] max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900">جزئیات گدام </h2>
+              <h2 className="text-2xl font-bold text-gray-900">د ګودام جزئیات</h2>
             </div>
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -255,7 +255,7 @@ function Warehouse() {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">
-                    نمبر بچ
+                    د بچ شمېره
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
                     {selectedPro?.batchNumber || "DEFAULT"}
@@ -271,7 +271,7 @@ function Warehouse() {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">
-                    قیمت خرید/واحد
+                    د پېرود بیه/واحد
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
                     {formatCurrency(selectedPro?.purchasePricePerBaseUnit)}
@@ -279,7 +279,7 @@ function Warehouse() {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">
-                    موجودی در انبار
+                    په ګودام کې موجودی
                   </h3>
                   <p className="text-2xl font-bold text-purple-600">
                     {selectedPro?.location === "warehouse"
@@ -290,22 +290,22 @@ function Warehouse() {
 
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">
-                    حداقل سطح موجودی
+                    لړترلړه کچه
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
-                    {selectedPro?.product?.minLevel ?? 0} عدد
+                    {selectedPro?.product?.minLevel ?? 0} دانې
                   </p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">
-                    تاریخ انقضا
+                    د پای نېټه
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
                     {selectedPro?.expiryDate
                       ? new Date(selectedPro.expiryDate).toLocaleDateString(
                           "fa-IR"
                         )
-                      : "در دسترس نیست"}
+                      : "نه دی لاسرسی"}
                   </p>
                 </div>
               </div>
