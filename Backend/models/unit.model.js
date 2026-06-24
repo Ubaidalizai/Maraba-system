@@ -51,6 +51,8 @@ unitSchema.pre('save', async function(next) {
   next();
 });
 
+unitSchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Unit = mongoose.model('Unit', unitSchema);
 
 module.exports = Unit;

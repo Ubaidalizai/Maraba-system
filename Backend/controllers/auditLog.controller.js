@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const asyncHandler = require('../middlewares/asyncHandler');
 const AppError = require('../utils/AppError');
 const AuditLog = require('../models/auditLog.model');
+const { enrichAuditLog, enrichAuditLogs } = require('../utils/auditLogEnricher');
 
 // @desc    Get all audit logs with filtering and pagination
 // @route   GET /api/v1/audit-logs
@@ -57,6 +58,8 @@ exports.getAllAuditLogs = asyncHandler(async (req, res, next) => {
     AuditLog.countDocuments(filter),
   ]);
 
+  const enrichedData = await enrichAuditLogs(auditLogs);
+
   // Calculate pagination info
   const totalPages = Math.ceil(total / limitNum);
   const hasNextPage = pageNum < totalPages;
@@ -73,7 +76,7 @@ exports.getAllAuditLogs = asyncHandler(async (req, res, next) => {
       hasPrevPage,
       limit: limitNum,
     },
-    data: auditLogs,
+    data: enrichedData,
   });
 });
 
@@ -101,12 +104,13 @@ exports.getAuditLogsByRecord = asyncHandler(async (req, res, next) => {
   sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
   const auditLogs = await AuditLog.find(filter).sort(sort).lean();
+  const enrichedData = await enrichAuditLogs(auditLogs);
 
   res.status(200).json({
     success: true,
     count: auditLogs.length,
     recordId,
-    data: auditLogs,
+    data: enrichedData,
   });
 });
 
@@ -159,6 +163,8 @@ exports.getAuditLogsByTable = asyncHandler(async (req, res, next) => {
     AuditLog.countDocuments(filter),
   ]);
 
+  const enrichedData = await enrichAuditLogs(auditLogs);
+
   const totalPages = Math.ceil(total / limitNum);
   const hasNextPage = pageNum < totalPages;
   const hasPrevPage = pageNum > 1;
@@ -175,7 +181,7 @@ exports.getAuditLogsByTable = asyncHandler(async (req, res, next) => {
       hasPrevPage,
       limit: limitNum,
     },
-    data: auditLogs,
+    data: enrichedData,
   });
 });
 
@@ -194,9 +200,11 @@ exports.getAuditLogById = asyncHandler(async (req, res, next) => {
     throw new AppError('د تفتیش لاګ ونه موندل شو', 404);
   }
 
+  const enriched = await enrichAuditLog(auditLog);
+
   res.status(200).json({
     success: true,
-    data: auditLog,
+    data: enriched,
   });
 });
 
@@ -217,7 +225,13 @@ exports.getAuditLogStats = asyncHandler(async (req, res, next) => {
     { $match: matchStage },
     { $group: { _id: '$operation', count: { $sum: 1 } } },
   ]);
-  const operationCounts = { INSERT: 0, UPDATE: 0, DELETE: 0 };
+  const operationCounts = {
+    INSERT: 0,
+    UPDATE: 0,
+    DELETE: 0,
+    RESTORE: 0,
+    PERMANENT_DELETE: 0,
+  };
   let totalLogs = 0;
   operationsAgg.forEach((o) => {
     totalLogs += o.count;

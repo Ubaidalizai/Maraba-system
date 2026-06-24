@@ -16,6 +16,31 @@ const Stock = require('../models/stock.model');
 const Account = require('../models/account.model');
 const AccountTransaction = require('../models/accountTransaction.model');
 const { getOrCreateAccount } = require('../utils/accountHelper');
+const {
+  parseDeletionFilter,
+  markSoftDeleted,
+  markRestored,
+  validateObjectId,
+} = require('../utils/softDeleteHelpers');
+const {
+  undoPurchaseAccountTransactions,
+  redoPurchaseAccountTransactions,
+} = require('../utils/purchaseTrashAccounts');
+const {
+  undoPurchaseStockForDelete,
+  redoPurchaseStockForRestore,
+} = require('../utils/purchaseTrashStock');
+const { assertNoActivePurchaseReturns } = require('../utils/purchaseReturnHelpers');
+const {
+  getPurchaseLineConstraints,
+  validatePurchaseEditStock,
+} = require('../utils/purchaseEditStock');
+const { assertPurchaseItemUsesPrimaryUnit } = require('../utils/purchaseUnitHelpers');
+const {
+  toStockQuantity,
+  purchasePriceForStock,
+  loadPrimaryUnitForProduct,
+} = require('../utils/primaryUnitStock');
 
 // Helper function to validate account balance
 const validateAccountBalance = async (accountId, requiredAmount, session) => {
@@ -86,8 +111,14 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
       });
     }
 
-    // 3️⃣ Validate payment account and check balance
-    const payAccount = await validateAccountBalance(paymentAccount, paidAmount, session);
+    // 3️⃣ Payment account only when paying now (later payments use POST /purchases/:id/payment)
+    let payAccount = null;
+    if (paidAmount > 0) {
+      if (!paymentAccount) {
+        throw new AppError('د تادیې لپاره حساب (دخل/تجري/صراف) اړین دی', 400);
+      }
+      payAccount = await validateAccountBalance(paymentAccount, paidAmount, session);
+    }
 
     // 4️⃣ Calculate totals
     let totalAmount = 0;
@@ -124,6 +155,11 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
       const unit = await Unit.findById(item.unit).session(session);
       if (!unit) throw new AppError('ناسم واحد ID', 400);
 
+      assertPurchaseItemUsesPrimaryUnit(product, item.unit);
+
+      const primaryUnit = await loadPrimaryUnitForProduct(product._id, session);
+      const stockQty = toStockQuantity(item.quantity, unit, primaryUnit);
+      const stockPrice = purchasePriceForStock(item.unitPrice);
       const totalPrice = item.unitPrice * item.quantity;
 
       // ✅ Assign consistent batch number ONCE
@@ -151,19 +187,17 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
         { session }
       );
 
-      // Update Product latestPurchasePrice (converted to base)
-      const basePrice = item.unitPrice / unit.conversion_to_base;
-      product.latestPurchasePrice = basePrice;
+      product.latestPurchasePrice = stockPrice;
       await product.save({ session });
 
-      // ✅ Update or insert Stock
+      // ✅ Update or insert Stock (quantity in product primary unit)
       await Stock.findOneAndUpdate(
         { product: product._id, batchNumber: batchNum, location: stockLocation },
         {
-          $inc: { quantity: item.quantity * unit.conversion_to_base },
+          $inc: { quantity: stockQty },
           $set: {
             expiryDate,
-            purchasePricePerBaseUnit: basePrice,
+            purchasePricePerBaseUnit: stockPrice,
             batchNumber: batchNum,
             unit: product.baseUnit,
             location: stockLocation,
@@ -176,10 +210,6 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
     // 7️⃣ ACCOUNT TRANSACTIONS
 
     // Supplier (Debit)
-    const billRef = purchase[0].purchaseNumber
-      ? ` - بل نمبر: ${purchase[0].purchaseNumber}`
-      : "";
-
     await AccountTransaction.create(
       [
         {
@@ -189,7 +219,7 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
           referenceType: 'purchase',
           referenceId: purchase[0]._id,
           created_by: req.user._id,
-          description: `د تاجر ${supplierAccount.name} څخه پېرود${billRef}`,
+          description: `د تاجر ${supplierAccount.name} څخه رانیول`,
         },
       ],
       { session }
@@ -210,7 +240,7 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
             referenceType: 'purchase',
             referenceId: purchase[0]._id,
             created_by: req.user._id,
-          description: `د پېرود لپاره تادیه${billRef}`,
+          description: `د رانیول لپاره تادیه`,
           },
         ],
         { session }
@@ -229,7 +259,7 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
             referenceType: 'purchase',
             referenceId: purchase[0]._id,
             created_by: req.user._id,
-          description: `د پېرود لپاره تادیه${billRef}`,
+          description: `د رانیول لپاره تادیه`,
           },
         ],
         { session }
@@ -245,13 +275,13 @@ exports.createPurchase = asyncHandler(async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'پیرود په بریالیتوب سره جوړ شو',
+      message: 'رانیول په بریالیتوب سره جوړ شو',
       purchase: purchase[0],
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'پیرود جوړول ناکام شو', 500);
+    throw new AppError(err.message || 'رانیول جوړول ناکام شو', 500);
   }
 });
 
@@ -261,13 +291,11 @@ exports.getAllPurchases = asyncHandler(async (req, res, next) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
-  const includeDeleted = req.query.includeDeleted === 'true';
   const search = req.query.search;
   const supplier = req.query.supplier;
   const status = req.query.status;
 
-  // Build filter object
-  let filter = includeDeleted ? {} : { isDeleted: false };
+  let filter = parseDeletionFilter(req.query);
 
   // Add supplier filter
   if (supplier) {
@@ -280,7 +308,9 @@ exports.getAllPurchases = asyncHandler(async (req, res, next) => {
       filter.dueAmount = 0;
     } else if (status === 'partial') {
       filter.dueAmount = { $gt: 0 };
+      filter.paidAmount = { $gt: 0 };
     } else if (status === 'pending') {
+      filter.dueAmount = { $gt: 0 };
       filter.paidAmount = 0;
     }
   }
@@ -351,7 +381,7 @@ exports.getPurchaseById = asyncHandler(async (req, res, next) => {
   ).populate('supplierAccount', 'name');
 
   if (!purchase || purchase.isDeleted)
-    throw new AppError('پیرود ونه موندل شو', 404);
+    throw new AppError('رانیول ونه موندل شو', 404);
 
   // Fetch purchase items with populated product and unit
   const items = await PurchaseItem.find({ 
@@ -370,6 +400,29 @@ exports.getPurchaseById = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc Min quantities / stock constraints when editing a purchase
+// @route GET /api/v1/purchases/:id/stock-constraints
+exports.getPurchaseStockConstraints = asyncHandler(async (req, res, next) => {
+  const purchase = await Purchase.findById(req.params.id).lean();
+  if (!purchase || purchase.isDeleted) {
+    throw new AppError('رانیول ونه موندل شو', 404);
+  }
+
+  const oldItems = await PurchaseItem.find({
+    purchase: purchase._id,
+    isDeleted: false,
+  })
+    .populate('product', 'name')
+    .populate('unit', 'name conversion_to_base');
+
+  const data = await getPurchaseLineConstraints(purchase, oldItems);
+
+  res.status(200).json({
+    success: true,
+    data,
+  });
+});
+
 // @desc Update purchase with items + accounts + stock + audit (transactional)
 // @route PUT /api/v1/purchases/:id
 exports.updatePurchase = asyncHandler(async (req, res, next) => {
@@ -380,12 +433,16 @@ exports.updatePurchase = asyncHandler(async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const { supplier, purchaseDate, paidAmount, items, reason, stockLocation = 'warehouse', paymentAccount, description } = req.body;
+    const { supplier, purchaseDate, paidAmount, items, reason, paymentAccount, description } =
+      req.body;
 
     // 1️⃣ Fetch existing purchase and items
     const purchase = await Purchase.findById(req.params.id).session(session);
     if (!purchase || purchase.isDeleted)
-      throw new AppError('پیرود ونه موندل شو', 404);
+      throw new AppError('رانیول ونه موندل شو', 404);
+
+    // Stock was received at purchase.stockLocation — edits must reverse/re-apply there only
+    const receiptLocation = purchase.stockLocation || 'warehouse';
 
     const oldItems = await PurchaseItem.find({
       purchase: purchase._id,
@@ -435,16 +492,27 @@ exports.updatePurchase = asyncHandler(async (req, res, next) => {
 
     // 3️⃣ Update purchase items (delete old + re-add new)
     if (items && items.length > 0) {
+      const stockCheck = await validatePurchaseEditStock(
+        purchase,
+        oldItems,
+        items
+      );
+      if (!stockCheck.valid) {
+        throw new AppError(stockCheck.issues[0].messagePs, 400);
+      }
+
       // Reverse previous stock & product prices
       for (const old of oldItems) {
         const unit = await Unit.findById(old.unit).session(session);
+        const primaryUnit = await loadPrimaryUnitForProduct(old.product, session);
+        const reverseQty = toStockQuantity(old.quantity, unit, primaryUnit);
         await Stock.findOneAndUpdate(
           {
             product: old.product,
             batchNumber: old.batchNumber || 'DEFAULT',
-            location: 'store',
+            location: receiptLocation,
           },
-          { $inc: { quantity: -old.quantity * unit.conversion_to_base } },
+          { $inc: { quantity: -reverseQty } },
           { session }
         );
       }
@@ -462,13 +530,14 @@ exports.updatePurchase = asyncHandler(async (req, res, next) => {
         const unit = await Unit.findById(item.unit).session(session);
         if (!unit) throw new AppError('ناسم واحد ID', 400);
 
+        assertPurchaseItemUsesPrimaryUnit(product, item.unit);
+
+        const primaryUnit = await loadPrimaryUnitForProduct(product._id, session);
+        const stockQty = toStockQuantity(item.quantity, unit, primaryUnit);
+        const stockPrice = purchasePriceForStock(item.unitPrice);
         const totalPrice = item.unitPrice * item.quantity;
         newTotalAmount += totalPrice;
 
-        // Calculate base price BEFORE using it
-        const basePrice = item.unitPrice / unit.conversion_to_base;
-
-        // Add back new stock
         const newBatchNum = product.trackByBatch
           ? (item.batchNumber && item.batchNumber.trim() ? item.batchNumber : `AUTO-${Date.now()}-${product._id}`)
           : 'DEFAULT';
@@ -477,23 +546,22 @@ exports.updatePurchase = asyncHandler(async (req, res, next) => {
           {
             product: product._id,
             batchNumber: newBatchNum,
-            location: stockLocation,
+            location: receiptLocation,
           },
           {
-            $inc: { quantity: item.quantity * unit.conversion_to_base },
+            $inc: { quantity: stockQty },
             $set: {
               expiryDate: item.expiryDate || null,
-              purchasePricePerBaseUnit: basePrice,
+              purchasePricePerBaseUnit: stockPrice,
               batchNumber: newBatchNum,
               unit: product.baseUnit,
-              location: stockLocation,
+              location: receiptLocation,
             },
           },
           { upsert: true, session }
         );
 
-        // Update latest purchase price (converted to base)
-        product.latestPurchasePrice = basePrice;
+        product.latestPurchasePrice = stockPrice;
         await product.save({ session });
 
         // Recreate purchase item
@@ -616,13 +684,13 @@ exports.updatePurchase = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'پیرود په بریالیتوب سره تازه شو (تراکنش)',
+      message: 'رانیول په بریالیتوب سره تازه شو (تراکنش)',
       purchase,
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'پیرود تازه کول ناکام شو', 500);
+    throw new AppError(err.message || 'رانیول تازه کول ناکام شو', 500);
   }
 });
 
@@ -635,46 +703,22 @@ exports.softDeletePurchase = asyncHandler(async (req, res, next) => {
   try {
     const purchase = await Purchase.findById(req.params.id).session(session);
     if (!purchase || purchase.isDeleted)
-      throw new AppError('پیرود ونه موندل شو', 404);
+      throw new AppError('رانیول ونه موندل شو', 404);
+
+    await assertNoActivePurchaseReturns(session, purchase._id);
 
     const items = await PurchaseItem.find({ purchase: purchase._id }).session(
       session
     );
-    const supplierAccount = purchase.supplierAccount
-      ? await Account.findById(purchase.supplierAccount).session(session)
-      : await Account.findOne({ refId: purchase.supplier, type: 'supplier' }).session(session);
 
-    if (!supplierAccount) throw new AppError('د تاجر حساب ونه موندل شو', 404);
+    // 1️⃣ Reverse stock still at receipt location (not full qty if transferred/sold)
+    await undoPurchaseStockForDelete(session, purchase, items);
 
-    // 1️⃣ Reverse Stock Quantities
-    for (const item of items) {
-      const unit = await Unit.findById(item.unit).session(session);
-      const batchNum = item.batchNumber || 'DEFAULT';
-      // Use the stockLocation stored in the purchase
-      await Stock.findOneAndUpdate(
-        {
-          product: item.product,
-          batchNumber: batchNum,
-          location: purchase.stockLocation || 'warehouse',
-        },
-        { $inc: { quantity: -item.quantity * unit.conversion_to_base } },
-        { session }
-      );
-    }
+    // 2️⃣ Reverse all active account transactions (supplier, cashier, payments)
+    await undoPurchaseAccountTransactions(session, purchase._id);
 
-    // 2️⃣ Reverse Supplier Account
-    supplierAccount.currentBalance -= purchase.totalAmount;
-    await supplierAccount.save({ session });
-
-    // 3️⃣ Remove AccountTransactions related to this purchase
-    await AccountTransaction.updateMany(
-      { referenceType: 'purchase', referenceId: purchase._id },
-      { isDeleted: true },
-      { session }
-    );
-
-    // 4️⃣ Soft delete the purchase
-    purchase.isDeleted = true;
+    // 3️⃣ Soft delete the purchase
+    markSoftDeleted(purchase, req.user?._id);
     await purchase.save({ session });
 
     // 5️⃣ Log Audit
@@ -698,12 +742,12 @@ exports.softDeletePurchase = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'پیرود په بریالیتوب سره حذف شو',
+      message: 'رانیول په بریالیتوب سره حذف شو',
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'پیرود حذفول ناکام شو', 500);
+    throw new AppError(err.message || 'رانیول حذفول ناکام شو', 500);
   }
 });
 
@@ -716,73 +760,31 @@ exports.restorePurchase = asyncHandler(async (req, res, next) => {
   try {
     const purchase = await Purchase.findById(req.params.id).session(session);
     if (!purchase || !purchase.isDeleted)
-      throw new AppError('پیرود ونه موندل شو یا حذف شوی نه دی', 404);
+      throw new AppError('رانیول ونه موندل شو یا حذف شوی نه دی', 404);
 
     const items = await PurchaseItem.find({ purchase: purchase._id }).session(
       session
     );
-    const supplierAccount = purchase.supplierAccount
-      ? await Account.findById(purchase.supplierAccount).session(session)
-      : await Account.findOne({ refId: purchase.supplier, type: 'supplier' }).session(session);
+    // 1️⃣ Restore stock amounts removed on delete (matches stockReversedBase per line)
+    await redoPurchaseStockForRestore(session, purchase, items);
 
-    if (!supplierAccount) throw new AppError('د تاجر حساب ونه موندل شو', 404);
+    // 2️⃣ Re-activate original account transactions (exact inverse of soft-delete)
+    await redoPurchaseAccountTransactions(session, purchase._id, purchase);
 
-    // 1️⃣ Restore Stock Quantities
-    for (const item of items) {
-      const unit = await Unit.findById(item.unit).session(session);
-      const product = await Product.findById(item.product).session(session);
-      if (!product) throw new AppError('محصول ونه موندل شو', 404);
-      
-      // Calculate base price for restore
-      const basePrice = item.unitPrice / unit.conversion_to_base;
-      
-      // Use 'DEFAULT' for non-batch-tracked products so we match the original upsert behavior
-      const batchNum = item.batchNumber || 'DEFAULT';
-      await Stock.findOneAndUpdate(
-        {
-          product: item.product,
-          batchNumber: batchNum,
-          location: 'warehouse', // Default to warehouse for restore
-        },
-        {
-          $inc: { quantity: item.quantity * unit.conversion_to_base },
-          $set: {
-            expiryDate: item.expiryDate || null,
-            purchasePricePerBaseUnit: basePrice,
-            batchNumber: batchNum,
-            unit: product.baseUnit,
-            location: 'warehouse', // Default to warehouse for restore
-          },
-        },
-        { upsert: true, session }
-      );
-    }
-
-    // 2️⃣ Restore Supplier Account
-    supplierAccount.currentBalance += purchase.totalAmount;
-    await supplierAccount.save({ session });
-
-    // 3️⃣ Restore AccountTransactions
-    await AccountTransaction.updateMany(
-      { referenceType: 'purchase', referenceId: purchase._id },
-      { isDeleted: false },
-      { session }
-    );
-
-    // 4️⃣ Restore purchase itself
-    purchase.isDeleted = false;
+    // 3️⃣ Restore purchase itself
+    markRestored(purchase);
     await purchase.save({ session });
 
-    // 5️⃣ Audit Log
+    // 4️⃣ Audit Log
     await AuditLog.create(
       [
         {
           tableName: 'Purchase',
           recordId: purchase._id,
-          operation: 'UPDATE',
+          operation: 'RESTORE',
           oldData: null,
           newData: { purchase, items },
-          reason: 'Purchase restored (stock & accounts re-applied)',
+          reason: req.body.reason || 'Purchase restored (stock & accounts re-applied)',
           changedBy: req.user?.name || 'System',
         },
       ],
@@ -794,13 +796,13 @@ exports.restorePurchase = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'پیرود په بریالیتوب سره بیرته راستون شو',
+      message: 'رانیول په بریالیتوب سره بیرته راستون شو',
       purchase,
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'پیرود بیرته راستنول ناکام شو', 500);
+    throw new AppError(err.message || 'رانیول بیرته راستنول ناکام شو', 500);
   }
 });
 
@@ -811,7 +813,7 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
   const purchaseId = req.params.id;
 
   if (!purchaseId || purchaseId === 'null' || purchaseId === 'undefined') {
-    throw new AppError('سم د پیرود ID اړین دی', 400);
+    throw new AppError('سم د رانیول ID اړین دی', 400);
   }
 
   if (!amount || amount <= 0) {
@@ -825,7 +827,7 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
     // 1️⃣ Find the purchase
     const purchase = await Purchase.findById(purchaseId).session(session);
     if (!purchase || purchase.isDeleted) {
-      throw new AppError('پیرود ونه موندل شو', 404);
+      throw new AppError('رانیول ونه موندل شو', 404);
     }
 
     // 2️⃣ Calculate remaining due
@@ -850,10 +852,6 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
     // 4️⃣ Validate payment account and check balance
     const payAccount = await validateAccountBalance(paymentAccount, amount, session);
 
-    const billRef = purchase.purchaseNumber
-      ? ` - بل نمبر: ${purchase.purchaseNumber}`
-      : '';
-
     // 5️⃣ Create payment transactions
     // Reduce cashier balance
     await AccountTransaction.create(
@@ -865,7 +863,7 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
           referenceType: 'purchase',
           referenceId: purchase._id,
           created_by: req.user._id,
-          description: description || `د پیرود لپاره اضافي تادیه${billRef}`,
+          description: description || `د رانیول لپاره اضافي تادیه`,
         },
       ],
       { session }
@@ -884,7 +882,7 @@ exports.recordPurchasePayment = asyncHandler(async (req, res, next) => {
           referenceType: 'purchase',
           referenceId: purchase._id,
           created_by: req.user._id,
-          description: description || `د پیرود لپاره اضافي تادیه${billRef}`,
+          description: description || `د رانیول لپاره اضافي تادیه`,
         },
       ],
       { session }
@@ -1042,5 +1040,31 @@ exports.getPurchaseReports = asyncHandler(async (req, res, next) => {
         totalCount: formattedSummary.reduce((sum, item) => sum + item.count, 0),
       },
     },
+  });
+});
+
+// @desc    Permanently delete a soft-deleted purchase
+// @route   DELETE /api/v1/purchases/:id/permanent
+exports.permanentDeletePurchase = asyncHandler(async (req, res, next) => {
+  validateObjectId(req.params.id, 'ناسم رانیول ID');
+
+  const purchase = await Purchase.findById(req.params.id);
+  if (!purchase) throw new AppError('رانیول ونه موندل شو', 404);
+  if (!purchase.isDeleted) {
+    throw new AppError('لومړی باید رانیول په کثافاتو کې حذف شوی وي', 400);
+  }
+
+  await assertNoActivePurchaseReturns(null, purchase._id);
+
+  await PurchaseItem.deleteMany({ purchase: purchase._id });
+  await AccountTransaction.deleteMany({
+    referenceType: 'purchase',
+    referenceId: purchase._id,
+  });
+  await Purchase.deleteOne({ _id: purchase._id });
+
+  res.status(200).json({
+    success: true,
+    message: 'رانیول په تل لپاره حذف شو',
   });
 });

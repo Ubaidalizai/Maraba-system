@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { bindNumericControlled } from "../utilies/numericInput";
 
 const Pagination = ({
   page,
@@ -99,13 +100,13 @@ const Pagination = ({
         <div className="px-3 flex gap-x-1 py-2 text-sm text-gray-700 bg-gray-100 rounded">
           {t("common.pagination.page")}
           <input
-            type="number"
-            value={pageInput}
-            onChange={handlePageInputChange}
-            onKeyDown={handlePageInputKeyDown}
-            className="w-12 text-center bg-transparent border-none outline-none"
-            min={1}
-            max={totalPages}
+            {...bindNumericControlled({
+              allowDecimal: false,
+              value: pageInput,
+              onChange: handlePageInputChange,
+              onKeyDown: handlePageInputKeyDown,
+              className: "w-12 text-center bg-transparent border-none outline-none",
+            })}
           />
           {t("common.pagination.of")} <span>{totalPages}</span>
         </div>

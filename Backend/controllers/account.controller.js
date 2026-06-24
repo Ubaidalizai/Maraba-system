@@ -3,6 +3,12 @@ const Account = require('../models/account.model');
 const AuditLog = require('../models/auditLog.model');
 const asyncHandler = require('../middlewares/asyncHandler');
 const AppError = require('../utils/AppError');
+const {
+  parseDeletionFilter,
+  markSoftDeleted,
+  markRestored,
+  validateObjectId,
+} = require('../utils/softDeleteHelpers');
 
 // @desc    Create a new account
 // @route   POST /api/v1/accounts
@@ -77,7 +83,7 @@ exports.createAccount = asyncHandler(async (req, res, next) => {
 exports.getAllAccounts = asyncHandler(async (req, res, next) => {
   const { type, search, page = 1, limit = 10 } = req.query;
 
-  const query = { isDeleted: false };
+  const query = parseDeletionFilter(req.query, {});
   if (type) query.type = type;
   if (search) query.name = { $regex: search, $options: 'i' };
 
@@ -190,7 +196,7 @@ exports.deleteAccount = asyncHandler(async (req, res, next) => {
       throw new AppError('حساب ونه موندل شو', 404);
 
     const oldData = { ...account.toObject() };
-    account.isDeleted = true;
+    markSoftDeleted(account, req.user?._id);
     await account.save({ session });
 
     await AuditLog.create(
@@ -235,7 +241,7 @@ exports.restoreAccount = asyncHandler(async (req, res, next) => {
     if (!account.isDeleted)
       throw new AppError('حساب دمخه فعال دی', 400);
 
-    account.isDeleted = false;
+    markRestored(account);
     await account.save({ session });
 
     await AuditLog.create(
@@ -266,6 +272,31 @@ exports.restoreAccount = asyncHandler(async (req, res, next) => {
     session.endSession();
     throw new AppError(err.message || 'حساب بیرته راستنیدل ناکام شو', 500);
   }
+});
+
+// @desc    Permanently delete a soft-deleted account
+// @route   DELETE /api/v1/accounts/:id/permanent
+exports.permanentDeleteAccount = asyncHandler(async (req, res, next) => {
+  validateObjectId(req.params.id, 'ناسم حساب ID');
+
+  const account = await Account.findById(req.params.id);
+  if (!account) throw new AppError('حساب ونه موندل شو', 404);
+  if (!account.isDeleted) {
+    throw new AppError('لومړی باید حساب په کثافاتو کې حذف شوی وي', 400);
+  }
+  if (Math.abs(account.currentBalance || 0) > 0.0001) {
+    throw new AppError(
+      'حساب نشي تل لپاره حذف کیدای: بیلانس باید صفر وي',
+      400
+    );
+  }
+
+  await Account.deleteOne({ _id: account._id });
+
+  res.status(200).json({
+    success: true,
+    message: 'حساب په تل لپاره حذف شو',
+  });
 });
 
 // @desc    Transfer money between system accounts

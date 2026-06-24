@@ -3,11 +3,15 @@ const asyncHandler = require('../middlewares/asyncHandler.js');
 
 const {
   generateAccessToken,
-  generateRefreshToken,
   setAuthCookies,
   clearAuthCookies,
-  verifyRefreshToken,
 } = require('../utils/tokens');
+const {
+  createRefreshSession,
+  rotateRefreshSession,
+  revokeRefreshSession,
+  revokeAllUserRefreshSessions,
+} = require('../utils/refreshToken.service');
 const Email = require('../utils/email.js');
 const { deleteOldImage } = require('../middlewares/uploadFile.js');
 
@@ -18,6 +22,13 @@ const {
   updateUserValidationSchema,
   updateProfileValidationSchema,
 } = require('../validations');
+
+async function issueAuthSession(userId, req, res) {
+  const accessToken = generateAccessToken(userId);
+  const { rawToken } = await createRefreshSession(userId, req);
+  setAuthCookies(res, accessToken, rawToken);
+  return accessToken;
+}
 
 const registerUser = asyncHandler(async (req, res) => {
   const { error } = userValidationSchema.validate(req.body);
@@ -112,9 +123,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
 
   if (user && (await user.isPasswordValid(password, user.password))) {
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-    setAuthCookies(res, accessToken, refreshToken);
+    const accessToken = await issueAuthSession(user._id, req, res);
     const userData = {
       _id: user._id,
       name: user.name,
@@ -136,13 +145,15 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 });
 
-const logout = (req, res) => {
+const logout = asyncHandler(async (req, res) => {
+  const token = req.cookies && req.cookies.refresh_token;
+  await revokeRefreshSession(token);
   clearAuthCookies(res);
   res.status(200).json({
     success: true,
     message: 'په بریالیتوب سره وځی شوئ',
   });
-};
+});
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const token = req.cookies && req.cookies.refresh_token;
@@ -152,29 +163,26 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       .json({ success: false, message: 'د تازه کولو ټوکن شتون نلري' });
   }
 
-  try {
-    const decoded = verifyRefreshToken(token);
-    const currentUser = await User.findById(decoded.userId);
-    if (!currentUser) {
-      return res
-        .status(401)
-        .json({ success: false, message: 'کاروونکی نور شتون نلري' });
-    }
-
-    if (currentUser.changedPasswordAfter(decoded.iat)) {
-      return res
-        .status(401)
-        .json({ success: false, message: 'کاروونکي په وروستي کې پاسورډ بدل کړی دی' });
-    }
-
-    const newAccessToken = generateAccessToken(currentUser._id);
-    setAuthCookies(res, newAccessToken, token);
-    return res.json({ success: true, accessToken: newAccessToken });
-  } catch (err) {
+  const rotated = await rotateRefreshSession(token, req);
+  if (!rotated) {
+    clearAuthCookies(res);
     return res
       .status(401)
       .json({ success: false, message: 'د تازه کولو ټوکن ناسم یا مهال تیر شوی دی' });
   }
+
+  const currentUser = await User.findById(rotated.userId);
+  if (!currentUser) {
+    await revokeRefreshSession(rotated.rawToken);
+    clearAuthCookies(res);
+    return res
+      .status(401)
+      .json({ success: false, message: 'کاروونکی نور شتون نلري' });
+  }
+
+  const newAccessToken = generateAccessToken(currentUser._id);
+  setAuthCookies(res, newAccessToken, rotated.rawToken);
+  return res.json({ success: true, accessToken: newAccessToken });
 });
 
 const getUserProfile = asyncHandler(async (req, res) => {
@@ -404,6 +412,7 @@ const updatePassword = asyncHandler(async (req, res, next) => {
 
   user.password = newPassword;
   await user.save();
+  await revokeAllUserRefreshSessions(user._id);
 
   res.status(200).json({
     status: 'success',
@@ -467,9 +476,7 @@ const resetPassword = asyncHandler(async (req, res, next) => {
   user.passwordResetExpires = undefined;
   await user.save();
 
-  const accessToken = generateAccessToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
-  setAuthCookies(res, accessToken, refreshToken);
+  const accessToken = await issueAuthSession(user._id, req, res);
   res.status(200).json({
     status: 'success',
     message: 'ستاسو پاسورډ په بریالیتوب سره بیرته تنظیم شو',

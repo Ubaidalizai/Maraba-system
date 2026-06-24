@@ -2,9 +2,6 @@ import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ChartBarIcon,
-  DocumentArrowDownIcon,
-  PrinterIcon,
-  EyeIcon,
   ChevronUpIcon,
   ChevronDownIcon,
   ShoppingBagIcon,
@@ -18,13 +15,13 @@ import {
   ExclamationCircleIcon,
   ClockIcon,
   HashtagIcon,
-  DocumentTextIcon,
   WalletIcon,
   ArrowUpIcon,
   ArrowDownIcon,
   ArrowTrendingUpIcon,
   PlusCircleIcon,
   MinusCircleIcon,
+  ArchiveBoxXMarkIcon,
   TruckIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -39,22 +36,18 @@ import {
   useCashFlowReport,
   useStockReport,
 } from "../services/useApi";
-import { formatNumber, formatCurrency, normalizeDateToIso, toPersianDigits, toEnglishDigits } from "../utilies/helper";
+import { formatNumber, formatCurrency, normalizeDateToIso, toPersianDigits, toEnglishDigits, formatReportMonthPeriod, formatJalaliMonthFromDate } from "../utilies/helper";
 import DateObject from "react-date-object";
 import persianCalendar from "react-date-object/calendars/persian";
 import gregorianCalendar from "react-date-object/calendars/gregorian";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
 import JalaliDatePicker from "../components/JalaliDatePicker";
+import ReportSummaryCard from "../components/reports/ReportSummaryCard";
+import ReportTypeCard from "../components/reports/ReportTypeCard";
+import ReportChartCard from "../components/reports/ReportChartCard";
+import ReportBarChart from "../components/reports/ReportBarChart";
+import { ReportLoadingState, ReportEmptyState } from "../components/reports/ReportState";
+import SegmentedControl from "../components/reports/SegmentedControl";
+import { reportColors } from "../components/reports/reportTheme";
 
 const dateEnabledReports = new Set([
   "sales",
@@ -318,10 +311,12 @@ const Reports = () => {
     endDate: profitDateParams.endDate,
   });
 
-  const { isLoading: profitStatsLoading } = useProfitStats({
-    startDate: profitDateParams.startDate,
-    endDate: profitDateParams.endDate,
-  });
+  const { data: profitStatsData, isLoading: profitStatsLoading } =
+    useProfitStats({
+      startDate: profitDateParams.startDate,
+      endDate: profitDateParams.endDate,
+      productLimit: 20,
+    });
 
   const { data: profitSummaryData, isLoading: profitSummaryLoading } =
     useProfitSummary({
@@ -399,10 +394,7 @@ const Reports = () => {
       for (let month = 0; month < 12; month++) {
         const monthKey = `${monthNames[month]} ${gregorianYear}`;
         const apiItem = apiMap.get(monthKey);
-        const monthLabel = new Date(gregorianYear, month, 1).toLocaleDateString(
-          localeTag,
-          { month: "long" }
-        );
+        const monthLabel = formatJalaliMonthFromDate(new Date(gregorianYear, month, 1));
         allPeriods.push({
           date: monthLabel,
           fullDate: monthKey,
@@ -471,13 +463,9 @@ const Reports = () => {
       for (let month = 1; month <= 12; month++) {
         const monthKey = `${gregorianYear}-${String(month).padStart(2, "0")}`; // Format: YYYY-MM
         const apiItem = apiMap.get(monthKey);
-        const monthLabel = new Date(
-          gregorianYear,
-          month - 1,
-          1
-        ).toLocaleDateString(localeTag, {
-          month: "long",
-        });
+        const monthLabel = formatJalaliMonthFromDate(
+          new Date(gregorianYear, month - 1, 1)
+        );
         allPeriods.push({
           period: monthLabel,
           fullDate: monthKey,
@@ -491,6 +479,25 @@ const Reports = () => {
 
     return allPeriods;
   }, [profitSummaryData, selectedReport, profitDateParams, profitFilter, localeTag]);
+
+  // Product profit list (from /profit/stats, highest profit first)
+  const productProfitList = useMemo(() => {
+    if (selectedReport !== "profit" || !profitStatsData?.data) return [];
+
+    const items =
+      profitStatsData.data.grossProfitDetails?.byProduct || [];
+
+    return [...items]
+      .sort((a, b) => (b.totalProfit || 0) - (a.totalProfit || 0))
+      .map((row, index) => ({
+        rank: index + 1,
+        productId: row._id,
+        name: row.productName || "—",
+        profit: parseFloat(row.totalProfit) || 0,
+        revenue: parseFloat(row.totalRevenue) || 0,
+        itemCount: row.itemCount || 0,
+      }));
+  }, [profitStatsData, selectedReport]);
 
   // Chart data for purchase reports - generate all periods like sales
   const purchaseChartData = useMemo(() => {
@@ -560,10 +567,7 @@ const Reports = () => {
       for (let month = 0; month < 12; month++) {
         const monthKey = `${monthNames[month]} ${gregorianYear}`;
         const apiItem = apiMap.get(monthKey);
-        const monthLabel = new Date(gregorianYear, month, 1).toLocaleDateString(
-          localeTag,
-          { month: "long" }
-        );
+        const monthLabel = formatJalaliMonthFromDate(new Date(gregorianYear, month, 1));
         allPeriods.push({
           date: monthLabel,
           fullDate: monthKey,
@@ -647,10 +651,7 @@ const Reports = () => {
       for (let month = 0; month < 12; month++) {
         const monthKey = `${monthNames[month]} ${gregorianYear}`;
         const apiItem = apiMap.get(monthKey);
-        const monthLabel = new Date(gregorianYear, month, 1).toLocaleDateString(
-          localeTag,
-          { month: "long" }
-        );
+        const monthLabel = formatJalaliMonthFromDate(new Date(gregorianYear, month, 1));
         allPeriods.push({
           date: monthLabel,
           fullDate: monthKey,
@@ -730,10 +731,7 @@ const Reports = () => {
       for (let month = 0; month < 12; month++) {
         const monthKey = `${monthNames[month]} ${gregorianYear}`;
         const apiItem = apiMap.get(monthKey);
-        const monthLabel = new Date(gregorianYear, month, 1).toLocaleDateString(
-          localeTag,
-          { month: "long" }
-        );
+        const monthLabel = formatJalaliMonthFromDate(new Date(gregorianYear, month, 1));
         allPeriods.push({
           date: monthLabel,
           fullDate: monthKey,
@@ -748,430 +746,250 @@ const Reports = () => {
     return allPeriods;
   }, [cashFlowData, selectedReport, accountsDateParams, accountsFilter, localeTag]);
 
-  // System colors for charts
-  const chartColors = {
-    sales: "#10B981", // green-500
-    purchases: "#F59E0B", // amber-500 (orange)
-    expenses: "#EF4444", // red-500
-    moneyIn: "#10B981", // green-500
-    moneyOut: "#EF4444", // red-500
-    paid: "#3B82F6", // blue-500
-    due: "#EF4444", // red-500
-  };
+  const periodBadgeLabel = useMemo(() => {
+    if (!activeFilter) return null;
+    if (activeRange === "monthly") {
+      const monthValue = activeFilter.month || getCurrentMonthValue();
+      return t("reports.periodTitle.monthly", {
+        month: formatReportMonthPeriod(monthValue),
+      });
+    }
+    return t("reports.periodTitle.yearly", {
+      year: toPersianDigits(activeFilter.year || getCurrentYearValue()),
+    });
+  }, [activeFilter, activeRange, t]);
 
-  // Note: getStatusColor was used for inventory report, but inventory is not yet implemented
+  const handleReportTypeChange = (reportId) => {
+    setSelectedReport(reportId);
+    if (reportId !== "expenses") {
+      setSelectedExpenseCategory("");
+    }
+    if (reportId !== "inventory") {
+      setSelectedStockLocation("all");
+      setSelectedStockLevel("low");
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{t("reports.title")}</h1>
           <p className="text-gray-600 mt-1">{t("reports.subtitle")}</p>
         </div>
+        {periodBadgeLabel && (
+          <span className="inline-flex items-center self-start px-3 py-1.5 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200">
+            {periodBadgeLabel}
+          </span>
+        )}
       </div>
 
       {/* Report type selector */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           {t("reports.selectType")}
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {reportTypes.map((report) => {
-            const Icon = report.icon;
-            return (
-              <button
-                key={report.id}
-                onClick={() => {
-                  setSelectedReport(report.id);
-                  // Reset filters when switching reports
-                  if (report.id !== "expenses") {
-                    setSelectedExpenseCategory("");
-                  }
-                  if (report.id !== "inventory") {
-                    setSelectedStockLocation("all");
-                    setSelectedStockLevel("low");
-                  }
-                }}
-                className={`p-4 rounded-lg border-2 transition-colors ${
-                  selectedReport === report.id
-                    ? "border-amber-500 bg-amber-50 text-amber-700"
-                    : "border-gray-200 hover:border-gray-300 text-gray-700"
-                }`}
-              >
-                <Icon className="h-8 w-8 mx-auto mb-2" />
-                <p className="text-sm font-medium">{report.name}</p>
-              </button>
-            );
-          })}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          {reportTypes.map((report) => (
+            <ReportTypeCard
+              key={report.id}
+              id={report.id}
+              name={report.name}
+              icon={report.icon}
+              active={selectedReport === report.id}
+              onClick={() => handleReportTypeChange(report.id)}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Summary cards for Sales - Moved to top */}
+      {/* Summary cards for Sales */}
       {selectedReport === "sales" && salesReportsData?.data?.totals && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-green-500">
-                <CurrencyDollarIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.salesTotal")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(salesReportsData.data.totals.totalSales || 0)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-blue-500">
-                <CheckCircleIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.paidTotal")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(salesReportsData.data.totals.totalPaid || 0)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-red-500">
-                <ExclamationCircleIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.dueTotal")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(salesReportsData.data.totals.totalDue || 0)}
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <ReportSummaryCard
+            label={t("reports.summary.salesTotal")}
+            value={formatCurrency(salesReportsData.data.totals.totalSales || 0)}
+            icon={CurrencyDollarIcon}
+            tint="green"
+          />
+          <ReportSummaryCard
+            label={t("reports.summary.paidTotal")}
+            value={formatCurrency(salesReportsData.data.totals.totalPaid || 0)}
+            icon={CheckCircleIcon}
+            tint="blue"
+          />
+          <ReportSummaryCard
+            label={t("reports.summary.dueTotal")}
+            value={formatCurrency(salesReportsData.data.totals.totalDue || 0)}
+            icon={ExclamationCircleIcon}
+            tint="red"
+          />
         </div>
       )}
 
-      {/* Summary cards for Purchases - Moved to top */}
+      {/* Summary cards for Purchases */}
       {selectedReport === "purchases" && purchaseReportsData?.data?.totals && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-orange-500">
-                <TruckIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.purchasesTotal")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(
-                    purchaseReportsData.data.totals.totalPurchases || 0
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-blue-500">
-                <CheckCircleIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.paidTotal")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(
-                    purchaseReportsData.data.totals.totalPaid || 0
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-red-500">
-                <ClockIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.dueTotal")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(
-                    purchaseReportsData.data.totals.totalDue || 0
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <ReportSummaryCard
+            label={t("reports.summary.purchasesTotal")}
+            value={formatCurrency(
+              purchaseReportsData.data.totals.totalPurchases || 0
+            )}
+            icon={TruckIcon}
+            tint="amber"
+          />
+          <ReportSummaryCard
+            label={t("reports.summary.paidTotal")}
+            value={formatCurrency(
+              purchaseReportsData.data.totals.totalPaid || 0
+            )}
+            icon={CheckCircleIcon}
+            tint="blue"
+          />
+          <ReportSummaryCard
+            label={t("reports.summary.dueTotal")}
+            value={formatCurrency(
+              purchaseReportsData.data.totals.totalDue || 0
+            )}
+            icon={ClockIcon}
+            tint="red"
+          />
         </div>
       )}
 
-      {/* Summary cards for Expenses - Moved to top */}
+      {/* Summary cards for Expenses */}
       {selectedReport === "expenses" && expenseSummaryData?.data?.totals && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-red-500">
-                <ReceiptPercentIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.expensesTotal")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(
-                    expenseSummaryData.data.totals.totalExpenses || 0
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-gray-500">
-                <HashtagIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.expenseCount")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatNumber(expenseSummaryData.data.totals.totalCount || 0)}
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          <ReportSummaryCard
+            label={t("reports.summary.expensesTotal")}
+            value={formatCurrency(
+              expenseSummaryData.data.totals.totalExpenses || 0
+            )}
+            icon={ReceiptPercentIcon}
+            tint="red"
+          />
+          <ReportSummaryCard
+            label={t("reports.summary.expenseCount")}
+            value={formatNumber(expenseSummaryData.data.totals.totalCount || 0)}
+            icon={HashtagIcon}
+            tint="gray"
+          />
         </div>
       )}
 
-      {/* Summary cards for Account Balances - Moved to top */}
+      {/* Summary cards for Account Balances */}
       {selectedReport === "accounts" && accountBalancesData?.data && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-green-500">
-                <WalletIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.cashAccountsTotal")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(
-                    accountBalancesData.data.summary.totalCashAccounts || 0
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-red-500">
-                <ArrowDownIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.supplierDebtTotal")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(
-                    accountBalancesData.data.summary.totalSupplierDebt || 0
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-blue-500">
-                <ArrowUpIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.customerCreditTotal")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(
-                    accountBalancesData.data.summary.totalCustomerCredit || 0
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div
-                className={`p-3 rounded-full ${
-                  (accountBalancesData.data.summary.netPosition || 0) >= 0
-                    ? "bg-emerald-500"
-                    : "bg-red-500"
-                }`}
-              >
-                <ArrowTrendingUpIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.netPosition")}
-                </p>
-                <p
-                  className={`text-2xl font-bold ${
-                    (accountBalancesData.data.summary.netPosition || 0) >= 0
-                      ? "text-emerald-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {formatCurrency(
-                    accountBalancesData.data.summary.netPosition || 0
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <ReportSummaryCard
+            label={t("reports.summary.cashAccountsTotal")}
+            value={formatCurrency(
+              accountBalancesData.data.summary.totalCashAccounts || 0
+            )}
+            icon={WalletIcon}
+            tint="green"
+          />
+          <ReportSummaryCard
+            label={t("reports.summary.supplierDebtTotal")}
+            value={formatCurrency(
+              accountBalancesData.data.summary.totalSupplierDebt || 0
+            )}
+            icon={ArrowDownIcon}
+            tint="red"
+          />
+          <ReportSummaryCard
+            label={t("reports.summary.customerCreditTotal")}
+            value={formatCurrency(
+              accountBalancesData.data.summary.totalCustomerCredit || 0
+            )}
+            icon={ArrowUpIcon}
+            tint="blue"
+          />
+          <ReportSummaryCard
+            label={t("reports.summary.netPosition")}
+            value={formatCurrency(
+              accountBalancesData.data.summary.netPosition || 0
+            )}
+            icon={ArrowTrendingUpIcon}
+            tint={
+              (accountBalancesData.data.summary.netPosition || 0) >= 0
+                ? "emerald"
+                : "red"
+            }
+            valueClassName={
+              (accountBalancesData.data.summary.netPosition || 0) >= 0
+                ? "text-emerald-600"
+                : "text-red-600"
+            }
+          />
         </div>
       )}
 
-      {/* Summary cards for Profit - Moved to top (above date selector, like sales) */}
+      {/* Summary cards for Profit */}
       {selectedReport === "profit" && netProfitData?.data && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-blue-500">
-                <ArrowTrendingUpIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.grossProfit")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatNumber(netProfitData.data.grossProfit || 0)}{" "}
-                  {t("reports.currencyAfn")}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg  border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-green-500">
-                <PlusCircleIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.otherIncome")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatNumber(netProfitData.data.otherIncome || 0)}{" "}
-                  {t("reports.currencyAfn")}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-red-500">
-                <MinusCircleIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.expensesTotal")}
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {formatNumber(netProfitData.data.expenses || 0)}{" "}
-                  {t("reports.currencyAfn")}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div
-                className={`p-3 rounded-full ${
-                  (netProfitData.data.netProfit || 0) >= 0
-                    ? "bg-emerald-500"
-                    : "bg-red-500"
-                }`}
-              >
-                <ChartPieIcon className="h-6 w-6 text-white" />
-              </div>
-              <div className="mr-4">
-                <p className="text-sm font-medium text-gray-600">
-                  {t("reports.summary.netProfit")}
-                </p>
-                <p
-                  className={`text-2xl font-bold ${
-                    (netProfitData.data.netProfit || 0) >= 0
-                      ? "text-emerald-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {formatNumber(netProfitData.data.netProfit || 0)}{" "}
-                  {t("reports.currencyAfn")}
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
+          <ReportSummaryCard
+            label={t("reports.summary.grossProfit")}
+            value={`${formatNumber(netProfitData.data.grossProfit || 0)} ${t("reports.currencyAfn")}`}
+            icon={ArrowTrendingUpIcon}
+            tint="blue"
+          />
+          <ReportSummaryCard
+            label={t("reports.summary.otherIncome")}
+            value={`${formatNumber(netProfitData.data.otherIncome || 0)} ${t("reports.currencyAfn")}`}
+            icon={PlusCircleIcon}
+            tint="green"
+          />
+          <ReportSummaryCard
+            label={t("reports.summary.expensesTotal")}
+            value={`${formatNumber(netProfitData.data.expenses || 0)} ${t("reports.currencyAfn")}`}
+            icon={MinusCircleIcon}
+            tint="red"
+          />
+          <ReportSummaryCard
+            label={t("reports.summary.stockDamageLoss")}
+            value={`${formatNumber(netProfitData.data.stockDamageLoss || 0)} ${t("reports.currencyAfn")}`}
+            icon={ArchiveBoxXMarkIcon}
+            tint="orange"
+            valueClassName="text-orange-600"
+          />
+          <ReportSummaryCard
+            label={t("reports.summary.netProfit")}
+            value={`${formatNumber(netProfitData.data.netProfit || 0)} ${t("reports.currencyAfn")}`}
+            icon={ChartPieIcon}
+            tint={
+              (netProfitData.data.netProfit || 0) >= 0 ? "emerald" : "red"
+            }
+            valueClassName={
+              (netProfitData.data.netProfit || 0) >= 0
+                ? "text-emerald-600"
+                : "text-red-600"
+            }
+          />
         </div>
       )}
 
       {/* Date range selector */}
       {hasDateControls && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm rounded-xl border border-gray-200 p-4 sm:p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             {t("reports.selectRangeDate")}
           </h3>
           <div className="flex flex-wrap justify-between items-end gap-4">
             <div className="flex flex-wrap items-end gap-4">
-              <div className="flex space-x-4">
-                <button
-                  onClick={() =>
-                    updateReportFilter(selectedReport, (current) => ({
-                      ...current,
-                      range: "monthly",
-                    }))
-                  }
-                  className={`px-4 py-2 rounded-lg border ${
-                    activeRange === "monthly"
-                      ? "border-amber-500 bg-amber-50 text-amber-700"
-                      : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  {t("reports.range.monthly")}
-                </button>
-                <button
-                  onClick={() =>
-                    updateReportFilter(selectedReport, (current) => ({
-                      ...current,
-                      range: "yearly",
-                    }))
-                  }
-                  className={`px-4 py-2 rounded-lg border ${
-                    activeRange === "yearly"
-                      ? "border-amber-500 bg-amber-50 text-amber-700"
-                      : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  {t("reports.range.yearly")}
-                </button>
-              </div>
+              <SegmentedControl
+                value={activeRange}
+                onChange={(range) =>
+                  updateReportFilter(selectedReport, (current) => ({
+                    ...current,
+                    range,
+                  }))
+                }
+                options={[
+                  { value: "monthly", label: t("reports.range.monthly") },
+                  { value: "yearly", label: t("reports.range.yearly") },
+                ]}
+              />
 
               {activeRange === "monthly" && (
                 <div>
@@ -1365,28 +1183,20 @@ const Reports = () => {
       )}
 
       {/* Report content */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-100 bg-gray-50/50">
           <h3 className="text-lg font-semibold text-gray-900">
             {reportTypes.find((r) => r.id === selectedReport)?.name}
             {hasDateControls && activeFilter && (
               <>
                 {" - "}
                 {activeFilter.range === "monthly"
-                  ? (() => {
-                      const monthValue =
-                        activeFilter.month || getCurrentMonthValue();
-                      const displayDate = new Date(`${monthValue}-01`);
-                      return t("reports.periodTitle.monthly", {
-                        type: t("reports.range.monthlyLabel"),
-                        month: displayDate.toLocaleDateString(localeTag, {
-                          year: "numeric",
-                          month: "long",
-                        }),
-                      });
-                    })()
+                  ? t("reports.periodTitle.monthly", {
+                      month: formatReportMonthPeriod(
+                        activeFilter.month || getCurrentMonthValue()
+                      ),
+                    })
                   : t("reports.periodTitle.yearly", {
-                      type: t("reports.range.yearlyLabel"),
                       year: toPersianDigits(
                         activeFilter.year || getCurrentYearValue()
                       ),
@@ -1400,54 +1210,24 @@ const Reports = () => {
           {selectedReport === "sales" && (
             <div className="space-y-6">
               {salesReportsLoading ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.loadingSales")}
-                </div>
+                <ReportLoadingState />
               ) : !salesReportsData?.data ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.noData")}
-                </div>
+                <ReportEmptyState message={t("reports.states.noData")} />
               ) : chartData.length === 0 ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.noDataPeriodSales")}
-                </div>
+                <ReportEmptyState message={t("reports.states.noDataPeriodSales")} />
               ) : (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                    {t("reports.charts.salesTrend")}
-                  </h4>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                        interval={0}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 12 }}
-                        tickFormatter={(value) => formatNumber(value)}
-                      />
-                      <Tooltip
-                        formatter={(value) => [
-                          `${formatNumber(parseFloat(value))} ${t("reports.currencyAfn")}`,
-                          t("reports.charts.barSales"),
-                        ]}
-                        labelStyle={{ color: "#374151" }}
-                      />
-                      <Legend />
-                      <Bar
-                        dataKey="sales"
-                        fill={chartColors.sales}
-                        name={t("reports.charts.barSales")}
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <ReportChartCard title={t("reports.charts.salesTrend")}>
+                  <ReportBarChart
+                    data={chartData}
+                    mode="single"
+                    xKey="date"
+                    dataKey="sales"
+                    barName={t("reports.charts.barSales")}
+                    barColor={reportColors.sales}
+                    gradientId="salesGradient"
+                    currencyLabel={t("reports.currencyAfn")}
+                  />
+                </ReportChartCard>
               )}
             </div>
           )}
@@ -1455,54 +1235,24 @@ const Reports = () => {
           {selectedReport === "purchases" && (
             <div className="space-y-6">
               {purchaseReportsLoading ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.loadingPurchases")}
-                </div>
+                <ReportLoadingState />
               ) : !purchaseReportsData?.data ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.noData")}
-                </div>
+                <ReportEmptyState message={t("reports.states.noData")} />
               ) : purchaseChartData.length === 0 ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.noDataPeriodPurchases")}
-                </div>
+                <ReportEmptyState message={t("reports.states.noDataPeriodPurchases")} />
               ) : (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                    {t("reports.charts.purchasesTrend")}
-                  </h4>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={purchaseChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                        interval={0}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 12 }}
-                        tickFormatter={(value) => formatNumber(value)}
-                      />
-                      <Tooltip
-                        formatter={(value) => [
-                          `${formatNumber(parseFloat(value))} ${t("reports.currencyAfn")}`,
-                          t("reports.charts.barPurchases"),
-                        ]}
-                        labelStyle={{ color: "#374151" }}
-                      />
-                      <Legend />
-                      <Bar
-                        dataKey="purchases"
-                        fill={chartColors.purchases}
-                        name={t("reports.charts.barPurchases")}
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <ReportChartCard title={t("reports.charts.purchasesTrend")}>
+                  <ReportBarChart
+                    data={purchaseChartData}
+                    mode="single"
+                    xKey="date"
+                    dataKey="purchases"
+                    barName={t("reports.charts.barPurchases")}
+                    barColor={reportColors.purchases}
+                    gradientId="purchasesGradient"
+                    currencyLabel={t("reports.currencyAfn")}
+                  />
+                </ReportChartCard>
               )}
             </div>
           )}
@@ -1510,62 +1260,24 @@ const Reports = () => {
           {selectedReport === "expenses" && (
             <div className="space-y-6">
               {expenseSummaryLoading ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.loadingExpenses")}
-                </div>
+                <ReportLoadingState />
               ) : !expenseSummaryData?.data ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.noData")}
-                </div>
+                <ReportEmptyState message={t("reports.states.noData")} />
               ) : expenseChartData.length === 0 ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.noDataPeriodExpenses")}
-                </div>
+                <ReportEmptyState message={t("reports.states.noDataPeriodExpenses")} />
               ) : (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                    {t("reports.charts.expensesTrend")}
-                  </h4>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={expenseChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                        interval={0}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 12 }}
-                        tickFormatter={(value) => {
-                          if (value === undefined || value === null) return "٠";
-                          const num =
-                            typeof value === "number"
-                              ? value
-                              : parseFloat(String(value));
-                          if (isNaN(num)) return "٠";
-                          return formatNumber(num);
-                        }}
-                      />
-                      <Tooltip
-                        formatter={(value) => [
-                          `${formatNumber(parseFloat(value))} ${t("reports.currencyAfn")}`,
-                          t("reports.charts.barExpenses"),
-                        ]}
-                        labelStyle={{ color: "#374151" }}
-                      />
-                      <Legend />
-                      <Bar
-                        dataKey="expenses"
-                        fill={chartColors.expenses}
-                        name={t("reports.charts.barExpenses")}
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <ReportChartCard title={t("reports.charts.expensesTrend")}>
+                  <ReportBarChart
+                    data={expenseChartData}
+                    mode="single"
+                    xKey="date"
+                    dataKey="expenses"
+                    barName={t("reports.charts.barExpenses")}
+                    barColor={reportColors.expenses}
+                    gradientId="expensesGradient"
+                    currencyLabel={t("reports.currencyAfn")}
+                  />
+                </ReportChartCard>
               )}
             </div>
           )}
@@ -1573,237 +1285,120 @@ const Reports = () => {
           {selectedReport === "accounts" && (
             <div className="space-y-6">
               {cashFlowLoading ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.loadingAccounts")}
-                </div>
+                <ReportLoadingState />
               ) : !cashFlowData?.data ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.noData")}
-                </div>
+                <ReportEmptyState message={t("reports.states.noData")} />
               ) : cashFlowChartData.length === 0 ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.noDataPeriodAccounts")}
-                </div>
+                <ReportEmptyState message={t("reports.states.noDataPeriodAccounts")} />
               ) : (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                    {t("reports.charts.cashFlowTrend")}
-                  </h4>
+                <ReportChartCard title={t("reports.charts.cashFlowTrend")}>
                   {cashFlowData.data.totals && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <p className="text-sm text-gray-600">
-                          {t("reports.summary.moneyInTotal")}
-                        </p>
-                        <p className="text-xl font-bold text-green-600">
-                          {formatCurrency(
-                            cashFlowData.data.totals.totalIn || 0
-                          )}
-                        </p>
-                      </div>
-                      <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <p className="text-sm text-gray-600">
-                          {t("reports.summary.moneyOutTotal")}
-                        </p>
-                        <p className="text-xl font-bold text-red-600">
-                          {formatCurrency(
-                            cashFlowData.data.totals.totalOut || 0
-                          )}
-                        </p>
-                      </div>
-                      <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <p className="text-sm text-gray-600">
-                          {t("reports.summary.netFlowTotal")}
-                        </p>
-                        <p
-                          className={`text-xl font-bold ${
-                            (cashFlowData.data.totals.netFlow || 0) >= 0
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {formatCurrency(
-                            cashFlowData.data.totals.netFlow || 0
-                          )}
-                        </p>
-                      </div>
+                      <ReportSummaryCard
+                        label={t("reports.summary.moneyInTotal")}
+                        value={formatCurrency(
+                          cashFlowData.data.totals.totalIn || 0
+                        )}
+                        tint="green"
+                        valueClassName="text-green-600"
+                      />
+                      <ReportSummaryCard
+                        label={t("reports.summary.moneyOutTotal")}
+                        value={formatCurrency(
+                          cashFlowData.data.totals.totalOut || 0
+                        )}
+                        tint="red"
+                        valueClassName="text-red-600"
+                      />
+                      <ReportSummaryCard
+                        label={t("reports.summary.netFlowTotal")}
+                        value={formatCurrency(
+                          cashFlowData.data.totals.netFlow || 0
+                        )}
+                        tint={
+                          (cashFlowData.data.totals.netFlow || 0) >= 0
+                            ? "emerald"
+                            : "red"
+                        }
+                        valueClassName={
+                          (cashFlowData.data.totals.netFlow || 0) >= 0
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }
+                      />
                     </div>
                   )}
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={cashFlowChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                        interval={0}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 12 }}
-                        tickFormatter={(value) => {
-                          if (value === undefined || value === null) return "٠";
-                          const num =
-                            typeof value === "number"
-                              ? value
-                              : parseFloat(String(value));
-                          if (isNaN(num)) return "٠";
-                          return formatNumber(num);
-                        }}
-                      />
-                      <Tooltip
-                        formatter={(value, name) => {
-                          const num =
-                            typeof value === "number"
-                              ? value
-                              : parseFloat(value);
-                          return [
-                            `${formatNumber(num)} ${t("reports.currencyAfn")}`,
-                            name === "moneyIn"
-                              ? t("reports.charts.barMoneyIn")
-                              : name === "moneyOut"
-                              ? t("reports.charts.barMoneyOut")
-                              : t("reports.charts.barNetFlow"),
-                          ];
-                        }}
-                        labelStyle={{ color: "#374151" }}
-                      />
-                      <Legend />
-                      <Bar
-                        dataKey="moneyIn"
-                        fill={chartColors.moneyIn}
-                        name={t("reports.charts.barMoneyIn")}
-                        radius={[4, 4, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="moneyOut"
-                        fill={chartColors.moneyOut}
-                        name={t("reports.charts.barMoneyOut")}
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                  <ReportBarChart
+                    data={cashFlowChartData}
+                    mode="cashFlow"
+                    xKey="date"
+                    barName={{
+                      moneyIn: t("reports.charts.barMoneyIn"),
+                      moneyOut: t("reports.charts.barMoneyOut"),
+                    }}
+                    currencyLabel={t("reports.currencyAfn")}
+                  />
+                </ReportChartCard>
               )}
             </div>
           )}
 
           {selectedReport === "inventory" && (
             <div className="space-y-6">
-              {/* Filter buttons */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   {t("reports.filters.inventory.title")}
                 </h3>
 
-                {/* Location filter buttons */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {t("reports.filters.inventory.location")}
                   </label>
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={() => setSelectedStockLocation("all")}
-                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                        selectedStockLocation === "all"
-                          ? "border-amber-500 bg-amber-50 text-amber-700"
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {t("reports.filters.inventory.all")}
-                    </button>
-                    <button
-                      onClick={() => setSelectedStockLocation("store")}
-                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                        selectedStockLocation === "store"
-                          ? "border-amber-500 bg-amber-50 text-amber-700"
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {t("reports.filters.inventory.store")}
-                    </button>
-                    <button
-                      onClick={() => setSelectedStockLocation("warehouse")}
-                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                        selectedStockLocation === "warehouse"
-                          ? "border-amber-500 bg-amber-50 text-amber-700"
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {t("reports.filters.inventory.warehouse")}
-                    </button>
-                  </div>
+                  <SegmentedControl
+                    value={selectedStockLocation}
+                    onChange={setSelectedStockLocation}
+                    options={[
+                      { value: "all", label: t("reports.filters.inventory.all") },
+                      { value: "store", label: t("reports.filters.inventory.store") },
+                      {
+                        value: "warehouse",
+                        label: t("reports.filters.inventory.warehouse"),
+                      },
+                    ]}
+                  />
                 </div>
 
-                {/* Stock level filter buttons */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {t("reports.filters.inventory.stockLevel")}
                   </label>
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={() => setSelectedStockLevel("all")}
-                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                        selectedStockLevel === "all"
-                          ? "border-amber-500 bg-amber-50 text-amber-700"
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {t("reports.filters.inventory.all")}
-                    </button>
-                    <button
-                      onClick={() => setSelectedStockLevel("low")}
-                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                        selectedStockLevel === "low"
-                          ? "border-amber-500 bg-amber-50 text-amber-700"
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {t("reports.filters.inventory.low")}
-                    </button>
-                    <button
-                      onClick={() => setSelectedStockLevel("critical")}
-                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                        selectedStockLevel === "critical"
-                          ? "border-amber-500 bg-amber-50 text-amber-700"
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {t("reports.filters.inventory.critical")}
-                    </button>
-                    <button
-                      onClick={() => setSelectedStockLevel("out")}
-                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                        selectedStockLevel === "out"
-                          ? "border-amber-500 bg-amber-50 text-amber-700"
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {t("reports.filters.inventory.out")}
-                    </button>
-                  </div>
+                  <SegmentedControl
+                    value={selectedStockLevel}
+                    onChange={setSelectedStockLevel}
+                    options={[
+                      { value: "all", label: t("reports.filters.inventory.all") },
+                      { value: "low", label: t("reports.filters.inventory.low") },
+                      {
+                        value: "critical",
+                        label: t("reports.filters.inventory.critical"),
+                      },
+                      { value: "out", label: t("reports.filters.inventory.out") },
+                    ]}
+                  />
                 </div>
               </div>
 
-              {/* Stock items list */}
               {stockReportLoading ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.loadingInventory")}
-                </div>
+                <ReportLoadingState />
               ) : !stockReportData?.data ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.noData")}
-                </div>
+                <ReportEmptyState message={t("reports.states.noData")} />
               ) : stockReportData.data.stocks.length === 0 ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.noDataPeriodInventory")}
-                </div>
+                <ReportEmptyState message={t("reports.states.noDataPeriodInventory")} />
               ) : (
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  <div className="overflow-x-auto">
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
                     <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-gray-50 sticky top-0 z-10">
                         <tr>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                             {t("reports.inventoryTable.product")}
@@ -1825,9 +1420,14 @@ const Reports = () => {
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {stockReportData.data.stocks.map((stock) => (
-                          <tr key={stock._id} className="hover:bg-gray-50">
+                      <tbody className="bg-white divide-y divide-gray-100">
+                        {stockReportData.data.stocks.map((stock, idx) => (
+                          <tr
+                            key={stock._id}
+                            className={`hover:bg-amber-50/40 transition-colors ${
+                              idx % 2 === 1 ? "bg-gray-50/50" : ""
+                            }`}
+                          >
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
                                 {stock.product?.name || "-"}
@@ -1899,116 +1499,123 @@ const Reports = () => {
               {profitSummaryLoading ||
               netProfitLoading ||
               profitStatsLoading ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.loadingProfit")}
-                </div>
-              ) : !profitSummaryData?.data ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.noData")}
-                </div>
-              ) : profitChartData.length === 0 ? (
-                <div className="text-center text-gray-500 py-12">
-                  {t("reports.states.noDataPeriodProfit")}
-                </div>
+                <ReportLoadingState />
+              ) : profitChartData.length === 0 &&
+                productProfitList.length === 0 ? (
+                <ReportEmptyState message={t("reports.states.noDataPeriodProfit")} />
               ) : (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-lg font-semibold text-gray-900">
-                      {profitChartType === "net"
-                        ? t("reports.charts.profitTrendNet")
-                        : t("reports.charts.profitTrendGross")}
-                    </h4>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => setProfitChartType("gross")}
-                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                          profitChartType === "gross"
-                            ? "border-amber-500 bg-amber-50 text-amber-700"
-                            : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        {t("reports.charts.toggleGross")}
-                      </button>
-                      <button
-                        onClick={() => setProfitChartType("net")}
-                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                          profitChartType === "net"
-                            ? "border-amber-500 bg-amber-50 text-amber-700"
-                            : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        {t("reports.charts.toggleNet")}
-                      </button>
-                    </div>
-                  </div>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={profitChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="period"
-                        tick={{ fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                        interval={0}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 12 }}
-                        tickFormatter={(value) => {
-                          if (value === undefined || value === null) return "٠";
-                          const num =
-                            typeof value === "number"
-                              ? value
-                              : parseFloat(String(value));
-                          if (isNaN(num)) return "٠";
-                          return formatNumber(num);
-                        }}
-                      />
-                      <Tooltip
-                        formatter={(value) => {
-                          const num =
-                            typeof value === "number"
-                              ? value
-                              : parseFloat(value);
-                          return [
-                            `${formatNumber(num)} ${t("reports.currencyAfn")}`,
-                            profitChartType === "net"
-                              ? t("reports.charts.barNetProfit")
-                              : t("reports.charts.barGrossProfit"),
-                          ];
-                        }}
-                        labelStyle={{ color: "#374151" }}
-                      />
-                      <Legend />
-                      <Bar
-                        dataKey={
-                          profitChartType === "net"
-                            ? "netProfit"
-                            : "grossProfit"
+                <>
+                  {profitChartData.length > 0 && (
+                    <ReportChartCard
+                      title={
+                        profitChartType === "net"
+                          ? t("reports.charts.profitTrendNet")
+                          : t("reports.charts.profitTrendGross")
+                      }
+                      actions={
+                        <SegmentedControl
+                          value={profitChartType}
+                          onChange={setProfitChartType}
+                          options={[
+                            {
+                              value: "gross",
+                              label: t("reports.charts.toggleGross"),
+                            },
+                            {
+                              value: "net",
+                              label: t("reports.charts.toggleNet"),
+                            },
+                          ]}
+                        />
+                      }
+                    >
+                      <ReportBarChart
+                        data={profitChartData}
+                        mode="profit"
+                        xKey="period"
+                        profitDataKey={
+                          profitChartType === "net" ? "netProfit" : "grossProfit"
                         }
-                        name={
+                        profitBarName={
                           profitChartType === "net"
                             ? t("reports.charts.barNetProfit")
                             : t("reports.charts.barGrossProfit")
                         }
-                        radius={[4, 4, 0, 0]}
-                      >
-                        {profitChartData.map((entry, index) => {
-                          const value =
-                            profitChartType === "net"
-                              ? entry.netProfit
-                              : entry.grossProfit;
-                          return (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={value >= 0 ? "#10B981" : "#EF4444"}
-                            />
-                          );
-                        })}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                        currencyLabel={t("reports.currencyAfn")}
+                        getBarColor={(value) =>
+                          value >= 0
+                            ? reportColors.profit
+                            : reportColors.profitNegative
+                        }
+                      />
+                    </ReportChartCard>
+                  )}
+
+                  {productProfitList.length > 0 && (
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/80">
+                        <h4 className="text-lg font-semibold text-gray-900">
+                          {t("reports.charts.productProfit")}
+                        </h4>
+                      </div>
+                      <div className="overflow-x-auto max-h-[480px] overflow-y-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50 sticky top-0 z-10">
+                            <tr>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                                {t("reports.productProfitTable.rank")}
+                              </th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                {t("reports.productProfitTable.product")}
+                              </th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                {t("reports.productProfitTable.revenue")}
+                              </th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                {t("reports.productProfitTable.profit")}
+                              </th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                {t("reports.productProfitTable.lineCount")}
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-100">
+                            {productProfitList.map((row, idx) => (
+                              <tr
+                                key={row.productId || row.rank}
+                                className={`hover:bg-amber-50/40 transition-colors ${
+                                  idx % 2 === 1 ? "bg-gray-50/50" : ""
+                                }`}
+                              >
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                  {formatNumber(row.rank)}
+                                </td>
+                                <td className="px-6 py-3 text-sm font-medium text-gray-900">
+                                  {row.name}
+                                </td>
+                                <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                                  {formatCurrency(row.revenue)}
+                                </td>
+                                <td
+                                  className={`px-6 py-3 whitespace-nowrap text-sm font-semibold ${
+                                    row.profit >= 0
+                                      ? "text-emerald-600"
+                                      : "text-red-600"
+                                  }`}
+                                >
+                                  {formatCurrency(row.profit)}
+                                </td>
+                                <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-600">
+                                  {formatNumber(row.itemCount)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -2021,17 +1628,10 @@ const Reports = () => {
             "expenses",
             "accounts",
           ].includes(selectedReport) && (
-            <div className="text-center py-12">
-              <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {t("reports.states.comingSoonTitle", {
-                  type: reportTypes.find((r) => r.id === selectedReport)?.name,
-                })}
-              </h3>
-              <p className="text-gray-600">
-                {t("reports.states.comingSoonDesc")}
-              </p>
-            </div>
+            <ReportEmptyState
+              message={t("reports.states.comingSoonDesc")}
+              icon={ChartBarIcon}
+            />
           )}
         </div>
       </div>

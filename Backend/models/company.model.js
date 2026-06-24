@@ -28,6 +28,8 @@ const companySchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+companySchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Company = mongoose.model("Company", companySchema);
 
 module.exports = Company;

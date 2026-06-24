@@ -2,7 +2,7 @@
 // API Utility Functions
 // ========================================
 
-import { apiRequest, API_ENDPOINTS, API_BASE_URL } from "./apiConfig";
+import { apiRequest, API_ENDPOINTS, API_BASE_URL, setAuthTokens } from "./apiConfig";
 import { normalizeDateToIso } from "../utilies/helper";
 
 // Authentication functions
@@ -49,7 +49,11 @@ export const refreshUserToken = async () => {
     throw new Error(errorData.message || "Token refresh failed");
   }
 
-  return response.json();
+  const data = await response.json();
+  if (data.accessToken) {
+    setAuthTokens(data.accessToken);
+  }
+  return data;
 };
 
 export const getUserProfile = async () => {
@@ -442,6 +446,10 @@ export const fetchPurchases = async (params = {}) => {
   }
 };
 
+export const fetchPurchaseStockConstraints = async (id) => {
+  return await apiRequest(API_ENDPOINTS.PURCHASES.STOCK_CONSTRAINTS(id));
+};
+
 export const fetchPurchase = async (id) => {
   return await apiRequest(API_ENDPOINTS.PURCHASES.DETAIL(id));
 };
@@ -468,7 +476,7 @@ export const deletePurchase = async (id) => {
 
 export const restorePurchase = async (id) => {
   return await apiRequest(API_ENDPOINTS.PURCHASES.RESTORE(id), {
-    method: "POST",
+    method: "PATCH",
   });
 };
 
@@ -551,9 +559,75 @@ export const deleteSale = async (id) => {
 
 // Record payment against a sale
 export const recordSalePayment = async (saleId, paymentData) => {
-  return await apiRequest(`${API_ENDPOINTS.SALES.LIST}/${saleId}/payment`, {
+  return await apiRequest(API_ENDPOINTS.SALES.PAYMENT(saleId), {
     method: "POST",
     body: JSON.stringify(paymentData),
+  });
+};
+
+// Sale returns
+export const fetchSaleReturns = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.page) query.set("page", params.page);
+  if (params.limit) query.set("limit", params.limit);
+  if (params.saleId) query.set("saleId", params.saleId);
+  const url = query.toString()
+    ? `${API_ENDPOINTS.SALES.RETURNS.LIST}?${query.toString()}`
+    : API_ENDPOINTS.SALES.RETURNS.LIST;
+  return await apiRequest(url);
+};
+
+export const createSaleReturn = async (payload) => {
+  return await apiRequest(API_ENDPOINTS.SALES.RETURNS.LIST, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const updateSaleReturn = async (id, payload) => {
+  return await apiRequest(API_ENDPOINTS.SALES.RETURNS.DETAIL(id), {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const restoreSaleReturn = async (id, payload = {}) => {
+  return await apiRequest(API_ENDPOINTS.SALES.RETURNS.RESTORE(id), {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const deleteSaleReturn = async (id, payload = {}) => {
+  return await apiRequest(API_ENDPOINTS.SALES.RETURNS.DETAIL(id), {
+    method: "DELETE",
+    body: JSON.stringify(payload),
+  });
+};
+
+// Purchase returns
+export const fetchPurchaseReturns = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.page) query.set("page", params.page);
+  if (params.limit) query.set("limit", params.limit);
+  if (params.purchaseId) query.set("purchaseId", params.purchaseId);
+  const url = query.toString()
+    ? `${API_ENDPOINTS.PURCHASES.RETURNS.LIST}?${query.toString()}`
+    : API_ENDPOINTS.PURCHASES.RETURNS.LIST;
+  return await apiRequest(url);
+};
+
+export const createPurchaseReturn = async (payload) => {
+  return await apiRequest(API_ENDPOINTS.PURCHASES.RETURNS.LIST, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const deletePurchaseReturn = async (id, payload = {}) => {
+  return await apiRequest(API_ENDPOINTS.PURCHASES.RETURNS.DETAIL(id), {
+    method: "DELETE",
+    body: JSON.stringify(payload),
   });
 };
 
@@ -657,6 +731,9 @@ export const fetchProfitStats = async (params = {}) => {
   const query = new URLSearchParams();
   if (params.startDate) query.set("startDate", params.startDate);
   if (params.endDate) query.set("endDate", params.endDate);
+  if (params.productLimit != null) {
+    query.set("productLimit", String(params.productLimit));
+  }
 
   const url = query.toString()
     ? `${API_ENDPOINTS.PROFIT.STATS}?${query.toString()}`
@@ -743,6 +820,29 @@ export const fetchInventoryStats = async () => {
   return await apiRequest(API_ENDPOINTS.STOCK.STATS);
 };
 
+export const fetchStockPurchaseSource = async (stockId) => {
+  return await apiRequest(API_ENDPOINTS.STOCK.PURCHASE_SOURCE(stockId));
+};
+
+export const fetchExpiringStocks = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.location && params.location !== "all") {
+    query.set("location", params.location);
+  }
+  if (params.status && params.status !== "all") {
+    query.set("status", params.status);
+  }
+  if (params.page) query.set("page", String(params.page));
+  if (params.limit) query.set("limit", String(params.limit));
+
+  const url = query.toString()
+    ? `${API_ENDPOINTS.STOCK.EXPIRING}?${query.toString()}`
+    : API_ENDPOINTS.STOCK.EXPIRING;
+
+  return await apiRequest(url);
+};
+
 export const fetchStockItem = async (id) => {
   return await apiRequest(API_ENDPOINTS.STOCK.DETAIL(id));
 };
@@ -817,6 +917,34 @@ export const createStockTransfer = async (transferData) => {
 export const deleteStockTransfer = async (id) => {
   return await apiRequest(API_ENDPOINTS.STOCK_TRANSFER.DELETE(id), {
     method: "DELETE",
+  });
+};
+
+// Stock damage (ضایعات)
+export const fetchStockDamages = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.page) query.set("page", params.page);
+  if (params.limit) query.set("limit", params.limit);
+  if (params.location) query.set("location", params.location);
+  if (params.startDate) query.set("startDate", params.startDate);
+  if (params.endDate) query.set("endDate", params.endDate);
+  const url = query.toString()
+    ? `${API_ENDPOINTS.STOCK_DAMAGE.LIST}?${query.toString()}`
+    : API_ENDPOINTS.STOCK_DAMAGE.LIST;
+  return await apiRequest(url);
+};
+
+export const createStockDamage = async (payload) => {
+  return await apiRequest(API_ENDPOINTS.STOCK_DAMAGE.CREATE, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const deleteStockDamage = async (id, payload = {}) => {
+  return await apiRequest(API_ENDPOINTS.STOCK_DAMAGE.DELETE(id), {
+    method: "DELETE",
+    body: JSON.stringify(payload),
   });
 };
 
@@ -1384,4 +1512,61 @@ export const updateSettings = async (settingsData) => {
       body: JSON.stringify(settingsData),
     });
   }
+};
+
+// Backup (admin)
+export const downloadDatabaseBackup = async () => {
+  const token = localStorage.getItem("authToken");
+  const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.BACKUP.DOWNLOAD}`, {
+    method: "GET",
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || "Backup download failed");
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition");
+  let filename = `mongodb_backup_${Date.now()}.gz`;
+  if (disposition) {
+    const match = disposition.match(/filename="?([^";\n]+)"?/i);
+    if (match?.[1]) filename = match[1].trim();
+  }
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+};
+
+export const restoreDatabaseBackup = async ({ file, adminPassword }) => {
+  const formData = new FormData();
+  formData.append("backup", file);
+  formData.append("adminPassword", adminPassword);
+
+  const token = localStorage.getItem("authToken");
+  const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.BACKUP.RESTORE}`, {
+    method: "POST",
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    credentials: "include",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || "Backup restore failed");
+  }
+
+  return response.json();
 };

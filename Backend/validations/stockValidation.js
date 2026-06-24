@@ -91,6 +91,7 @@ const updateStockValidationSchema = Joi.object({
     'number.base': `"sale_price" should be a type of 'number'`,
     'number.min': `"sale_price" cannot be negative`,
   }),
+  notifyDaysBefore: Joi.number().min(0).allow(null, '').optional(),
 });
 
 module.exports = {

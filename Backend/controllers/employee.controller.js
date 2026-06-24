@@ -1,6 +1,12 @@
 const Employee = require('../models/employee.model');
 const asyncHandler = require('../middlewares/asyncHandler');
 const AppError = require('../utils/AppError');
+const {
+  parseDeletionFilter,
+  softDeleteUpdate,
+  createSimpleRestoreHandler,
+  createPermanentDeleteHandler,
+} = require('../utils/softDeleteHelpers');
 
 // @desc    Create new employee
 // @route   POST /api/v1/employees
@@ -29,12 +35,14 @@ const getAllEmployees = asyncHandler(async (req, res) => {
   const limit = Number(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const employees = await Employee.find({ isDeleted: false })
+  const filter = parseDeletionFilter(req.query);
+
+  const employees = await Employee.find(filter)
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });
 
-  const totalEmployees = await Employee.countDocuments({ isDeleted: false });
+  const totalEmployees = await Employee.countDocuments(filter);
 
   res.status(200).json({
     status: 'success',
@@ -93,7 +101,7 @@ const updateEmployee = asyncHandler(async (req, res, next) => {
 const deleteEmployee = asyncHandler(async (req, res, next) => {
   const employee = await Employee.findOneAndUpdate(
     { _id: req.params.id, isDeleted: false },
-    { isDeleted: true, is_active: false },
+    softDeleteUpdate(req.user?._id, { is_active: false }),
     { new: true }
   );
 
@@ -107,10 +115,27 @@ const deleteEmployee = asyncHandler(async (req, res, next) => {
   });
 });
 
+const restoreEmployee = createSimpleRestoreHandler(Employee, {
+  notFoundMessage: 'کارکوونکی ونه موندل شو',
+  notDeletedMessage: 'کارکوونکی حذف شوی نه دی',
+  successMessage: 'کارکوونکی په بریالیتوب سره بیرته راستون شو',
+  onBeforeSave: (doc) => {
+    doc.is_active = true;
+  },
+});
+
+const permanentDeleteEmployee = createPermanentDeleteHandler(Employee, {
+  notFoundMessage: 'کارکوونکی ونه موندل شو',
+  notInTrashMessage: 'لومړی باید کارکوونکی په کثافاتو کې حذف شوی وي',
+  successMessage: 'کارکوونکی په تل لپاره حذف شو',
+});
+
 module.exports = {
   createEmployee,
   getAllEmployees,
   getEmployee,
   updateEmployee,
   deleteEmployee,
+  restoreEmployee,
+  permanentDeleteEmployee,
 };

@@ -3,7 +3,10 @@ const mongoose = require('mongoose');
 const auditLogSchema = new mongoose.Schema({
   tableName: String,
   recordId: mongoose.Schema.Types.ObjectId,
-  operation: { type: String, enum: ['INSERT', 'UPDATE', 'DELETE'] },
+  operation: {
+    type: String,
+    enum: ['INSERT', 'UPDATE', 'DELETE', 'RESTORE', 'PERMANENT_DELETE', 'EXPORT', 'IMPORT'],
+  },
   oldData: mongoose.Schema.Types.Mixed,
   newData: mongoose.Schema.Types.Mixed,
   reason: String,

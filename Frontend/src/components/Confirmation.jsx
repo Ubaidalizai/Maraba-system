@@ -1,3 +1,5 @@
+import { TrashIcon } from "@heroicons/react/24/outline";
+
 function Confirmation({ handleClick, handleCancel }) {
   return (
     <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">

@@ -42,6 +42,8 @@ const customerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+customerSchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Customer = mongoose.model('Customer', customerSchema);
 
 module.exports = Customer;

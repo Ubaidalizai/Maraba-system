@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bounce, toast } from "react-toastify";
+import i18n from "../i18n/config";
 import {
   createAccount,
   createCompnay,
@@ -41,16 +42,24 @@ import {
   fetchEmployeeStock,
   fetchInventory,
   fetchInventoryStats,
+  fetchExpiringStocks,
+  fetchStockPurchaseSource,
   fetchInventoryStock,
   fetchProducts,
   fetchProductsFromStock,
   fetchProductyById,
   fetchPurchase,
+  fetchPurchaseStockConstraints,
   fetchPurchases,
   fetchSale,
   fetchSales,
+  fetchSaleReturns,
   fetchSalesReports,
   fetchPurchaseReports,
+  fetchPurchaseReturns,
+  createPurchaseReturn,
+  deletePurchaseReturn,
+  deleteSaleReturn,
   fetchExpenseSummary,
   fetchCategoriesByType,
   fetchAccountBalances,
@@ -64,6 +73,9 @@ import {
   fetchProfitSummary,
   fetchStockItem,
   fetchStockTransfers,
+  fetchStockDamages,
+  createStockDamage,
+  deleteStockDamage,
   fetchStore,
   fetchStores,
   fetchStoreStock,
@@ -78,6 +90,7 @@ import {
   loginUser,
   logoutUser,
   recordPurchasePayment,
+  recordSalePayment,
   refreshUserToken,
   reverseAccountTransaction,
   transferBetweenAccounts,
@@ -101,6 +114,143 @@ import {
   fetchSaraf,
   fetchSarafs,
 } from "./apiUtiles";
+import { fetchTrashSummary } from "../utilies/trashApi";
+import { applySalePaymentCacheUpdates } from "../utilies/saleQuery";
+
+/** Refetch account lists, ledgers, and balances after any balance-changing action. */
+export const invalidateAccountRelatedQueries = (queryClient) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+    queryClient.invalidateQueries({ queryKey: ["accountTotals"] }),
+    queryClient.invalidateQueries({ queryKey: ["systemAccounts"] }),
+    queryClient.invalidateQueries({ queryKey: ["accountLedger"] }),
+    queryClient.invalidateQueries({ queryKey: ["accountTransactionVolume"] }),
+    queryClient.invalidateQueries({ queryKey: ["recentTransactions"] }),
+  ]);
+
+export const invalidateInventoryStatsQueries = (queryClient) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["inventoryStats"] }),
+    queryClient.invalidateQueries({ queryKey: ["stocks"] }),
+    queryClient.invalidateQueries({ queryKey: ["productsFromStock"] }),
+    queryClient.invalidateQueries({ queryKey: ["inventory"] }),
+    queryClient.invalidateQueries({ queryKey: ["allProducts"] }),
+    queryClient.invalidateQueries({ queryKey: ["batches"] }),
+    queryClient.invalidateQueries({ queryKey: ["employeeStockDamage"] }),
+  ]);
+
+/** Refetch sale detail/list and account caches after recording a sale payment. */
+export const invalidateSalePaymentQueries = (queryClient, saleId) =>
+  Promise.all([
+    saleId
+      ? queryClient.invalidateQueries({ queryKey: ["sale", saleId] })
+      : queryClient.invalidateQueries({ queryKey: ["sale"] }),
+    queryClient.invalidateQueries({ queryKey: ["allSales"] }),
+    queryClient.invalidateQueries({ queryKey: ["saleReturns"] }),
+    queryClient.invalidateQueries({ queryKey: ["dailyReport"] }),
+    queryClient.invalidateQueries({ queryKey: ["salesReports"] }),
+    invalidateAccountRelatedQueries(queryClient),
+  ]);
+
+/** Refetch entity list/detail caches after restoring from trash. */
+export const invalidateQueriesForTrashRestore = (queryClient, type, id) => {
+  const invalidate = (queryKey) =>
+    queryClient.invalidateQueries({ queryKey });
+
+  const tasks = [
+    queryClient.invalidateQueries({ queryKey: ["trashSummary"] }),
+  ];
+
+  switch (type) {
+    case "purchase":
+      tasks.push(invalidate(["allPurchases"]));
+      if (id) tasks.push(invalidate(["purchase", id]));
+      tasks.push(
+        invalidateAccountRelatedQueries(queryClient),
+        invalidateInventoryStatsQueries(queryClient)
+      );
+      break;
+    case "sale":
+      tasks.push(invalidate(["allSales"]));
+      if (id) tasks.push(invalidate(["sale", id]));
+      tasks.push(
+        invalidateAccountRelatedQueries(queryClient),
+        invalidateInventoryStatsQueries(queryClient)
+      );
+      break;
+    case "product":
+      tasks.push(invalidate(["allProducts"]));
+      if (id) tasks.push(invalidate(["product", id]));
+      tasks.push(
+        invalidate(["inventory"]),
+        invalidateInventoryStatsQueries(queryClient)
+      );
+      break;
+    case "expense":
+      tasks.push(
+        invalidate(["expenses"]),
+        invalidate(["expense-stats"]),
+        invalidateAccountRelatedQueries(queryClient)
+      );
+      break;
+    case "income":
+      tasks.push(invalidate(["income"]), invalidateAccountRelatedQueries(queryClient));
+      break;
+    case "account":
+      tasks.push(invalidateAccountRelatedQueries(queryClient));
+      if (id) tasks.push(invalidate(["accountLedger", id]));
+      break;
+    case "customer":
+      tasks.push(invalidate(["allCustomers"]));
+      if (id) tasks.push(invalidate(["customer", id]));
+      tasks.push(invalidateAccountRelatedQueries(queryClient));
+      break;
+    case "supplier":
+      tasks.push(invalidate(["allSuppliers"]));
+      if (id) tasks.push(invalidate(["supplier", id]));
+      tasks.push(invalidateAccountRelatedQueries(queryClient));
+      break;
+    case "category":
+      tasks.push(
+        invalidate(["categories"]),
+        invalidate(["categoriesByType"]),
+        invalidate(["expense-categories"]),
+        invalidate(["income-categories"])
+      );
+      break;
+    case "brand":
+      tasks.push(invalidate(["allProducts"]));
+      break;
+    case "employee":
+      tasks.push(invalidate(["allEmployees"]));
+      if (id) tasks.push(invalidate(["employee", id]));
+      break;
+    case "company":
+      tasks.push(invalidate(["allCompanies"]));
+      if (id) tasks.push(invalidate(["company", id]));
+      break;
+    case "type":
+      tasks.push(invalidate(["categoriesByType"]));
+      break;
+    case "saraf":
+      tasks.push(invalidate(["allSarafs"]));
+      if (id) tasks.push(invalidate(["saraf", id]));
+      tasks.push(invalidateAccountRelatedQueries(queryClient));
+      break;
+    default:
+      break;
+  }
+
+  return Promise.all(tasks);
+};
+
+export const useTrashSummary = () =>
+  useQuery({
+    queryKey: ["trashSummary"],
+    queryFn: fetchTrashSummary,
+    staleTime: 20 * 1000,
+    refetchInterval: 45 * 1000,
+  });
 
 // Authentication hooks
 export const useLogin = () => {
@@ -140,10 +290,10 @@ export const useUpdatePassword = () => {
     mutationKey: ["updatePassword"],
     mutationFn: updatePassword,
     onSuccess: () => {
-      toast.success("پسورد شما تغییر داده شد");
+      toast.success(i18n.t("useApi.password.updateSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "مشکلی پیش آمده است دو باره کوشش کنید");
+      toast.error(error.message || i18n.t("useApi.password.updateError"));
     },
   });
 };
@@ -152,10 +302,10 @@ export const useForgotPassword = () => {
   return useMutation({
     mutationFn: forgotPassword,
     onSuccess: () => {
-      toast.success("لطفا ایمیل تانرا چک کنید!");
+      toast.success(i18n.t("useApi.forgotPassword.success"));
     },
     onError: (error) => {
-      toast.error(error.message || "ایمیل مورد نظر اشتباه میباشد");
+      toast.error(error.message || i18n.t("useApi.forgotPassword.error"));
     },
   });
 };
@@ -197,10 +347,12 @@ export const useCreateProdcut = () => {
     mutationKey: ["newProduct"],
     onSuccess: () => {
       queryClient.invalidateQueries(["product"]);
-      toast.success("محصول  موفقانه اضافه شد");
+      toast.success(i18n.t("inventory.product.toast.createSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "مشکل در ساختن محصول");
+      toast.error(
+        error.message || i18n.t("inventory.product.toast.createError")
+      );
     },
   });
 };
@@ -213,10 +365,12 @@ export const useUpdateProdcut = () => {
     mutationKey: ["productupdate"],
     onSuccess: () => {
       queryClient.invalidateQueries(["product"]);
-      toast.success("محصول با موفقیت بروزرسانی شد");
+      toast.success(i18n.t("inventory.product.toast.updateSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "خطا در بروزرسانی محصول");
+      toast.error(
+        error.message || i18n.t("inventory.product.toast.updateError")
+      );
     },
   });
 };
@@ -226,7 +380,7 @@ export const useCreateTransaction = () => {
     mutationKey: ["createTransaction"],
     mutationFn: createManualTransaction,
     onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      void invalidateAccountRelatedQueries(queryClient);
       if (variables?.accountId) {
         queryClient.invalidateQueries({
           queryKey: ["accountLedger", variables.accountId],
@@ -235,10 +389,10 @@ export const useCreateTransaction = () => {
         queryClient.invalidateQueries({ queryKey: ["accountLedger"] });
       }
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
-      toast.success("تراکنش با موفقیت ثبت شد");
+      toast.success(i18n.t("useApi.transaction.createSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "ثبت تراکنش ناموفق بود");
+      toast.error(error.message || i18n.t("useApi.transaction.createError"));
     },
   });
 };
@@ -250,10 +404,10 @@ export const useDeleteProdcut = () => {
     mutationKey: ["productRemove"],
     onSuccess: () => {
       queryClient.invalidateQueries(["product"]);
-      toast.success("محصول موفقانه حذف گردید!");
+      toast.success(i18n.t("useApi.product.deleteSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "در حذف کردن محصول مشکلی پیش آمده است");
+      toast.error(error.message || i18n.t("useApi.product.deleteError"));
     },
   });
 };
@@ -280,7 +434,10 @@ export const useCreateInventory = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createInventoryItem,
-    onSuccess: () => queryClient.invalidateQueries(["inventory"]),
+    onSuccess: () => {
+      void invalidateInventoryStatsQueries(queryClient);
+      queryClient.invalidateQueries(["inventory"]);
+    },
   });
 };
 
@@ -291,11 +448,16 @@ export const useUpdateInventory = () => {
     mutationFn: updateStockItem,
     mutationKey: ["updateInventory"],
     onSuccess: () => {
+      void invalidateInventoryStatsQueries(queryClient);
       queryClient.invalidateQueries(["inventory"]);
-      toast.success("موفقانه بروز رسانی شد");
+      queryClient.invalidateQueries(["stocks"]);
+      queryClient.invalidateQueries(["product"]);
+      toast.success(i18n.t("inventory.stockEdit.updateSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "در بروز رسانی مشکلی پیش آمده است");
+      toast.error(
+        error.message || i18n.t("inventory.stockEdit.updateError")
+      );
     },
   });
 };
@@ -305,7 +467,10 @@ export const useDeleteInventory = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteInventoryItem,
-    onSuccess: () => queryClient.invalidateQueries(["inventory"]),
+    onSuccess: () => {
+      void invalidateInventoryStatsQueries(queryClient);
+      queryClient.invalidateQueries(["inventory"]);
+    },
   });
 };
 // use store
@@ -337,10 +502,10 @@ export const useUpdateStore = () => {
     mutationFn: () => updateStore,
     onSuccess: () => {
       queryClient.invalidateQueries(["allstores"]);
-      toast.success("موجودی موفقانه بروز رسانی شد");
+      toast.success(i18n.t("useApi.store.updateSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "بروز رسانی در موجودی مشکل پیش آمده است");
+      toast.error(error.message || i18n.t("useApi.store.updateError"));
     },
   });
 };
@@ -370,17 +535,48 @@ export const usePurchase = (id) =>
     enabled: !!id, // Only run query if id exists
   });
 
+export const usePurchaseReturns = (params = {}, options = {}) =>
+  useQuery({
+    queryKey: ["purchaseReturns", params],
+    queryFn: () => fetchPurchaseReturns(params),
+    ...options,
+  });
+
+export const useDeletePurchaseReturn = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deletePurchaseReturn,
+    onSuccess: () => {
+      void invalidateAccountRelatedQueries(queryClient);
+      void invalidateInventoryStatsQueries(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["purchaseReturns"] });
+      queryClient.invalidateQueries({ queryKey: ["allPurchases"] });
+      queryClient.invalidateQueries({ queryKey: ["purchase"] });
+    },
+  });
+};
+
+export const usePurchaseStockConstraints = (id) =>
+  useQuery({
+    queryKey: ["purchase", id, "stock-constraints"],
+    queryFn: () => fetchPurchaseStockConstraints(id),
+    enabled: !!id,
+    staleTime: 30 * 1000,
+  });
+
 export const useCreatePurchase = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createPurchase,
     mutationKey: ["newPurchase"],
     onSuccess: () => {
-      toast.success("خرید شما موفقانه اجرا شد، تشکر...");
+      toast.success(i18n.t("useApi.purchase.createSuccess"));
       queryClient.invalidateQueries(["allPurchases"]);
+      void invalidateAccountRelatedQueries(queryClient);
+      void invalidateInventoryStatsQueries(queryClient);
     },
     onError: (error) => {
-      toast.error(error.message || "در خریداری شما مشکلی است");
+      toast.error(error.message || i18n.t("useApi.purchase.createError"));
     },
   });
 };
@@ -390,7 +586,14 @@ export const useUpdatePurchase = () => {
   return useMutation({
     mutationKey: ["updatePurchase"],
     mutationFn: ({ id, ...purchaseData }) => updatePurchase(id, purchaseData),
-    onSuccess: () => queryClient.invalidateQueries(["allPurchases"]),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries(["allPurchases"]);
+      if (variables?.id) {
+        queryClient.invalidateQueries({ queryKey: ["purchase", variables.id] });
+      }
+      void invalidateAccountRelatedQueries(queryClient);
+      void invalidateInventoryStatsQueries(queryClient);
+    },
   });
 };
 
@@ -412,7 +615,7 @@ export const useStocks = () => {
 };
 
 export const useWarehouseStocks = (opts = {}) => {
-  const { search, includeZeroQuantity } = opts;
+  const { search, includeZeroQuantity, enabled = true } = opts;
   return useQuery({
     queryKey: [
       "stocks",
@@ -421,11 +624,12 @@ export const useWarehouseStocks = (opts = {}) => {
     ],
     queryFn: () => fetchInventoryStock({ search, includeZeroQuantity }),
     keepPreviousData: true,
+    enabled,
   });
 };
 
 export const useStoreStocks = (opts = {}) => {
-  const { search, includeZeroQuantity } = opts;
+  const { search, includeZeroQuantity, enabled = true } = opts;
   return useQuery({
     queryKey: [
       "stocks",
@@ -434,6 +638,7 @@ export const useStoreStocks = (opts = {}) => {
     ],
     queryFn: () => fetchStoreStock({ search, includeZeroQuantity }),
     keepPreviousData: true,
+    enabled,
   });
 };
 
@@ -464,7 +669,40 @@ export const useInventoryStats = () => {
   return useQuery({
     queryKey: ["inventoryStats"],
     queryFn: fetchInventoryStats,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0,
+  });
+};
+
+export const useStockPurchaseSource = (stockId, opts = {}) => {
+  const { enabled = true } = opts;
+  return useQuery({
+    queryKey: ["stocks", "purchase-source", stockId],
+    queryFn: () => fetchStockPurchaseSource(stockId),
+    enabled: enabled && !!stockId,
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+export const useExpiringStocks = (opts = {}) => {
+  const {
+    search = "",
+    location = "all",
+    status = "all",
+    page = 1,
+    limit = 10,
+    enabled = true,
+  } = opts;
+
+  return useQuery({
+    queryKey: [
+      "stocks",
+      "expiring",
+      { search, location, status, page, limit },
+    ],
+    queryFn: () =>
+      fetchExpiringStocks({ search, location, status, page, limit }),
+    keepPreviousData: true,
+    enabled,
   });
 };
 
@@ -499,10 +737,10 @@ export const useCreateSupplier = () => {
     mutationKey: ["newSupplier"],
     onSuccess: () => {
       queryClient.invalidateQueries(["allSupplier"]);
-      toast.success("تامین‌کننده با موفقیت  ساخته  شد");
+      toast.success(i18n.t("useApi.supplier.createSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "خطا در ساختن تامین‌کننده");
+      toast.error(error.message || i18n.t("useApi.supplier.createError"));
     },
   });
 };
@@ -515,10 +753,10 @@ export const useUpdateSupplier = () => {
 
     onSuccess: () => {
       queryClient.invalidateQueries(["allSupplier"]);
-      toast.success("تامین‌کننده با موفقیت  بروز رسانی  شد");
+      toast.success(i18n.t("useApi.supplier.updateSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "خطا در بروز رسانی تامین‌کننده");
+      toast.error(error.message || i18n.t("useApi.supplier.updateError"));
     },
   });
 };
@@ -530,10 +768,10 @@ export const useDeleteSupplier = () => {
     mutationFn: deleteSupplier,
     onSuccess: () => {
       queryClient.invalidateQueries(["allSupplier"]);
-      toast.success("تامین‌کننده با موفقیت حذف شد");
+      toast.success(i18n.t("useApi.supplier.deleteSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "خطا در حذف تامین‌کننده");
+      toast.error(error.message || i18n.t("useApi.supplier.deleteError"));
     },
   });
 };
@@ -555,12 +793,36 @@ export const useSale = (id) =>
     enabled: !!id, // Only run query if id exists
   });
 
+export const useSaleReturns = (params = {}, options = {}) =>
+  useQuery({
+    queryKey: ["saleReturns", params],
+    queryFn: () => fetchSaleReturns(params),
+    ...options,
+  });
+
+export const useDeleteSaleReturn = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteSaleReturn,
+    onSuccess: () => {
+      void invalidateAccountRelatedQueries(queryClient);
+      void invalidateInventoryStatsQueries(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["saleReturns"] });
+      queryClient.invalidateQueries({ queryKey: ["allSales"] });
+      queryClient.invalidateQueries({ queryKey: ["sale"] });
+    },
+  });
+};
+
 export const useCreateSale = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createSale,
     mutationKey: ["newSale"],
-    onSuccess: () => queryClient.invalidateQueries(["allSales"]),
+    onSuccess: () => {
+      queryClient.invalidateQueries(["allSales"]);
+      void invalidateAccountRelatedQueries(queryClient);
+    },
   });
 };
 
@@ -569,7 +831,13 @@ export const useUpdateSale = () => {
   return useMutation({
     mutationKey: ["updateSale"],
     mutationFn: ({ id, ...data }) => updateSale(id, data),
-    onSuccess: () => queryClient.invalidateQueries(["allSales"]),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries(["allSales"]);
+      if (variables?.id) {
+        queryClient.invalidateQueries({ queryKey: ["sale", variables.id] });
+      }
+      void invalidateAccountRelatedQueries(queryClient);
+    },
   });
 };
 
@@ -634,7 +902,9 @@ export const useAccountTotals = () => {
   return useQuery({
     queryKey: ["accountTotals"],
     queryFn: () => fetchAccountTotals(),
-    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+    // Always treat as stale so visiting Accounts refetches (global queries.staleTime is 1 min)
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 };
 
@@ -747,10 +1017,10 @@ export const useCreateCustomer = () => {
     mutationKey: ["newCustomer"],
     onSuccess: () => {
       queryClient.invalidateQueries(["allCustomers"]);
-      toast.success("موفقانه مشتری مورد نظر ایجاد  گردید!");
+      toast.success(i18n.t("useApi.customer.createSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "متاسفانه در ایجاد کردن مشتری مورد نظر مشکلی پیش آمده است ");
+      toast.error(error.message || i18n.t("useApi.customer.createError"));
     },
   });
 };
@@ -762,10 +1032,10 @@ export const useUpdateCustomer = () => {
     mutationFn: ({ id, customerData }) => updateCustomer(id, customerData),
     onSuccess: () => {
       queryClient.invalidateQueries(["allCustomers"]);
-      toast.success("موفقانه مشتری مورد نظر  بروز رسانی  گردید!");
+      toast.success(i18n.t("useApi.customer.updateSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "متاسفانه در بروز رسانی  کردن مشتری مورد نظر مشکلی پیش آمده است ");
+      toast.error(error.message || i18n.t("useApi.customer.updateError"));
     },
   });
 };
@@ -777,10 +1047,10 @@ export const useDeleteCustomer = () => {
     mutationFn: deleteCustomer,
     onSuccess: () => {
       queryClient.invalidateQueries(["allCustomers"]);
-      toast.success("موفقانه مشتری مورد نظر حذف گردید!");
+      toast.success(i18n.t("useApi.customer.deleteSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "متاسفانه در حذف کردن مشتری مورد نظر مشکلی پیش آمده است ");
+      toast.error(error.message || i18n.t("useApi.customer.deleteError"));
     },
   });
 };
@@ -807,10 +1077,10 @@ export const useCreateSaraf = () => {
     mutationKey: ["newSaraf"],
     onSuccess: () => {
       queryClient.invalidateQueries(["allSarafs"]);
-      toast.success("موفقانه صراف مورد نظر ایجاد  گردید!");
+      toast.success(i18n.t("useApi.saraf.createSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "متاسفانه در ایجاد کردن صراف مورد نظر مشکلی پیش آمده است ");
+      toast.error(error.message || i18n.t("useApi.saraf.createError"));
     },
   });
 };
@@ -822,10 +1092,10 @@ export const useUpdateSaraf = () => {
     mutationFn: ({ id, sarafData }) => updateSaraf(id, sarafData),
     onSuccess: () => {
       queryClient.invalidateQueries(["allSarafs"]);
-      toast.success("موفقانه صراف مورد نظر  بروز رسانی  گردید!");
+      toast.success(i18n.t("useApi.saraf.updateSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "متاسفانه در بروز رسانی  کردن صراف مورد نظر مشکلی پیش آمده است ");
+      toast.error(error.message || i18n.t("useApi.saraf.updateError"));
     },
   });
 };
@@ -837,10 +1107,10 @@ export const useDeleteSaraf = () => {
     mutationFn: deleteSaraf,
     onSuccess: () => {
       queryClient.invalidateQueries(["allSarafs"]);
-      toast.success("موفقانه صراف مورد نظر حذف گردید!");
+      toast.success(i18n.t("useApi.saraf.deleteSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "متاسفانه در حذف کردن صراف مورد نظر مشکلی پیش آمده است ");
+      toast.error(error.message || i18n.t("useApi.saraf.deleteError"));
     },
   });
 };
@@ -895,6 +1165,9 @@ export const useAccounts = (opts = {}) => {
       { type: type || "", search: search || "", page, limit },
     ],
     queryFn: () => fetchAccounts({ type, search, page, limit }),
+    // Always treat as stale so visiting Accounts refetches (global queries.staleTime is 1 min)
+    staleTime: 0,
+    refetchOnMount: "always",
     keepPreviousData: true,
     onSuccess: (data) => {
       console.log("useAccounts success:", data);
@@ -923,12 +1196,14 @@ export const useSupplierAccounts = () => {
 
 export const useProductsFromStock = (
   location = "store",
-  includeZeroQuantity = false
+  includeZeroQuantity = false,
+  queryOptions = {}
 ) => {
   return useQuery({
     queryKey: ["productsFromStock", location, includeZeroQuantity],
     queryFn: () => fetchProductsFromStock(location, includeZeroQuantity),
     staleTime: 2 * 60 * 1000, // 2 minutes
+    ...queryOptions,
   });
 };
 
@@ -938,11 +1213,11 @@ export const useCreateAccount = () => {
     mutationFn: createAccount,
     mutationKey: ["newAccount"],
     onSuccess: () => {
-      queryClient.invalidateQueries(["accounts"]);
-      toast.success("موفقانه حساب جدید ساخته شده");
+      void invalidateAccountRelatedQueries(queryClient);
+      toast.success(i18n.t("useApi.account.createSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "متاسفانه در ساختن حساب جدید تان مشکلی پیش آمده است");
+      toast.error(error.message || i18n.t("useApi.account.createError"));
     },
   });
 };
@@ -953,11 +1228,11 @@ export const useUpdateAccount = () => {
     mutationKey: ["updateAccount"],
     mutationFn: ({ id, accountData }) => updateAccount(id, accountData),
     onSuccess: () => {
-      queryClient.invalidateQueries(["accounts"]);
-      toast.success("موفقانه بروز رسانی شد");
+      void invalidateAccountRelatedQueries(queryClient);
+      toast.success(i18n.t("useApi.account.updateSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "در بروز رسانی مشکلی پیش آمده است");
+      toast.error(error.message || i18n.t("useApi.account.updateError"));
     },
   });
 };
@@ -968,11 +1243,11 @@ export const useDeleteAccount = () => {
     mutationKey: ["deleteAccount"],
     mutationFn: deleteAccount,
     onSuccess: () => {
-      queryClient.invalidateQueries(["accounts"]);
-      toast.success("موفقانه حذف گردید!");
+      void invalidateAccountRelatedQueries(queryClient);
+      toast.success(i18n.t("useApi.account.deleteSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "متاسفانه مشکلی پیش آمده");
+      toast.error(error.message || i18n.t("useApi.account.deleteError"));
     },
   });
 };
@@ -1000,8 +1275,7 @@ export const useAccountLedger = (accountId, params = {}) => {
     placeholderData: (previousData) => previousData,
     onError: (error) => {
       toast.error(
-        error.message ||
-          "در بارگذاری تراکنش‌های حساب مشکلی پیش آمده است. لطفاً دوباره تلاش کنید."
+        error.message || i18n.t("useApi.transaction.ledgerLoadError")
       );
     },
   });
@@ -1029,10 +1303,10 @@ export const useCreateEmployee = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(["allEmployees"]);
 
-      toast.success("کارمند با موفقیت ساخته  شد");
+      toast.success(i18n.t("useApi.employee.createSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "خطا در ساختن کارمند");
+      toast.error(error.message || i18n.t("useApi.employee.createError"));
     },
   });
 };
@@ -1045,10 +1319,10 @@ export const useUpdateEmployee = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(["allEmployees"]);
 
-      toast.success("کارمند با موفقیت بروز رسانی شد");
+      toast.success(i18n.t("useApi.employee.updateSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "خطا در بروز رسانی کارمند");
+      toast.error(error.message || i18n.t("useApi.employee.updateError"));
     },
   });
 };
@@ -1061,10 +1335,10 @@ export const useDeleteEmployee = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(["allEmployees"]);
 
-      toast.success("کارمند با موفقیت حذف شد");
+      toast.success(i18n.t("useApi.employee.deleteSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "خطا در حذف کارمند");
+      toast.error(error.message || i18n.t("useApi.employee.deleteError"));
     },
   });
 };
@@ -1102,10 +1376,10 @@ export const useCreateUnit = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(["allUnits"]);
 
-      toast.success("واحد با موفقیت ساخته شد");
+      toast.success(i18n.t("useApi.unit.createSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "خطا در ساختن واحد");
+      toast.error(error.message || i18n.t("useApi.unit.createError"));
     },
   });
 };
@@ -1118,10 +1392,10 @@ export const useUpdateUnit = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(["allUnits"]);
 
-      toast.success("واحد با موفقیت بروز رسانی شد");
+      toast.success(i18n.t("useApi.unit.updateSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "خطا در بروز رسانی واحد");
+      toast.error(error.message || i18n.t("useApi.unit.updateError"));
     },
   });
 };
@@ -1134,10 +1408,10 @@ export const useDeleteUnit = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(["allUnits"]);
 
-      toast.success("واحد با موفقیت حذف شد");
+      toast.success(i18n.t("useApi.unit.deleteSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "خطا در حذف واحد");
+      toast.error(error.message || i18n.t("useApi.unit.deleteError"));
     },
   });
 };
@@ -1181,14 +1455,44 @@ export const useStockTransfers = () => {
     queryFn: fetchStockTransfers,
   });
 };
+
+export const useStockDamages = (params = {}) => {
+  return useQuery({
+    queryKey: ["stockDamages", params],
+    queryFn: () => fetchStockDamages(params),
+  });
+};
+
+export const useCreateStockDamage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createStockDamage,
+    onSuccess: () => {
+      void invalidateInventoryStatsQueries(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["stockDamages"] });
+    },
+  });
+};
+
+export const useDeleteStockDamage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }) => deleteStockDamage(id, { reason }),
+    onSuccess: () => {
+      void invalidateInventoryStatsQueries(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["stockDamages"] });
+    },
+  });
+};
 export const useStockTransferDelete = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["deleteStockTransfer"],
     mutationFn: deleteStockTransfer,
     onSuccess: () => {
+      void invalidateInventoryStatsQueries(queryClient);
       queryClient.invalidateQueries(["stockTransfers"]);
-      toast.success(" شما با موفقیت موجودی را حذف کردید ", {
+      toast.success(i18n.t("useApi.stockTransfer.deleteSuccess"), {
         position: "top-right",
         autoClose: 4000,
         hideProgressBar: true,
@@ -1201,7 +1505,7 @@ export const useStockTransferDelete = () => {
       });
     },
     onError: (error) => {
-      toast.error(error.message || " عملیه  نا  موفق بود", {
+      toast.error(error.message || i18n.t("useApi.stockTransfer.deleteError"), {
         position: "top-right",
         autoClose: 4000,
         hideProgressBar: true,
@@ -1222,10 +1526,11 @@ export const useCreateStockTransfer = () => {
     mutationFn: createStockTransfer,
     mutationKey: ["newTransfer"],
     onSuccess: () => {
+      void invalidateInventoryStatsQueries(queryClient);
       queryClient.invalidateQueries(["inventory"]);
       queryClient.invalidateQueries(["stockTransfers"]);
       queryClient.invalidateQueries(["stocks"]);
-      toast.success("انتقال موفقانه بود", {
+      toast.success(i18n.t("useApi.stockTransfer.createSuccess"), {
         position: "top-right",
         autoClose: 4000,
         hideProgressBar: true,
@@ -1238,7 +1543,7 @@ export const useCreateStockTransfer = () => {
       });
     },
     onError: (error) => {
-      toast.error(error.message || "نتقال موفقانه نبود", {
+      toast.error(error.message || i18n.t("useApi.stockTransfer.createError"), {
         position: "top-right",
         autoClose: 4000,
         hideProgressBar: true,
@@ -1261,9 +1566,9 @@ export const useReverseTransaction = () => {
     mutationKey: ["reverseTransaction"],
     onSuccess: () => {
       queryClient.invalidateQueries(["recentTransactions"]);
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      void invalidateAccountRelatedQueries(queryClient);
       queryClient.invalidateQueries({ queryKey: ["accountLedger"] });
-      toast.success("تراکنش با موفقیت برگردانده شد", {
+      toast.success(i18n.t("useApi.transaction.reverseSuccess"), {
         position: "top-right",
         autoClose: 4000,
         hideProgressBar: true,
@@ -1276,7 +1581,12 @@ export const useReverseTransaction = () => {
       });
     },
     onError: (error) => {
-      toast.error(`خطا در برگرداندن تراکنش: ${error.message}`, {
+      toast.error(
+        error.message ||
+          i18n.t("useApi.transaction.reverseError", {
+            message: error.message,
+          }),
+        {
         position: "top-right",
         autoClose: 4000,
         hideProgressBar: true,
@@ -1297,14 +1607,13 @@ export const useTransferBetweenAccounts = () => {
     mutationFn: transferBetweenAccounts,
     mutationKey: ["transferAccounts"],
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["systemAccounts"] });
+      void invalidateAccountRelatedQueries(queryClient);
       queryClient.invalidateQueries({ queryKey: ["accountLedger"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
-      toast.success("پیسې په بریالیتوب سره انتقال شوې");
+      toast.success(i18n.t("useApi.accountTransfer.success"));
     },
     onError: (error) => {
-      toast.error(error.message || "انتقال ناکام شو");
+      toast.error(error.message || i18n.t("useApi.accountTransfer.error"));
     },
   });
 };
@@ -1324,13 +1633,22 @@ export const usePaymentProcess = () => {
           queryKey: ["purchase", variables.purchaseId],
         });
       }
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      void invalidateAccountRelatedQueries(queryClient);
       queryClient.invalidateQueries({ queryKey: ["accountLedger"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
-      toast.success("پرداخت خرید با موفقیت ثبت شد");
     },
-    onError: (error) => {
-      toast.error(error.message || "ثبت پرداخت خرید ناموفق بود");
+  });
+};
+
+export const useRecordSalePayment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ saleId, payload }) => recordSalePayment(saleId, payload),
+    mutationKey: ["salePayment"],
+    onSuccess: (response, variables) => {
+      const saleId = variables?.saleId;
+      applySalePaymentCacheUpdates(queryClient, saleId, response);
+      void invalidateSalePaymentQueries(queryClient, saleId);
     },
   });
 };
@@ -1358,10 +1676,10 @@ export const useUpdateProfile = () => {
     mutationFn: updateCurrentUser,
     onSuccess: () => {
       queryClient.invalidateQueries(["profile"]),
-        toast.success("با موفقیت تغییرات ثبت شد");
+        toast.success(i18n.t("useApi.profile.updateSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "متاسفانه مشکلی پیش آمده است");
+      toast.error(error.message || i18n.t("useApi.profile.updateError"));
     },
   });
 };
@@ -1382,10 +1700,10 @@ export const useUpdateSettings = () => {
     mutationFn: updateSettings,
     onSuccess: () => {
       queryClient.invalidateQueries(["settings"]);
-      toast.success("تنظیمات با موفقیت بروز رسانی شد");
+      toast.success(i18n.t("useApi.settings.updateSuccess"));
     },
     onError: (error) => {
-      toast.error(error.message || "خطا در بروز رسانی تنظیمات");
+      toast.error(error.message || i18n.t("useApi.settings.updateError"));
     },
   });
 };

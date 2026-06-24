@@ -6,68 +6,10 @@ const AccountTransaction = require('../models/accountTransaction.model');
 const AuditLog = require('../models/auditLog.model');
 const Purchase = require('../models/purchase.model');
 const Sale = require('../models/sale.model');
-const Expense = require('../models/expense.model');
-const Income = require('../models/income.model');
-
-const recordAuditLog = async ({ session, tableName, recordId, operation, oldData, newData, reason, user }) => {
-  await AuditLog.create(
-    [
-      {
-        tableName,
-        recordId,
-        operation,
-        oldData,
-        newData,
-        reason,
-        changedBy: user?.name || 'System',
-        changedAt: new Date(),
-      },
-    ],
-    { session }
-  );
-};
-
-const handleLinkedReferenceReversal = async ({ tx, session, reason, user }) => {
-  if (!tx.referenceType || !tx.referenceId) return;
-
-  if (tx.referenceType === 'expense') {
-    const expense = await Expense.findById(tx.referenceId).session(session);
-    if (expense && !expense.isDeleted) {
-      const oldExpense = expense.toObject();
-      expense.isDeleted = true;
-      await expense.save({ session });
-      await recordAuditLog({
-        session,
-        tableName: 'Expense',
-        recordId: expense._id,
-        operation: 'DELETE',
-        oldData: oldExpense,
-        newData: expense.toObject(),
-        reason: reason || 'د لګښت معامله بیرته شوه',
-        user,
-      });
-    }
-  }
-
-  if (tx.referenceType === 'income') {
-    const income = await Income.findById(tx.referenceId).session(session);
-    if (income && !income.isDeleted) {
-      const oldIncome = income.toObject();
-      income.isDeleted = true;
-      await income.save({ session });
-      await recordAuditLog({
-        session,
-        tableName: 'Income',
-        recordId: income._id,
-        operation: 'DELETE',
-        oldData: oldIncome,
-        newData: income.toObject(),
-        reason: reason || 'د عاید معامله بیرته شوه',
-        user,
-      });
-    }
-  }
-};
+const {
+  canReverseAccountTransaction,
+  collectTransactionsToReverse,
+} = require('../utils/accountTransactionReverse');
 
 // @desc Get all account transactions with pagination and filters
 // @route GET /api/v1/account-transactions
@@ -177,11 +119,15 @@ exports.getAllTransactions = asyncHandler(async (req, res, next) => {
       // Populate reference data based on referenceType
       if (tx.referenceType === 'purchase') {
         const purchase = await Purchase.findById(tx.referenceId)
-          .select('purchaseNumber supplier totalAmount')
+          .select('supplierName supplier purchaseDate totalAmount')
           .populate('supplier', 'name');
         if (purchase) {
           tx.referenceData = purchase;
-          tx.referenceData.reference = `پیرود ${purchase.purchaseNumber} - ${purchase.supplier?.name || 'Unknown'}`;
+          const supplierLabel =
+            purchase.supplierName ||
+            purchase.supplier?.name ||
+            'Unknown';
+          tx.referenceData.reference = `رانیول - ${supplierLabel}`;
         }
       } else if (tx.referenceType === 'sale') {
         const sale = await Sale.findById(tx.referenceId)
@@ -207,6 +153,8 @@ exports.getAllTransactions = asyncHandler(async (req, res, next) => {
         }
       }
     }
+
+    tx.canReverse = canReverseAccountTransaction(tx).allowed;
   }
 
   // Get total count for pagination
@@ -709,50 +657,10 @@ exports.reverseTransaction = asyncHandler(async (req, res, next) => {
     if (!orig || orig.isDeleted)
       throw new AppError('معامله ونه موندل شوه', 404);
 
-    if (orig.reversed === true)
-      throw new AppError('معامله دمخه بیرته شوې ده', 400);
-
-    // Collect transactions to reverse: original and its paired transfer (if any)
-    let transactionsToReverse = [orig];
-
-    // If it's a transfer, try to find its paired side
-    if (orig.transactionType === 'Transfer') {
-      let paired = null;
-
-      if (orig.referenceType === 'transfer' && orig.referenceId) {
-        // Both sides should share the same referenceId
-        const pairedCandidates = await AccountTransaction.find({
-          _id: { $ne: orig._id },
-          referenceType: 'transfer',
-          referenceId: orig.referenceId,
-          isDeleted: false,
-        }).session(session);
-        if (pairedCandidates && pairedCandidates.length > 0) {
-          paired = pairedCandidates[0];
-        }
-      }
-
-      // Fallback matcher for legacy transfers without referenceId
-      if (!paired) {
-        paired = await AccountTransaction.findOne({
-          _id: { $ne: orig._id },
-          transactionType: 'Transfer',
-          isDeleted: false,
-          created_by: orig.created_by,
-          amount: { $eq: -orig.amount },
-        })
-          .sort({ createdAt: 1 })
-          .session(session);
-      }
-
-      if (paired && paired.reversed === true) {
-        throw new AppError('جوړه شوې انتقال دمخه بیرته شوې ده', 400);
-      }
-
-      if (paired) {
-        transactionsToReverse = [orig, paired];
-      }
-    }
+    const transactionsToReverse = await collectTransactionsToReverse(
+      session,
+      orig
+    );
 
     const reversals = [];
 
@@ -768,10 +676,7 @@ exports.reverseTransaction = asyncHandler(async (req, res, next) => {
             date: new Date(),
             transactionType: revAmount < 0 ? 'Debit' : 'Credit',
             amount: revAmount,
-            referenceType:
-              tx.referenceType ||
-              (tx.transactionType === 'Transfer' ? 'transfer' : undefined),
-            referenceId: tx.referenceId || undefined,
+            reversesTransaction: tx._id,
             description: `بیرته کول: ${reason}`,
             created_by: req.user._id,
             isDeleted: false,
@@ -780,18 +685,15 @@ exports.reverseTransaction = asyncHandler(async (req, res, next) => {
         { session }
       );
 
-      // Apply to account balance
       acc.currentBalance += -tx.amount;
       await acc.save({ session });
 
-      // Mark original transaction as reversed (metadata)
       tx.reversed = true;
       tx.reversalTransaction = rev[0]._id;
       tx.reversedBy = req.user._id;
       tx.reversedAt = new Date();
       await tx.save({ session });
 
-      // Audit log per reversal
       await AuditLog.create(
         [
           {
@@ -806,13 +708,6 @@ exports.reverseTransaction = asyncHandler(async (req, res, next) => {
         ],
         { session }
       );
-
-      await handleLinkedReferenceReversal({
-        tx,
-        session,
-        reason,
-        user: req.user,
-      });
 
       reversals.push(rev[0]);
     }

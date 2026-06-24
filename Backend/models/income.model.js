@@ -48,6 +48,8 @@ incomeSchema.index({ category: 1, date: -1 });
 incomeSchema.index({ source: 1 });
 incomeSchema.index({ created_by: 1, date: -1 });
 
+incomeSchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Income = mongoose.model('Income', incomeSchema);
 
 module.exports = Income;

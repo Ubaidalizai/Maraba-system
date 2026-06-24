@@ -1,6 +1,12 @@
 const Saraf = require('../models/saraf.model');
 const asyncHandler = require('../middlewares/asyncHandler');
 const AppError = require('../utils/appError');
+const {
+  parseDeletionFilter,
+  softDeleteUpdate,
+  createSimpleRestoreHandler,
+  createPermanentDeleteHandler,
+} = require('../utils/softDeleteHelpers');
 
 // @desc    Create new saraf
 // @route   POST /api/v1/sarafs
@@ -29,12 +35,14 @@ const getAllSarafs = asyncHandler(async (req, res) => {
   const limit = Number(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const sarafs = await Saraf.find({ isDeleted: false })
+  const filter = parseDeletionFilter(req.query);
+
+  const sarafs = await Saraf.find(filter)
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });
 
-  const totalSarafs = await Saraf.countDocuments({ isDeleted: false });
+  const totalSarafs = await Saraf.countDocuments(filter);
 
   res.status(200).json({
     status: 'success',
@@ -93,7 +101,7 @@ const updateSaraf = asyncHandler(async (req, res, next) => {
 const deleteSaraf = asyncHandler(async (req, res, next) => {
   const saraf = await Saraf.findOneAndUpdate(
     { _id: req.params.id, isDeleted: false },
-    { isDeleted: true },
+    softDeleteUpdate(req.user?._id),
     { new: true }
   );
 
@@ -107,10 +115,24 @@ const deleteSaraf = asyncHandler(async (req, res, next) => {
   });
 });
 
+const restoreSaraf = createSimpleRestoreHandler(Saraf, {
+  notFoundMessage: 'صراف ونه موندل شو',
+  notDeletedMessage: 'صراف حذف شوی نه دی',
+  successMessage: 'صراف په بریالیتوب سره بیرته راستون شو',
+});
+
+const permanentDeleteSaraf = createPermanentDeleteHandler(Saraf, {
+  notFoundMessage: 'صراف ونه موندل شو',
+  notInTrashMessage: 'لومړی باید صراف په کثافاتو کې حذف شوی وي',
+  successMessage: 'صراف په تل لپاره حذف شو',
+});
+
 module.exports = {
   createSaraf,
   getAllSarafs,
   getSaraf,
   updateSaraf,
   deleteSaraf,
+  restoreSaraf,
+  permanentDeleteSaraf,
 };

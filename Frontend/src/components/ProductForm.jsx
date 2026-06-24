@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useUnits } from "../services/useApi";
 import Button from "./Button";
 import Spinner from "./Spinner";
+import { registerNumeric } from "../utilies/numericInput";
 
 /**
  * ProductForm Component
@@ -92,6 +93,9 @@ function ProductForm({
               {errors.baseUnit.message}
             </p>
           )}
+          <p className="text-xs text-slate-500 mt-1">
+            {t("inventory.product.form.primaryUnitHint")}
+          </p>
         </div>
 
         {/* Track by Batch */}
@@ -107,6 +111,31 @@ function ProductForm({
               {t("inventory.product.form.trackByBatch")}
             </label>
           </div>
+        </div>
+
+        {/* Expiry notify days override */}
+        <div className="md:col-span-2">
+          <label
+            htmlFor="notifyDaysBefore"
+            className="block text-sm font-medium text-slate-700 mb-2"
+          >
+            {t("inventory.product.form.notifyDaysBefore")}
+          </label>
+          <input
+            id="notifyDaysBefore"
+            {...registerNumeric(
+              "notifyDaysBefore",
+              register,
+              { emptyAs: null },
+              { allowDecimal: false, className: inputStyle }
+            )}
+            placeholder={t(
+              "inventory.product.form.notifyDaysBeforePlaceholder"
+            )}
+          />
+          <p className="text-xs text-slate-500 mt-1">
+            {t("inventory.product.form.notifyDaysBeforeHint")}
+          </p>
         </div>
       </div>
 

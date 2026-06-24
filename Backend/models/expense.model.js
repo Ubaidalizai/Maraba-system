@@ -38,6 +38,8 @@ const expenseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+expenseSchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Expense = mongoose.model('Expense', expenseSchema);
 
 module.exports = Expense;

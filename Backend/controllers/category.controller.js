@@ -3,6 +3,13 @@ const asyncHandler = require('../middlewares/asyncHandler');
 const AppError = require('../utils/AppError');
 const Category = require('../models/category.model');
 const AuditLog = require('../models/auditLog.model');
+const {
+  parseDeletionFilter,
+  markSoftDeleted,
+  markRestored,
+  createPermanentDeleteHandler,
+  validateObjectId,
+} = require('../utils/softDeleteHelpers');
 
 // @desc    Get all categories with filtering
 // @route   GET /api/v1/categories
@@ -16,7 +23,7 @@ exports.getAllCategories = asyncHandler(async (req, res, next) => {
     sortOrder = 'asc',
   } = req.query;
 
-  const filter = { isDeleted: false };
+  const filter = parseDeletionFilter(req.query);
 
   if (type) filter.type = type;
   if (isActive !== undefined) filter.isActive = isActive === 'true';
@@ -248,7 +255,7 @@ exports.deleteCategory = asyncHandler(async (req, res, next) => {
   const oldData = category.toObject();
 
   // Soft delete
-  category.isDeleted = true;
+  markSoftDeleted(category, req.user?._id);
   category.isActive = false;
   await category.save();
 
@@ -268,6 +275,31 @@ exports.deleteCategory = asyncHandler(async (req, res, next) => {
     success: true,
     message: 'کېټګورۍ په بریالیتوب سره حذف شوه',
   });
+});
+
+exports.restoreCategory = asyncHandler(async (req, res, next) => {
+  validateObjectId(req.params.id, 'ناسم کېټګورۍ پیژندنه');
+
+  const category = await Category.findById(req.params.id);
+  if (!category || !category.isDeleted) {
+    throw new AppError('کېټګورۍ ونه موندل شوه یا حذف شوې نه ده', 404);
+  }
+
+  markRestored(category);
+  category.isActive = true;
+  await category.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'کېټګورۍ په بریالیتوب سره بیرته راستونه شوه',
+    data: category,
+  });
+});
+
+exports.permanentDeleteCategory = createPermanentDeleteHandler(Category, {
+  notFoundMessage: 'کېټګورۍ ونه موندل شوه',
+  notInTrashMessage: 'لومړی باید کېټګورۍ په کثافاتو کې حذف شوې وي',
+  successMessage: 'کېټګورۍ په تل لپاره حذف شوه',
 });
 
 // @desc    Get category statistics

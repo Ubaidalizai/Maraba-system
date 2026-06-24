@@ -26,6 +26,7 @@ exports.updateSettings = asyncHandler(async (req, res, next) => {
     website,
     taxId,
     description,
+    expiryNotifyDays,
   } = req.body;
 
   // Build update object
@@ -40,6 +41,9 @@ exports.updateSettings = asyncHandler(async (req, res, next) => {
   if (website !== undefined) updateData.website = website;
   if (taxId !== undefined) updateData.taxId = taxId;
   if (description !== undefined) updateData.description = description;
+  if (expiryNotifyDays !== undefined) {
+    updateData.expiryNotifyDays = Number(expiryNotifyDays);
+  }
 
   // Handle logo upload - check for existing settings first
   const existingSettings = await Settings.findOne();

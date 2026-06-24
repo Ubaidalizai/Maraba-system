@@ -9,6 +9,7 @@ import {
   ChartBarIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  CalendarDaysIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useState } from "react";
@@ -28,11 +29,17 @@ import {
 import Product from "./Product";
 import Store from "./Store";
 import Warehouse from "./Warehouse";
+import LowStock from "./LowStock";
+import ExpiringStock from "./ExpiringStock";
 import { BiLoaderAlt } from "react-icons/bi";
 import Confirmation from "../components/Confirmation";
 import { useSearchParams } from "react-router-dom";
 import Employee from "../components/Employee";
+import StockDamagePanel from "../components/StockDamagePanel";
 import { TrashIcon } from "lucide-react";
+import { ArchiveBoxXMarkIcon } from "@heroicons/react/24/outline";
+
+import { formatJalaliDate } from "../utilies/helper";
 
 const EASTERN_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 
@@ -52,12 +59,7 @@ const Inventory = () => {
     return raw.replace(/\d/g, (d) => EASTERN_DIGITS[d]);
   };
 
-  const formatTransferDate = (iso) => {
-    if (!iso) return t("inventory.transfer.empty");
-    const lang = (i18n.language || "ps").split("-")[0];
-    const localeTag = lang === "ps" ? "ps-AF" : "fa-IR";
-    return new Date(iso).toLocaleDateString(localeTag);
-  };
+  const formatTransferDate = formatJalaliDate;
 
   const transferTableHeaders = useMemo(
     () => [
@@ -93,6 +95,7 @@ const Inventory = () => {
     warehouse: { totalQuantity: 0, totalValue: 0, uniqueProducts: 0 },
     store: { totalQuantity: 0, totalValue: 0, uniqueProducts: 0 },
     lowStockItems: 0,
+    expiringAlertCount: 0,
   };
   useEffect(
     function () {
@@ -122,7 +125,7 @@ const Inventory = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2  lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6">
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -181,7 +184,18 @@ const Inventory = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg  border border-gray-200 p-6">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setActiveTab("lowStock")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setActiveTab("lowStock");
+            }
+          }}
+          className="bg-white rounded-lg border border-gray-200 p-6 text-left cursor-pointer hover:border-amber-300 hover:shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-amber-500"
+        >
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">
@@ -199,12 +213,42 @@ const Inventory = () => {
             </div>
           </div>
         </div>
+
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setActiveTab("expiring")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setActiveTab("expiring");
+            }
+          }}
+          className="bg-white rounded-lg border border-gray-200 p-6 text-left cursor-pointer hover:border-orange-300 hover:shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-orange-500"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">
+                {t("inventory.stats.expiring")}
+              </p>
+              <p className="text-2xl font-bold text-orange-600 mt-1">
+                {toLocalizedNumber(stats.expiringAlertCount ?? 0)}
+              </p>
+              <p className="text-sm text-gray-500">
+                {t("inventory.stats.expiringHint")}
+              </p>
+            </div>
+            <div className="bg-orange-100 p-3 rounded-lg">
+              <CalendarDaysIcon className="h-6 w-6 text-orange-600" />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Tabs and Table */}
       <div className="bg-white rounded-lg bord border-gray-200/70 ">
         <div className="border-b border-gray-200/70 mb-1 rounded-md">
-          <nav className="flex -mb-px">
+          <nav className="flex flex-wrap -mb-px gap-x-1">
             <button
               onClick={() => setActiveTab("all")}
               className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
@@ -238,6 +282,30 @@ const Inventory = () => {
               {t("inventory.tabs.store")}
             </button>
             <button
+              onClick={() => setActiveTab("lowStock")}
+              type="button"
+              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                activeTab === "lowStock"
+                  ? "border-amber-600 text-amber-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <ExclamationTriangleIcon className="h-5 w-5" />
+              {t("inventory.tabs.lowStock")}
+            </button>
+            <button
+              onClick={() => setActiveTab("expiring")}
+              type="button"
+              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                activeTab === "expiring"
+                  ? "border-amber-600 text-amber-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <CalendarDaysIcon className="h-5 w-5" />
+              {t("inventory.tabs.expiring")}
+            </button>
+            <button
               onClick={() => setActiveTab("employee")}
               className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
                 activeTab === "employee"
@@ -247,6 +315,18 @@ const Inventory = () => {
             >
               <FaUserTag className="h-5 w-5" />
               {t("inventory.tabs.seller")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("damage")}
+              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                activeTab === "damage"
+                  ? "border-amber-600 text-amber-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <ArchiveBoxXMarkIcon className="h-5 w-5" />
+              {t("inventory.tabs.damage")}
             </button>
           </nav>
         </div>
@@ -262,15 +342,33 @@ const Inventory = () => {
             <Store />
           </div>
         )}
+        {activeTab === "lowStock" && (
+          <div className="overflow-x-auto -mx-6 px-6">
+            <LowStock />
+          </div>
+        )}
+        {activeTab === "expiring" && (
+          <div className="overflow-x-auto -mx-6 px-6">
+            <ExpiringStock />
+          </div>
+        )}
         {activeTab === "employee" && (
           <div className="overflow-x-auto  -mx-6 px-6">
             <Employee />
           </div>
         )}
+        {activeTab === "damage" && (
+          <div className="overflow-x-auto -mx-6 px-6">
+            <StockDamagePanel />
+          </div>
+        )}
       </div>
 
       {/* Stock Transfer History */}
-      {activeTab !== "all" && (
+      {activeTab !== "all" &&
+        activeTab !== "lowStock" &&
+        activeTab !== "expiring" &&
+        activeTab !== "damage" && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <ArrowPathIcon className="h-6 w-6 text-amber-600" />

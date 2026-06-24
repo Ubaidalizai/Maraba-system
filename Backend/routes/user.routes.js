@@ -22,13 +22,13 @@ router.post(
 );
 router.post("/login", userController.loginUser);
 router.post("/refresh", userController.refreshAccessToken);
+router.post("/logout", userController.logout);
 router.post("/forgotPassword", userController.forgotPassword);
 router.post("/resetPassword/:token", userController.resetPassword);
 
 // Protected routes (require authentication)
 router.use(authenticate);
 
-router.post("/logout", userController.logout);
 router.get("/profile", userController.getUserProfile);
 router.patch(
   "/profile",

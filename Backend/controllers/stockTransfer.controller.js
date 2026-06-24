@@ -8,6 +8,15 @@ const Product = require('../models/product.model');
 const Unit = require('../models/unit.model');
 const AuditLog = require('../models/auditLog.model');
 const EmployeeStock = require('../models/employeeStock.model');
+const {
+  toStockQuantity,
+  loadPrimaryUnitForProduct,
+} = require('../utils/primaryUnitStock');
+
+async function transferStockQuantity(productId, quantity, unitDoc, session) {
+  const primaryUnit = await loadPrimaryUnitForProduct(productId, session);
+  return toStockQuantity(quantity, unitDoc, primaryUnit);
+}
 
 // @desc    Transfer stock between locations (warehouse, store, employee)
 // @route   POST /api/v1/stock-transfers
@@ -28,7 +37,12 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
     const unitDoc = await Unit.findById(unit).session(session);
     if (!unitDoc) throw new AppError('واحد ناسم دی', 400);
 
-    const baseQuantity = quantity * unitDoc.conversion_to_base;
+    const stockQuantity = await transferStockQuantity(
+      product,
+      quantity,
+      unitDoc,
+      session
+    );
 
     if (fromLocation === 'employee') {
       const empStock = await EmployeeStock.findOne({
@@ -37,11 +51,11 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
         isDeleted: false,
       }).session(session);
 
-      if (!empStock || empStock.quantity_in_hand < baseQuantity) {
+      if (!empStock || empStock.quantity_in_hand < stockQuantity) {
         throw new AppError('د کارکوونکي په ګودام کې کافي سټاک شتون نلري', 400);
       }
 
-      empStock.quantity_in_hand -= baseQuantity;
+      empStock.quantity_in_hand -= stockQuantity;
       await empStock.save({ session });
     } else {
       const fromStock = await Stock.findOne({
@@ -57,14 +71,14 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
         );
       }
 
-      if (fromStock.quantity < baseQuantity) {
+      if (fromStock.quantity < stockQuantity) {
         throw new AppError(
-          `په ${fromLocation} کې کافي سټاک شتون نلري. شتون: ${fromStock.quantity}، غوښتل شوی: ${baseQuantity}`,
+          `په ${fromLocation} کې کافي سټاک شتون نلري. شتون: ${fromStock.quantity}، غوښتل شوی: ${stockQuantity}`,
           400
         );
       }
 
-      fromStock.quantity -= baseQuantity;
+      fromStock.quantity -= stockQuantity;
       await fromStock.save({ session });
     }
 
@@ -89,7 +103,7 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
       await EmployeeStock.findOneAndUpdate(
         { employee, product, batchNumber, isDeleted: false },
         { 
-          $inc: { quantity_in_hand: baseQuantity },
+          $inc: { quantity_in_hand: stockQuantity },
           $set: { 
             purchasePricePerBaseUnit: purchasePricePerBaseUnit,
             batchNumber: batchNumber
@@ -142,8 +156,8 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
         const existingPrice = existingToStock.purchasePricePerBaseUnit || 0;
         const newPrice = sourceStock?.purchasePricePerBaseUnit || 0;
         
-        const totalQty = existingQty + baseQuantity;
-        const weightedAvgPrice = ((existingQty * existingPrice) + (baseQuantity * newPrice)) / totalQty;
+        const totalQty = existingQty + stockQuantity;
+        const weightedAvgPrice = ((existingQty * existingPrice) + (stockQuantity * newPrice)) / totalQty;
         
         existingToStock.quantity = totalQty;
         existingToStock.purchasePricePerBaseUnit = weightedAvgPrice;
@@ -158,7 +172,7 @@ exports.transferStock = asyncHandler(async (req, res, next) => {
               purchasePricePerBaseUnit: sourceStock.purchasePricePerBaseUnit,
               expiryDate: sourceStock.expiryDate,
               location: toLocation,
-              quantity: baseQuantity,
+              quantity: stockQuantity,
             },
           ],
           { session }
@@ -281,7 +295,12 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
       throw new AppError('د سټاک لیږد ونه موندل شو', 404);
 
     const oldData = { ...transfer.toObject() };
-    const oldBaseQuantity = transfer.quantity * (transfer.unit?.conversion_to_base || 1);
+    const oldStockQuantity = await transferStockQuantity(
+      transfer.product,
+      transfer.quantity,
+      transfer.unit,
+      session
+    );
 
     if (transfer.toLocation === 'employee') {
       let empStock = await EmployeeStock.findOne({
@@ -298,13 +317,13 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
       }
 
       if (empStock) {
-        empStock.quantity_in_hand -= oldBaseQuantity;
+        empStock.quantity_in_hand -= oldStockQuantity;
         await empStock.save({ session });
       }
     } else {
       await Stock.findOneAndUpdate(
         { product: transfer.product, location: transfer.toLocation },
-        { $inc: { quantity: -oldBaseQuantity } },
+        { $inc: { quantity: -oldStockQuantity } },
         { session }
       );
     }
@@ -322,7 +341,7 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
       await EmployeeStock.findOneAndUpdate(
         { employee: transfer.employee, product: transfer.product, batchNumber, isDeleted: false },
         { 
-          $inc: { quantity_in_hand: oldBaseQuantity },
+          $inc: { quantity_in_hand: oldStockQuantity },
           $set: { 
             purchasePricePerBaseUnit: purchasePricePerBaseUnit,
             batchNumber: batchNumber
@@ -333,7 +352,7 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
     } else {
       await Stock.findOneAndUpdate(
         { product: transfer.product, location: transfer.fromLocation },
-        { $inc: { quantity: oldBaseQuantity } },
+        { $inc: { quantity: oldStockQuantity } },
         { session }
       );
     }
@@ -343,26 +362,32 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
     const newQty = quantity || transfer.quantity;
     const newFrom = fromLocation || transfer.fromLocation;
     const newTo = toLocation || transfer.toLocation;
+    const newStockQuantity = await transferStockQuantity(
+      updatedProduct,
+      newQty,
+      transfer.unit,
+      session
+    );
 
     if (newFrom === 'employee') {
       const empStock = await EmployeeStock.findOne({
         employee: updatedEmployee,
         product: updatedProduct,
       }).session(session);
-      if (!empStock || empStock.quantity_in_hand < newQty) {
+      if (!empStock || empStock.quantity_in_hand < newStockQuantity) {
         throw new AppError('د تازه کولو لپاره د کارکوونکي په ګودام کې کافي سټاک شتون نلري', 400);
       }
-      empStock.quantity_in_hand -= newQty;
+      empStock.quantity_in_hand -= newStockQuantity;
       await empStock.save({ session });
     } else {
       const srcStock = await Stock.findOne({
         product: updatedProduct,
         location: newFrom,
       }).session(session);
-      if (!srcStock || srcStock.quantity < newQty) {
+      if (!srcStock || srcStock.quantity < newStockQuantity) {
         throw new AppError('په سرچینه ځای کې کافي سټاک شتون نلري', 400);
       }
-      srcStock.quantity -= newQty;
+      srcStock.quantity -= newStockQuantity;
       await srcStock.save({ session });
     }
 
@@ -387,7 +412,7 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
       await EmployeeStock.findOneAndUpdate(
         { employee: updatedEmployee, product: updatedProduct, batchNumber, isDeleted: false },
         { 
-          $inc: { quantity_in_hand: newQty },
+          $inc: { quantity_in_hand: newStockQuantity },
           $set: { 
             purchasePricePerBaseUnit: purchasePricePerBaseUnit,
             batchNumber: batchNumber
@@ -422,8 +447,8 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
         const existingPrice = existingToStock.purchasePricePerBaseUnit || 0;
         const newPrice = sourceStock?.purchasePricePerBaseUnit || 0;
         
-        const totalQty = existingQty + newQty;
-        const weightedAvgPrice = ((existingQty * existingPrice) + (newQty * newPrice)) / totalQty;
+        const totalQty = existingQty + newStockQuantity;
+        const weightedAvgPrice = ((existingQty * existingPrice) + (newStockQuantity * newPrice)) / totalQty;
         
         existingToStock.quantity = totalQty;
         existingToStock.purchasePricePerBaseUnit = weightedAvgPrice;
@@ -453,7 +478,7 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
                 purchasePricePerBaseUnit: sourceStock.purchasePricePerBaseUnit,
                 expiryDate: sourceStock.expiryDate,
                 location: newTo,
-                quantity: newQty,
+                quantity: newStockQuantity,
               },
             ],
             { session }
@@ -481,7 +506,7 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
                     sourceStock.purchasePricePerBaseUnit,
                   expiryDate: sourceStock.expiryDate,
                   location: newTo,
-                  quantity: newQty,
+                  quantity: newStockQuantity,
                 },
               ],
               { session }
@@ -489,7 +514,7 @@ exports.updateStockTransfer = asyncHandler(async (req, res, next) => {
           } else {
             await Stock.findOneAndUpdate(
               { product: updatedProduct, location: newTo },
-              { $inc: { quantity: newQty } },
+              { $inc: { quantity: newStockQuantity } },
               { upsert: true, session }
             );
           }
@@ -547,7 +572,12 @@ exports.softDeleteStockTransfer = asyncHandler(async (req, res, next) => {
       throw new AppError('د سټاک لیږد ونه موندل شو', 404);
 
     const oldData = { ...transfer.toObject() };
-    const baseQuantity = transfer.quantity * (transfer.unit?.conversion_to_base || 1);
+    const stockQuantity = await transferStockQuantity(
+      transfer.product,
+      transfer.quantity,
+      transfer.unit,
+      session
+    );
 
     if (transfer.toLocation === 'employee') {
       let empStock = await EmployeeStock.findOne({
@@ -563,13 +593,13 @@ exports.softDeleteStockTransfer = asyncHandler(async (req, res, next) => {
         }).session(session);
       }
 
-      if (!empStock || empStock.quantity_in_hand < baseQuantity) {
+      if (!empStock || empStock.quantity_in_hand < stockQuantity) {
         throw new AppError(
           'د لیږد د حذف کولو لپاره د کارکوونکي په ګودام کې کافي سټاک شتون نلري',
           400
         );
       }
-      empStock.quantity_in_hand -= baseQuantity;
+      empStock.quantity_in_hand -= stockQuantity;
       await empStock.save({ session });
     } else {
       const destStock = await Stock.findOne({
@@ -577,13 +607,13 @@ exports.softDeleteStockTransfer = asyncHandler(async (req, res, next) => {
         location: transfer.toLocation,
       }).session(session);
 
-      if (!destStock || destStock.quantity < baseQuantity) {
+      if (!destStock || destStock.quantity < stockQuantity) {
         throw new AppError(
           'د لیږد د حذف کولو لپاره په منزل کې کافي سټاک شتون نلري',
           400
         );
       }
-      destStock.quantity -= baseQuantity;
+      destStock.quantity -= stockQuantity;
       await destStock.save({ session });
     }
 
@@ -600,7 +630,7 @@ exports.softDeleteStockTransfer = asyncHandler(async (req, res, next) => {
       await EmployeeStock.findOneAndUpdate(
         { employee: transfer.employee, product: transfer.product, batchNumber, isDeleted: false },
         { 
-          $inc: { quantity_in_hand: baseQuantity },
+          $inc: { quantity_in_hand: stockQuantity },
           $set: { 
             purchasePricePerBaseUnit: purchasePricePerBaseUnit,
             batchNumber: batchNumber
@@ -611,7 +641,7 @@ exports.softDeleteStockTransfer = asyncHandler(async (req, res, next) => {
     } else {
       await Stock.findOneAndUpdate(
         { product: transfer.product, location: transfer.fromLocation },
-        { $inc: { quantity: baseQuantity } },
+        { $inc: { quantity: stockQuantity } },
         { upsert: true, session }
       );
     }
@@ -661,7 +691,12 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
 
     const oldData = { ...transfer.toObject() };
     const { product, fromLocation, toLocation, quantity, employee } = transfer;
-    const baseQuantity = quantity * (transfer.unit?.conversion_to_base || 1);
+    const stockQuantity = await transferStockQuantity(
+      product,
+      quantity,
+      transfer.unit,
+      session
+    );
 
     if (fromLocation === 'employee') {
       const empStock = await EmployeeStock.findOne({
@@ -669,14 +704,14 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
         product,
       }).session(session);
 
-      if (!empStock || empStock.quantity_in_hand < baseQuantity) {
+      if (!empStock || empStock.quantity_in_hand < stockQuantity) {
         throw new AppError(
           'د لیږد د بیرته راستنیدو لپاره د کارکوونکي په ګودام کې کافي سټاک شتون نلري',
           400
         );
       }
 
-      empStock.quantity_in_hand -= baseQuantity;
+      empStock.quantity_in_hand -= stockQuantity;
       await empStock.save({ session });
     } else {
       const sourceStock = await Stock.findOne({
@@ -684,14 +719,14 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
         location: fromLocation,
       }).session(session);
 
-      if (!sourceStock || sourceStock.quantity < baseQuantity) {
+      if (!sourceStock || sourceStock.quantity < stockQuantity) {
         throw new AppError(
           'د لیږد د بیرته راستنیدو لپاره په سرچینه کې کافي سټاک شتون نلري',
           400
         );
       }
 
-      sourceStock.quantity -= baseQuantity;
+      sourceStock.quantity -= stockQuantity;
       await sourceStock.save({ session });
     }
 
@@ -708,7 +743,7 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
       await EmployeeStock.findOneAndUpdate(
         { employee, product, batchNumber, isDeleted: false },
         { 
-          $inc: { quantity_in_hand: baseQuantity },
+          $inc: { quantity_in_hand: stockQuantity },
           $set: { 
             purchasePricePerBaseUnit: purchasePricePerBaseUnit,
             batchNumber: batchNumber
@@ -735,8 +770,8 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
         const existingPrice = existingToStock.purchasePricePerBaseUnit || 0;
         const newPrice = sourceStock?.purchasePricePerBaseUnit || 0;
         
-        const totalQty = existingQty + baseQuantity;
-        const weightedAvgPrice = ((existingQty * existingPrice) + (baseQuantity * newPrice)) / totalQty;
+        const totalQty = existingQty + stockQuantity;
+        const weightedAvgPrice = ((existingQty * existingPrice) + (stockQuantity * newPrice)) / totalQty;
         
         existingToStock.quantity = totalQty;
         existingToStock.purchasePricePerBaseUnit = weightedAvgPrice;
@@ -758,7 +793,7 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
                 purchasePricePerBaseUnit: sourceStock.purchasePricePerBaseUnit,
                 expiryDate: sourceStock.expiryDate,
                 location: toLocation,
-                quantity: baseQuantity,
+                quantity: stockQuantity,
               },
             ],
             { session }
@@ -766,7 +801,7 @@ exports.restoreStockTransfer = asyncHandler(async (req, res, next) => {
         } else {
           await Stock.findOneAndUpdate(
             { product, location: toLocation },
-            { $inc: { quantity: baseQuantity } },
+            { $inc: { quantity: stockQuantity } },
             { upsert: true, session }
           );
         }
@@ -818,7 +853,12 @@ exports.rollbackStockTransfer = asyncHandler(async (req, res, next) => {
       throw new AppError('لیږد ونه موندل شو', 404);
 
     const { product, fromLocation, toLocation, quantity, employee } = transfer;
-    const baseQuantity = quantity * (transfer.unit?.conversion_to_base || 1);
+    const stockQuantity = await transferStockQuantity(
+      product,
+      quantity,
+      transfer.unit,
+      session
+    );
 
     if (toLocation === 'employee') {
       const empStock = await EmployeeStock.findOne({
@@ -827,14 +867,14 @@ exports.rollbackStockTransfer = asyncHandler(async (req, res, next) => {
         isDeleted: false,
       }).session(session);
 
-      if (!empStock || empStock.quantity_in_hand < baseQuantity) {
+      if (!empStock || empStock.quantity_in_hand < stockQuantity) {
         throw new AppError(
           'د بیرته راګرځیدو امکان نشته - د کارکوونکي په ګودام کې کافي سټاک شتون نلري',
           400
         );
       }
 
-      empStock.quantity_in_hand -= baseQuantity;
+      empStock.quantity_in_hand -= stockQuantity;
       await empStock.save({ session });
     } else {
       const toStock = await Stock.findOne({
@@ -843,14 +883,14 @@ exports.rollbackStockTransfer = asyncHandler(async (req, res, next) => {
         isDeleted: false,
       }).session(session);
 
-      if (!toStock || toStock.quantity < baseQuantity) {
+      if (!toStock || toStock.quantity < stockQuantity) {
         throw new AppError(
           `د بیرته راګرځیدو امکان نشته - په ${toLocation} کې کافي سټاک شتون نلري`,
           400
         );
       }
 
-      toStock.quantity -= baseQuantity;
+      toStock.quantity -= stockQuantity;
       await toStock.save({ session });
     }
 
@@ -867,7 +907,7 @@ exports.rollbackStockTransfer = asyncHandler(async (req, res, next) => {
       await EmployeeStock.findOneAndUpdate(
         { employee, product, batchNumber, isDeleted: false },
         { 
-          $inc: { quantity_in_hand: baseQuantity },
+          $inc: { quantity_in_hand: stockQuantity },
           $set: { 
             purchasePricePerBaseUnit: purchasePricePerBaseUnit,
             batchNumber: batchNumber
@@ -883,7 +923,7 @@ exports.rollbackStockTransfer = asyncHandler(async (req, res, next) => {
       }).session(session);
 
       if (existingFromStock) {
-        existingFromStock.quantity += baseQuantity;
+        existingFromStock.quantity += stockQuantity;
         await existingFromStock.save({ session });
       } else {
         const destStock = await Stock.findOne({
@@ -902,7 +942,7 @@ exports.rollbackStockTransfer = asyncHandler(async (req, res, next) => {
                 purchasePricePerBaseUnit: destStock.purchasePricePerBaseUnit,
                 expiryDate: destStock.expiryDate,
                 location: fromLocation,
-                quantity: baseQuantity,
+                quantity: stockQuantity,
               },
             ],
             { session }
@@ -910,7 +950,7 @@ exports.rollbackStockTransfer = asyncHandler(async (req, res, next) => {
         } else {
           await Stock.findOneAndUpdate(
             { product, location: fromLocation, isDeleted: false },
-            { $inc: { quantity: baseQuantity } },
+            { $inc: { quantity: stockQuantity } },
             { upsert: true, session }
           );
         }

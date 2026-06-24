@@ -137,6 +137,18 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* Numeric text inputs (Pashto/Persian keyboard friendly) */
+input[data-numeric-input="true"] {
+  direction: ltr !important;
+  text-align: right !important;
+}
+
+/* Legacy: number inputs still used in rare places */
+input[type="number"] {
+  direction: ltr !important;
+  text-align: right !important;
+}
+
 /* Custom component styles */
 .btn-primary {
   background: linear-gradient(135deg, var(--primary-brown), var(--primary-brown-light));

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { BiLoaderAlt, BiTransferAlt } from "react-icons/bi";
 import { CgEye } from "react-icons/cg";
@@ -6,6 +7,7 @@ import { PencilIcon } from "@heroicons/react/24/outline";
 import { IoMdClose } from "react-icons/io";
 import Button from "../components/Button";
 import GloableModal from "../components/GloableModal";
+import StockTransferModal from "../components/StockTransferModal";
 import SearchInput from "../components/SearchInput";
 import Table from "../components/Table";
 import TableBody from "../components/TableBody";
@@ -19,34 +21,42 @@ import {
   useUpdateInventory,
   useWarehouseStocks,
 } from "../services/useApi";
-import { formatNumber, normalizeDateToIso } from "../utilies/helper";
+import {
+  formatNumber,
+  formatNotifyDaysBefore,
+  formatJalaliDate,
+} from "../utilies/helper";
+import StockPurchasePriceDisplay from "../components/StockPurchasePriceDisplay";
+import StockQuantityDisplay from "../components/StockQuantityDisplay";
 import { getStockStatus } from "../utilies/stockStatus";
 import { inputStyle } from "./../components/ProductForm";
-import { formatCurrency } from "../utilies/helper";
+import { registerNumeric } from "../utilies/numericInput";
 import { useSubmitLock } from "../hooks/useSubmitLock.js";
-import JalaliDatePicker from "../components/JalaliDatePicker";
+import StockPurchaseCostExpiryFields from "../components/StockPurchaseCostExpiryFields";
 
-// Headers aligned with Backend stock.model.js
-const tableHeader = [
-  { title: "محصول" },
-  { title: "نمبر بچ" },
-  { title: "موقعیت" },
-  { title: "تاریخ انقضا" },
-  { title: "قیمت خرید" },
-  { title: "تعداد" },
-  { title: "واحد" },
-  { title: "حداقل موجودی" },
-  { title: "حالت" },
-  { title: "عملیات" },
-];
 function Warehouse() {
+  const { t } = useTranslation();
+
+  const tableHeader = useMemo(
+    () => [
+      { title: t("inventory.expiring.table.product") },
+      { title: t("inventory.expiring.table.batch") },
+      { title: t("inventory.expiring.table.location") },
+      { title: t("inventory.expiring.table.unit") },
+      { title: t("inventory.product.latestPurchase") },
+      { title: t("inventory.expiring.table.quantity") },
+      { title: t("inventory.expiring.table.expiryDate") },
+      { title: t("inventory.stockEdit.table.notifyDays") },
+      { title: t("inventory.product.minLevelLabel") },
+      { title: t("inventory.expiring.table.status") },
+      { title: t("inventory.product.table.actions") },
+    ],
+    [t]
+  );
   const {
     register: editRegister,
     handleSubmit,
     reset,
-    formState: { errors },
-    setValue: editSetValue,
-    watch: editWatch,
   } = useForm();
   const { mutate: updateInventory, isPending: isUpdatingInventory } =
     useUpdateInventory();
@@ -88,14 +98,22 @@ function Warehouse() {
         ? "warehouse"
         : "store"
       : transferType === "warehouse-employee"
-      ? "employee"
-      : transferType === "employee-store"
-      ? "store"
-      : transferType === "warehouse-employee"
-      ? "employee"
-      : transferType === "employee-warehouse"
-      ? "warehouse"
-      : "unknown";
+        ? "employee"
+        : "unknown";
+
+  const warehouseTransferOptions = useMemo(
+    () => [
+      {
+        value: "warehouse-store",
+        label: t("inventory.transfer.modal.types.warehouseStore"),
+      },
+      {
+        value: "warehouse-employee",
+        label: t("inventory.transfer.modal.types.warehouseEmployee"),
+      },
+    ],
+    [t]
+  );
 
   const needsEmployee = [
     "warehouse-employee",
@@ -133,19 +151,19 @@ function Warehouse() {
   useEffect(
     function () {
       reset({
-        purchasePricePerBaseUnit: selectedPro?.purchasePricePerBaseUnit,
         minLevel: selectedPro?.minLevel,
-        expiry_date: normalizeDateToIso(selectedPro?.expiryDate || selectedPro?.expiry_date),
+        notifyDaysBefore:
+          selectedPro?.product?.notifyDaysBefore != null
+            ? selectedPro.product.notifyDaysBefore
+            : "",
       });
     },
     [selectedPro, reset]
   );
-  const editExpiryValue = editWatch("expiry_date") || "";
   const onSubmitEdit = editSubmitLock.wrapSubmit(async (data) => {
-    // Convert empty expiry_date to null (backend expects null, not empty string)
     const stockData = {
-      ...data,
-      expiry_date: normalizeDateToIso(data.expiry_date) || null,
+      minLevel: data.minLevel,
+      notifyDaysBefore: data.notifyDaysBefore,
     };
     await runMutation(updateInventory, { id: selectedPro._id, stockData });
     setShowEdit(false);
@@ -180,20 +198,29 @@ function Warehouse() {
                 <TableColumn>{row?.product?.name || row?.product}</TableColumn>
                 <TableColumn>{row?.batchNumber || "DEFAULT"}</TableColumn>
                 <TableColumn>
-                  {row?.location === "warehouse" ? "گدام" : row?.location}
-                </TableColumn>
-                <TableColumn>
-                  {row?.expiryDate
-                    ? new Date(row.expiryDate).toLocaleDateString("fa-IR")
-                    : "—"}
-                </TableColumn>
-                <TableColumn>
-                  {formatNumber(row?.purchasePricePerBaseUnit ?? 0)}
-                </TableColumn>
-                <TableColumn className="font-semibold">
-                  {formatNumber(row?.quantity)}
+                  {row?.location === "warehouse"
+                    ? t("inventory.locations.warehouse")
+                    : row?.location}
                 </TableColumn>
                 <TableColumn>{row?.unit?.name || row?.unit}</TableColumn>
+                <TableColumn>
+                  <StockPurchasePriceDisplay
+                    pricePerBase={row?.purchasePricePerBaseUnit ?? 0}
+                    primaryUnit={row?.unit}
+                  />
+                </TableColumn>
+                <TableColumn>
+                  <StockQuantityDisplay
+                    quantity={row?.quantity}
+                    unit={row?.unit}
+                  />
+                </TableColumn>
+                <TableColumn>
+                  {row?.expiryDate ? formatJalaliDate(row.expiryDate) : "—"}
+                </TableColumn>
+                <TableColumn>
+                  {formatNotifyDaysBefore(row?.product?.notifyDaysBefore, t)}
+                </TableColumn>
                 <TableColumn>{row.minLevel || "_"}</TableColumn>
                 <TableColumn>
                   <span
@@ -271,20 +298,28 @@ function Warehouse() {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">
-                    د پېرود بیه/واحد
+                    د رانیول بیه/واحد
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
-                    {formatCurrency(selectedPro?.purchasePricePerBaseUnit)}
+                    <StockPurchasePriceDisplay
+                      pricePerBase={selectedPro?.purchasePricePerBaseUnit ?? 0}
+                      primaryUnit={selectedPro?.unit}
+                    />
                   </p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">
                     په ګودام کې موجودی
                   </h3>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {selectedPro?.location === "warehouse"
-                      ? selectedPro?.quantity
-                      : 0}{" "}
+                  <p className="text-2xl text-purple-600">
+                    {selectedPro?.location === "warehouse" ? (
+                      <StockQuantityDisplay
+                        quantity={selectedPro?.quantity}
+                        unit={selectedPro?.unit}
+                      />
+                    ) : (
+                      formatNumber(0)
+                    )}
                   </p>
                 </div>
 
@@ -298,20 +333,31 @@ function Warehouse() {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">
-                    د پای نېټه
+                    {t("inventory.stockEdit.expiryDateLabel")}
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
                     {selectedPro?.expiryDate
-                      ? new Date(selectedPro.expiryDate).toLocaleDateString(
-                          "fa-IR"
-                        )
-                      : "نه دی لاسرسی"}
+                      ? formatJalaliDate(selectedPro.expiryDate)
+                      : "—"}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">
+                    {t("inventory.product.notifyDaysLabel")}
+                  </h3>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {formatNotifyDaysBefore(
+                      selectedPro?.product?.notifyDaysBefore,
+                      t
+                    )}
                   </p>
                 </div>
               </div>
             </div>
             <div className="p-6 border-t border-gray-200 flex justify-end w-[120px]">
-              <Button onClick={() => setShow(false)}>بستن</Button>
+              <Button onClick={() => setShow(false)}>
+                {t("inventory.product.close")}
+              </Button>
             </div>
           </div>
         )}
@@ -323,91 +369,65 @@ function Warehouse() {
               className=" absolute top-2/4 left-2 -translate-y-2/4 text-[24px]"
               onClick={() => setShowEdit(false)}
             />
-            <p className=" text-xl font-semibold">بروزرسانی گدام</p>
+            <p className=" text-xl font-semibold">
+              {t("inventory.stockEdit.warehouseTitle")}
+            </p>
           </div>
           <form onSubmit={handleSubmit(onSubmitEdit)} noValidate>
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    قیمت هر واحد
-                  </label>
-                  <input
-                    type="number"
-                    className={inputStyle}
-                    {...editRegister("purchasePricePerBaseUnit")}
-                  />
-                </div>
+                <StockPurchaseCostExpiryFields
+                  stockId={selectedPro?._id}
+                  purchasePricePerBaseUnit={
+                    selectedPro?.purchasePricePerBaseUnit
+                  }
+                  primaryUnit={selectedPro?.unit}
+                  expiryDate={selectedPro?.expiryDate || selectedPro?.expiry_date}
+                />
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    کمترین موجودی
+                    {t("inventory.stockEdit.minLevelLabel")}
                   </label>
                   <input
-                    type="number"
-                    className={inputStyle}
-                    {...editRegister("minLevel")}
-                  />
-                </div>
-
-                <div>
-                  <JalaliDatePicker
-                    label="تاریخ انقضا"
-                    name="expiry_date"
-                    value={editExpiryValue}
-                    onChange={(nextValue) =>
-                      editSetValue(
-                        "expiry_date",
-                        normalizeDateToIso(nextValue),
-                        {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        }
-                      )
-                    }
-                    placeholder="انتخاب تاریخ"
-                    clearable
-                    error={errors?.expiry_date?.message}
-                  />
-                  <input
-                    type="hidden"
-                    value={editExpiryValue}
-                    readOnly
-                    {...editRegister("expiry_date", {
-                      validate: (value) => {
-                        if (!value) return true;
-                        const normalized = normalizeDateToIso(value);
-                        if (!normalized) return "تاریخ معتبر نیست";
-
-                        const today = new Date();
-                        const selected = new Date(normalized);
-                        today.setHours(0, 0, 0, 0);
-                        selected.setHours(0, 0, 0, 0);
-
-                        const diffInDays = Math.ceil(
-                          (selected - today) / (1000 * 60 * 60 * 24)
-                        );
-
-                        return (
-                          diffInDays >= 10 ||
-                          "تاریخ انقضا باید حداقل ۱۰ روز بعد از امروز باشد"
-                        );
-                      },
+                    {...registerNumeric("minLevel", editRegister, {}, {
+                      className: inputStyle,
                     })}
                   />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="notifyDaysBefore"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    {t("inventory.product.form.notifyDaysBefore")}
+                  </label>
+                  <input
+                    id="notifyDaysBefore"
+                    {...registerNumeric("notifyDaysBefore", editRegister, {}, {
+                      allowDecimal: false,
+                      className: inputStyle,
+                      placeholder: t(
+                        "inventory.product.form.notifyDaysBeforePlaceholder"
+                      ),
+                    })}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    {t("inventory.product.form.notifyDaysBeforeHint")}
+                  </p>
                 </div>
               </div>
             </div>
 
             <div className="p-6 border-t w-full mx-auto border-gray-200 flex justify-end gap-4">
-              {/* <Button className=" bg-deepdate-400">لغو کردن</Button> */}
               <Button
                 type="submit"
                 className={" bg-primary-brown-light text-white"}
                 isLoading={isEditBusy}
                 disabled={isEditBusy}
               >
-                تغییر دادن گدام
+                {t("inventory.stockEdit.submitWarehouse")}
               </Button>
               <button
                 type="button"
@@ -416,143 +436,28 @@ function Warehouse() {
                   " cursor-pointer group w-full   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in duration-200 bg-transparent border  border-slate-700 text-black"
                 }
               >
-                لغو کردن{" "}
+                {t("inventory.stockEdit.cancel")}
               </button>
             </div>
           </form>
         </div>
       </GloableModal>
-      <GloableModal open={showTransfer} setOpen={setShowTransfer}>
-        <form
-          noValidate
-          className="bg-white rounded-lg  w-[480px] p-2 h-[500px]"
-          onSubmit={transferHandleSubmit(onSubmit)}
-        >
-          <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="text-xl font-bold text-gray-900">انتقال موجودی</h2>
-          </div>
-          <div className="p-6 space-y-2">
-            <div>
-              <span>محصول: </span>
-              <span className="font-bold text-amber-700 underline">
-                {selectedPro?.product?.name || selectedPro?.product}
-              </span>
-            </div>
-            <div className="flex flex-col  items-center  gap-1 md:flex-row ga-2">
-              <label className="flex-1">
-                <span className="block text-[12px] font-medium text-gray-600 mb-1">
-                  نوع انتقال
-                </span>
-                <select
-                  className={inputStyle}
-                  {...transferRegister("transferType")}
-                >
-                  <option value="warehouse-store">گدام ↔ فروشگاه</option>
-                  <option value="warehouse-employee">گدام → کارمند</option>
-                </select>
-              </label>
-              {needsEmployee && (
-                <label className="flex-1">
-                  <span className="block text-[12px] font-medium text-gray-600 mb-1">
-                    کارمند
-                  </span>
-                  <select
-                    className={inputStyle}
-                    {...transferRegister("employee")}
-                  >
-                    <option value="">کارمند را انتخاب کنید</option>
-                    {employees?.data?.map((emp) => (
-                      <option key={emp._id} value={emp._id}>
-                        {emp.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </div>
-            <div className="flex flex-col md:flex-row gap-4">
-              <label className="flex-1">
-                <span className="block pb-1 text-sm font-medium text-gray-700 mb-2">
-                  از:{" "}
-                </span>
-                <span className={inputStyle}>
-                  {fromLocation === "warehouse"
-                    ? "گدام"
-                    : fromLocation === "store"
-                    ? "فروشگاه"
-                    : "کارمند"}
-                </span>
-              </label>
-              <label className="flex-1">
-                <span className="block text-sm pb-1 font-medium text-gray-700 mb-2">
-                  به:{" "}
-                </span>
-                <span className={inputStyle}>
-                  {toLocation === "warehouse"
-                    ? "گدام"
-                    : toLocation === "store"
-                    ? "فروشگاه"
-                    : "کارمند"}
-                </span>
-              </label>
-            </div>
-            <div className="flex flex-col md:flex-row gap-4">
-              <label className="flex-1">
-                <span className="block text-sm font-medium text-gray-700 mb-2">
-                  واحد انتقال
-                </span>
-                <select
-                  className={inputStyle}
-                  {...transferRegister("unit")}
-                >
-                  <option value={selectedPro?.unit?._id}>
-                    {selectedPro?.unit?.name} (پیش‌فرض)
-                  </option>
-                  {selectedPro?.unit?.base_unit && (
-                    <option value={selectedPro.unit.base_unit._id}>
-                      {selectedPro.unit.base_unit.name} (واحد پایه)
-                    </option>
-                  )}
-                </select>
-              </label>
-              <label className="flex-1">
-                <span className="block text-sm font-medium text-gray-700 mb-2">
-                  تعداد
-                </span>
-                <input
-                  className={inputStyle}
-                  type="number"
-                  placeholder="تعداد مورد نظر"
-                  min="1"
-                  {...transferRegister("quantity", { required: true, min: 1 })}
-                />
-              </label>
-            </div>
-          </div>
-          <div className="p-6 border-t border-gray-200 flex justify-end gap-4">
-            <Button
-              onClick={() => setShowTransfer(false)}
-              type="button"
-              className="bg-gray-500 text-white px-4 py-2 rounded-md"
-            >
-              بستن
-            </Button>
-            <Button
-              type="submit"
-              className=" bg-primary-brown-light text-white px-4 py-2 rounded-md"
-              disabled={
-                !quantity ||
-                quantity <= 0 ||
-                (needsEmployee && !employee) ||
-                isTransferBusy
-              }
-              isLoading={isTransferBusy}
-            >
-              انتقال موجودی
-            </Button>
-          </div>
-        </form>
-      </GloableModal>
+      <StockTransferModal
+        open={showTransfer}
+        setOpen={setShowTransfer}
+        productName={selectedPro?.product?.name || selectedPro?.product}
+        batchNumber={selectedPro?.batchNumber}
+        transferTypeOptions={warehouseTransferOptions}
+        register={transferRegister}
+        handleSubmit={transferHandleSubmit}
+        onSubmit={onSubmit}
+        needsEmployee={needsEmployee}
+        employees={employees?.data || []}
+        stockRow={selectedPro}
+        quantity={quantity}
+        employee={employee}
+        isBusy={isTransferBusy}
+      />
       <Pagination
         currentPage={page}
         totalPages={warehouseData?.totalPages || 1}

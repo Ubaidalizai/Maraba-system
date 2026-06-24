@@ -16,20 +16,21 @@ import {
   usePurchases,
   useSuppliers,
   usePurchase,
-  useUpdatePurchase,
   useDeletePurchase,
-  useProducts,
-  useUnits,
   useSystemAccounts,
   usePaymentProcess,
 } from "../services/useApi";
-import { formatCurrency, normalizeDateToIso } from "../utilies/helper";
-import PurchaseModal from "../components/PurchaseModal";
-import { XCircleIcon } from "lucide-react";
+import { formatCurrency, formatJalaliDate } from "../utilies/helper";
+import {
+  getPaymentStatusColor,
+  getPaymentStatusTableLabelKey,
+  resolvePaymentStatus,
+} from "../utilies/paymentStatus";
 import GloableModal from "../components/GloableModal";
 import { inputStyle } from "../components/ProductForm";
+import { bindNumericControlled } from "../utilies/numericInput";
 import { toast } from "react-toastify";
-import JalaliDatePicker from "../components/JalaliDatePicker";
+import { XCircleIcon } from "lucide-react";
 
 const EASTERN_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 
@@ -41,12 +42,7 @@ const Purchases = () => {
     return raw.replace(/\d/g, (d) => EASTERN_DIGITS[d]);
   };
 
-  const formatPurchaseDate = (iso) => {
-    if (!iso) return "—";
-    const lang = (i18n.language || "ps").split("-")[0];
-    const localeTag = lang === "ps" ? "ps-AF" : "fa-IR";
-    return new Date(iso).toLocaleDateString(localeTag);
-  };
+  const formatPurchaseDate = formatJalaliDate;
 
   const formatMoney = (val) => {
     const n = typeof val === "string" ? parseFloat(val) : Number(val);
@@ -58,6 +54,8 @@ const Purchases = () => {
   const [searchParams] = useSearchParams();
   const openId = searchParams.get("openId");
   const action = searchParams.get("action");
+  const editPurchaseId = searchParams.get("editPurchaseId");
+  const navigate = useNavigate();
   const { mutate: createpaymentProces } = usePaymentProcess();
   const [deleteModal, setDeleteModal] = useState(false);
   const [supplierFilter, setSupplierFilter] = useState("");
@@ -67,8 +65,6 @@ const Purchases = () => {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedPurchaseId, setSelectedPurchaseId] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [editingPurchase, setEditingPurchase] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -76,27 +72,8 @@ const Purchases = () => {
   const [paymentDescription, setPaymentDescription] = useState("");
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [selectedPurchaseSummary, setSelectedPurchaseSummary] = useState(null);
-  const [editFormData, setEditFormData] = useState({
-    supplier: "",
-    purchaseDate: "",
-    paidAmount: 0,
-    paymentAccount: "",
-    stockLocation: "warehouse",
-    items: [],
-    reason: "",
-  });
-  const [currentEditItem, setCurrentEditItem] = useState({
-    product: "",
-    unit: "",
-    quantity: 0,
-    unitPrice: 0,
-    batchNumber: "",
-    expiryDate: "",
-  });
 
   const { data: suppliers } = useSuppliers();
-  const { data: products } = useProducts();
-  const { data: units } = useUnits();
   const { data: systemAccounts } = useSystemAccounts();
   const { data: purchasesResp, isLoading } = usePurchases({
     supplier: supplierFilter || undefined,
@@ -109,7 +86,6 @@ const Purchases = () => {
     isLoading: isLoadingDetails,
     error: errorDetails,
   } = usePurchase(selectedPurchaseId);
-  const updatePurchaseMutation = useUpdatePurchase();
   const deletePurchaseMutation = useDeletePurchase();
 
   const purchases = useMemo(
@@ -129,22 +105,7 @@ const Purchases = () => {
   };
 
   const handleEditPurchase = (purchase) => {
-    setEditingPurchase(purchase);
-    setSelectedPurchaseId(purchase._id); // This will trigger usePurchase hook
-    setSelectedPurchaseSummary(purchase);
-
-    // Populate form with existing purchase data
-    setEditFormData({
-      supplier: purchase.supplier?._id || purchase.supplier || "",
-      purchaseDate: normalizeDateToIso(purchase.purchaseDate),
-      paidAmount: purchase.paidAmount || 0,
-      paymentAccount: "", // Will need to fetch from transaction
-      stockLocation: "warehouse", // Default
-      items: purchase.items || [],
-      reason: "",
-    });
-
-    setShowEditModal(true);
+    navigate(`/purchases/edit/${purchase._id}`);
   };
 
   const confirmDelete = () => {
@@ -165,19 +126,24 @@ const Purchases = () => {
     setPage(1);
   };
 
+  // Legacy links: ?editPurchaseId= → dedicated edit page
+  useEffect(() => {
+    if (editPurchaseId) {
+      navigate(`/purchases/edit/${editPurchaseId}`, { replace: true });
+    }
+  }, [editPurchaseId, navigate]);
+
   // Handle URL parameters for modal flow
   useEffect(() => {
     // Removed view action handling since it's now a separate page
   }, [openId, action, purchases]);
 
-  // Clear openId/action from URL (used when closing modals opened via link)
-  const navigate = useNavigate();
   const location = useLocation();
   const clearOpenQuery = () => {
     try {
       const params = new URLSearchParams(location.search || "");
       let modified = false;
-      ["openId", "action"].forEach((k) => {
+      ["openId", "action", "editPurchaseId"].forEach((k) => {
         if (params.has(k)) {
           params.delete(k);
           modified = true;
@@ -264,80 +230,22 @@ const Purchases = () => {
       },
       {
         onSuccess: () => {
+          toast.success(t("purchases.toast.paymentSuccess"));
           setShowPaymentModal(false);
           setPaymentAmount("");
           setSelectedAccount("");
           setPaymentDescription("");
           setSelectedPurchaseSummary(null);
         },
+        onError: (error) => {
+          toast.error(
+            `${t("purchases.toast.paymentError")}: ${error.message}`
+          );
+        },
         onSettled: () => setIsSubmittingPayment(false),
       }
     );
   };
-
-  // Helper functions for edit form
-  const addEditItem = () => {
-    if (
-      currentEditItem.product &&
-      currentEditItem.unit &&
-      currentEditItem.quantity > 0
-    ) {
-      const totalPrice = currentEditItem.quantity * currentEditItem.unitPrice;
-      const newItem = {
-        ...currentEditItem,
-        totalPrice,
-        product: currentEditItem.product,
-        unit: currentEditItem.unit,
-      };
-
-      setEditFormData((prev) => ({
-        ...prev,
-        items: [...prev.items, newItem],
-      }));
-
-      setCurrentEditItem({
-        product: "",
-        unit: "",
-        quantity: 0,
-        unitPrice: 0,
-        batchNumber: "",
-        expiryDate: "",
-      });
-    }
-  };
-
-  const removeEditItem = (index) => {
-    setEditFormData((prev) => ({
-      ...prev,
-      items: prev.items.filter((_, i) => i !== index),
-    }));
-  };
-
-  const calculateEditTotals = () => {
-    const subtotal = editFormData.items.reduce(
-      (sum, item) => sum + (item.totalPrice || 0),
-      0
-    );
-    const dueAmount = Math.max(subtotal - editFormData.paidAmount, 0);
-    return { subtotal, dueAmount };
-  };
-
-  // Update form data when purchase details are loaded
-  useEffect(() => {
-    if (selectedPurchase && showEditModal && editingPurchase) {
-      const purchaseData = selectedPurchase.purchase || selectedPurchase;
-      setEditFormData((prev) => ({
-        ...prev,
-        supplier:
-          purchaseData.supplier?._id || purchaseData.supplier || prev.supplier,
-        purchaseDate: purchaseData.purchaseDate
-          ? normalizeDateToIso(purchaseData.purchaseDate)
-          : prev.purchaseDate,
-        paidAmount: purchaseData.paidAmount || prev.paidAmount,
-        items: purchaseData.items || prev.items,
-      }));
-    }
-  }, [selectedPurchase, showEditModal, editingPurchase]);
 
   useEffect(() => {
     if (selectedPurchase?.purchase) {
@@ -356,18 +264,9 @@ const Purchases = () => {
     completedPayments: purchases?.filter((p) => p.dueAmount === 0).length || 0,
   };
 
-  // Status colors
-  const getPaymentStatusColor = (status) => {
-    switch (status) {
-      case "paid":
-        return "bg-green-100 text-green-800 border border-green-200";
-      case "partial":
-        return "bg-yellow-100 text-yellow-800 border border-yellow-200";
-      case "pending":
-        return "bg-red-100 text-red-800 border border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border border-gray-200";
-    }
+  const getPaymentStatusLabel = (record) => {
+    const status = resolvePaymentStatus(record);
+    return t(`purchases.table.${getPaymentStatusTableLabelKey(status)}`);
   };
 
   // const getStatusColor = (status) => {
@@ -580,15 +479,18 @@ const Purchases = () => {
                       {formatMoney(purchase.dueAmount?.toFixed(2))}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getPaymentStatusColor(
-                          purchase.dueAmount > 0 ? "partial" : "paid"
-                        )}`}
-                      >
-                        {purchase.dueAmount > 0
-                          ? t("purchases.table.statusPartialPaid")
-                          : t("purchases.table.statusFullyPaid")}
-                      </span>
+                      {(() => {
+                        const status = resolvePaymentStatus(purchase);
+                        return (
+                          <span
+                            className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getPaymentStatusColor(
+                              status
+                            )}`}
+                          >
+                            {getPaymentStatusLabel(purchase)}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <div className="flex items-center gap-2">
@@ -736,15 +638,7 @@ const Purchases = () => {
                   <h3 className="text-sm font-medium text-gray-700 mb-3">
                     {t("purchases.details.purchaseInfo")}
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <div>
-                      <h4 className="text-xs font-medium text-gray-500 mb-1">
-                        {t("purchases.details.invoiceNumber")}
-                      </h4>
-                      <p className="text-sm font-medium text-gray-900">
-                        {detailPurchase?.batchNumber || "''"}
-                      </p>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <h4 className="text-xs font-medium text-gray-500 mb-1">
                         {t("purchases.details.purchaseDate")}
@@ -769,14 +663,10 @@ const Purchases = () => {
                       </h4>
                       <span
                         className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(
-                          (detailPurchase?.dueAmount ?? 0) > 0
-                            ? "partial"
-                            : "paid"
+                          resolvePaymentStatus(detailPurchase)
                         )}`}
                       >
-                        {(detailPurchase?.dueAmount ?? 0) > 0
-                          ? t("purchases.table.statusPartialPaid")
-                          : t("purchases.table.statusFullyPaid")}
+                        {getPaymentStatusLabel(detailPurchase)}
                       </span>
                     </div>
                   </div>
@@ -966,14 +856,13 @@ const Purchases = () => {
                     {t("purchases.payment.amountLabel")}
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    onWheel={(e) => e.target.blur()}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-sm  "
-                    placeholder={t("purchases.payment.amountPlaceholder")}
-                    max={paymentPurchase?.dueAmount ?? undefined}
+                    {...bindNumericControlled({
+                      allowDecimal: true,
+                      value: paymentAmount,
+                      onChange: (e) => setPaymentAmount(e.target.value),
+                      className: "w-full px-3 py-2 border border-gray-300 rounded-sm  ",
+                      placeholder: t("purchases.payment.amountPlaceholder"),
+                    })}
                   />
                 </div>
 
@@ -1032,404 +921,6 @@ const Purchases = () => {
             </div>
           </div>
         )}
-      </GloableModal>
-
-      {/* Comprehensive Edit Purchase Modal */}
-      {/* {showEditModal && editingPurchase && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          
-        </div>
-      )} */}
-
-      <GloableModal
-        open={showEditModal}
-        setOpen={setShowEditModal}
-        isClose={true}
-      >
-        <div className="bg-white rounded-lg w-[700px] md:w-[900px]  max-h-[90vh] overflow-y-auto">
-          <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {t("purchases.edit.title")}
-            </h2>
-            <button
-              onClick={() => setShowEditModal(false)}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <XCircleIcon className="h-6 w-6" />
-            </button>
-          </div>
-          <div className="p-6 space-y-6">
-            {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t("purchases.edit.supplier")}
-                </label>
-                <select
-                  value={editFormData.supplier}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      supplier: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                >
-                  <option value="">{t("purchases.edit.selectSupplier")}</option>
-                  {suppliers?.data?.map((supplier) => (
-                    <option key={supplier._id} value={supplier._id}>
-                      {supplier.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <JalaliDatePicker
-                  label={t("purchases.edit.purchaseDate")}
-                  value={editFormData.purchaseDate}
-                  onChange={(nextValue) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      purchaseDate: normalizeDateToIso(nextValue),
-                    }))
-                  }
-                  placeholder={t("purchases.edit.datePlaceholder")}
-                  clearable
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t("purchases.edit.paidAmount")}
-                </label>
-                <input
-                  type="number"
-                  value={editFormData.paidAmount}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      paidAmount: parseFloat(e.target.value) || 0,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t("purchases.edit.paymentAccount")}
-                </label>
-                <select
-                  value={editFormData.paymentAccount}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      paymentAccount: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                >
-                  <option value="">
-                    {t("purchases.edit.selectPaymentAccount")}
-                  </option>
-                  {systemAccounts?.accounts?.map((account) => (
-                    <option key={account._id} value={account._id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t("purchases.edit.stockLocation")}
-                </label>
-                <select
-                  value={editFormData.stockLocation}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      stockLocation: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                >
-                  <option value="warehouse">
-                    {t("purchases.edit.warehouse")}
-                  </option>
-                  <option value="store">{t("purchases.edit.store")}</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t("purchases.edit.reason")}
-                </label>
-                <input
-                  type="text"
-                  value={editFormData.reason}
-                  onChange={(e) =>
-                    setEditFormData((prev) => ({
-                      ...prev,
-                      reason: e.target.value,
-                    }))
-                  }
-                  placeholder={t("purchases.edit.reasonPlaceholder")}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                />
-              </div>
-            </div>
-
-            {/* Items Section */}
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {t("purchases.edit.itemsTitle")}
-              </h3>
-
-              {/* Add New Item */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 mb-4 p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    {t("purchases.edit.product")}
-                  </label>
-                  <select
-                    value={currentEditItem.product}
-                    onChange={(e) =>
-                      setCurrentEditItem((prev) => ({
-                        ...prev,
-                        product: e.target.value,
-                      }))
-                    }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-amber-500"
-                  >
-                    <option value="">{t("purchases.edit.selectProduct")}</option>
-                    {products?.data?.map((product) => (
-                      <option key={product._id} value={product._id}>
-                        {product.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    {t("purchases.edit.unit")}
-                  </label>
-                  <select
-                    value={currentEditItem.unit}
-                    onChange={(e) =>
-                      setCurrentEditItem((prev) => ({
-                        ...prev,
-                        unit: e.target.value,
-                      }))
-                    }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-amber-500"
-                  >
-                    <option value="">{t("purchases.edit.selectUnit")}</option>
-                    {units?.data?.map((unit) => (
-                      <option key={unit._id} value={unit._id}>
-                        {unit.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    {t("purchases.edit.quantity")}
-                  </label>
-                  <input
-                    type="number"
-                    value={currentEditItem.quantity}
-                    onChange={(e) =>
-                      setCurrentEditItem((prev) => ({
-                        ...prev,
-                        quantity: parseFloat(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    {t("purchases.edit.unitPrice")}
-                  </label>
-                  <input
-                    type="number"
-                    value={currentEditItem.unitPrice}
-                    onChange={(e) =>
-                      setCurrentEditItem((prev) => ({
-                        ...prev,
-                        unitPrice: parseFloat(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    {t("purchases.edit.batchNumber")}
-                  </label>
-                  <input
-                    type="text"
-                    value={currentEditItem.batchNumber}
-                    onChange={(e) =>
-                      setCurrentEditItem((prev) => ({
-                        ...prev,
-                        batchNumber: e.target.value,
-                      }))
-                    }
-                    placeholder={t("purchases.edit.optional")}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-amber-500"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <button
-                    onClick={addEditItem}
-                    className="w-full px-3 py-1 bg-amber-600 text-white text-sm rounded hover:bg-amber-700"
-                  >
-                    {t("purchases.edit.add")}
-                  </button>
-                </div>
-              </div>
-
-              {/* Items List */}
-              {editFormData.items.length > 0 && (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-6 gap-4 text-xs font-medium text-gray-500 mb-2 px-3">
-                    <span>{t("purchases.edit.colProduct")}</span>
-                    <span>{t("purchases.edit.colUnit")}</span>
-                    <span>{t("purchases.edit.colQuantity")}</span>
-                    <span>{t("purchases.edit.colUnitPrice")}</span>
-                    <span>{t("purchases.edit.colTotal")}</span>
-                    <span>{t("purchases.edit.colActions")}</span>
-                  </div>
-                  {editFormData.items.map((item, index) => {
-                    // Get product and unit names
-                    const productName =
-                      item.product?.name ||
-                      products?.data?.find((p) => p._id === item.product)
-                        ?.name ||
-                      "-";
-                    const unitName =
-                      item.unit?.name ||
-                      units?.data?.find((u) => u._id === item.unit)?.name ||
-                      "-";
-
-                    return (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded"
-                      >
-                        <div className="flex-1 grid grid-cols-5 gap-4 text-sm">
-                          <span className="font-medium">{productName}</span>
-                          <span>{unitName}</span>
-                          <span>
-                            {toLocalizedNumber(item.quantity || 0)}
-                          </span>
-                          <span>{formatMoney(item.unitPrice || 0)}</span>
-                          <span className="font-semibold text-purple-600">
-                            {formatMoney(item.totalPrice || 0)}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => removeEditItem(index)}
-                          className="ml-4 text-red-600 hover:text-red-800"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Totals */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-500">
-                    {t("purchases.edit.summaryTotal")}
-                  </span>
-                  <span className="font-semibold text-gray-900 ml-2">
-                    {formatMoney(calculateEditTotals().subtotal?.toFixed(2))}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500">
-                    {t("purchases.edit.summaryPaid")}
-                  </span>
-                  <span className="font-semibold text-gray-900 ml-2">
-                    {formatMoney(editFormData.paidAmount?.toFixed(2))}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500">
-                    {t("purchases.edit.summaryDue")}
-                  </span>
-                  <span className="font-semibold text-gray-900 ml-2">
-                    {formatMoney(
-                      calculateEditTotals().dueAmount?.toFixed(2)
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-3 pt-4">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-              >
-                {t("purchases.edit.cancel")}
-              </button>
-              <button
-                onClick={() => {
-                  const updateData = {
-                    id: editingPurchase._id,
-                    supplier: editFormData.supplier,
-                    purchaseDate:
-                      normalizeDateToIso(editFormData.purchaseDate) ||
-                      new Date().toISOString().slice(0, 10),
-                    paidAmount: editFormData.paidAmount,
-                    stockLocation: editFormData.stockLocation,
-                    items: editFormData.items,
-                    reason:
-                      editFormData.reason || t("purchases.edit.defaultReason"),
-                  };
-
-                  // Only include paymentAccount if it's provided
-                  if (editFormData.paymentAccount) {
-                    updateData.paymentAccount = editFormData.paymentAccount;
-                  }
-
-                  updatePurchaseMutation.mutate(updateData, {
-                    onSuccess: () => {
-                      setShowEditModal(false);
-                      setEditingPurchase(null);
-                      setEditFormData({
-                        supplier: "",
-                        purchaseDate: "",
-                        paidAmount: 0,
-                        paymentAccount: "",
-                        stockLocation: "warehouse",
-                        items: [],
-                        reason: "",
-                      });
-                    },
-                    onError: (error) => {
-                      toast.error(
-                        error.message || t("purchases.toast.editError")
-                      );
-                    },
-                  });
-                }}
-                disabled={updatePurchaseMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50"
-              >
-                {updatePurchaseMutation.isPending
-                  ? t("purchases.edit.saving")
-                  : t("purchases.edit.save")}
-              </button>
-            </div>
-          </div>
-        </div>
       </GloableModal>
     </div>
   );

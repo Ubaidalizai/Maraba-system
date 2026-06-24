@@ -58,6 +58,8 @@ categorySchema.virtual('usageCount', {
   count: true,
 });
 
+categorySchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Category = mongoose.model('Category', categorySchema);
 
 module.exports = Category;

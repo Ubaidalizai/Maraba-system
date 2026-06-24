@@ -33,6 +33,16 @@ const saleSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    subtotalAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    discountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     totalAmount: {
       type: Number,
       required: true,
@@ -49,8 +59,8 @@ const saleSchema = new mongoose.Schema(
     },
     placedIn: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Account', // Dakhal / Tajri / Saraf
-      required: true,
+      ref: 'Account', // Dakhal / Tajri / Saraf — set when money is received at sale or on later payment
+      required: false,
     },
     invoiceType: {
       type: String,
@@ -101,5 +111,7 @@ saleSchema.pre('save', async function (next) {
   }
   next();
 });
+
+saleSchema.plugin(require('../plugins/softDeletePlugin'));
 
 module.exports = mongoose.model('Sale', saleSchema);

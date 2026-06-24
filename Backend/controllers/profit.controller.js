@@ -5,6 +5,12 @@ const SaleItem = require('../models/saleItem.model');
 const Sale = require('../models/sale.model');
 const Income = require('../models/income.model');
 const Expense = require('../models/expense.model');
+const { buildSaleDateFilter } = require('../utils/dateRange');
+const { saleItemCostExpr } = require('../utils/saleItemStock');
+const {
+  aggregateDamageLoss,
+  aggregateDamageLossByPeriod,
+} = require('../utils/stockDamageAggregate');
 
 /**
  * @desc    Calculate Net Profit for a date range
@@ -15,21 +21,13 @@ const Expense = require('../models/expense.model');
 exports.getNetProfit = asyncHandler(async (req, res, next) => {
   const { startDate, endDate } = req.query;
 
-  // Build date filter for sales
-  const saleDateFilter = {};
-  if (startDate || endDate) {
-    saleDateFilter.saleDate = {};
-    if (startDate) saleDateFilter.saleDate.$gte = new Date(startDate);
-    if (endDate) saleDateFilter.saleDate.$lte = new Date(endDate);
-  }
+  const saleDateRange = buildSaleDateFilter(startDate, endDate);
+  const saleDateFilter = saleDateRange ? { saleDate: saleDateRange } : {};
 
-  // Build date filter for income and expenses
-  const dateFilter = {};
-  if (startDate || endDate) {
-    dateFilter.date = {};
-    if (startDate) dateFilter.date.$gte = new Date(startDate);
-    if (endDate) dateFilter.date.$lte = new Date(endDate);
-  }
+  const incomeExpenseDateRange = buildSaleDateFilter(startDate, endDate);
+  const dateFilter = incomeExpenseDateRange
+    ? { date: incomeExpenseDateRange }
+    : {};
 
   // 1. Calculate Gross Profit from Sales
   // Get all sale items from sales within date range
@@ -96,8 +94,13 @@ exports.getNetProfit = asyncHandler(async (req, res, next) => {
 
   const expenses = expenseResult[0]?.totalExpenses || 0;
 
-  // 4. Calculate Net Profit
-  const netProfit = grossProfit + otherIncome - expenses;
+  const { totalDamageLoss, damageCount } = await aggregateDamageLoss(
+    startDate,
+    endDate
+  );
+
+  // 4. Calculate Net Profit (damage reduces profit — separate line on reports)
+  const netProfit = grossProfit + otherIncome - expenses - totalDamageLoss;
 
   res.status(200).json({
     success: true,
@@ -109,17 +112,20 @@ exports.getNetProfit = asyncHandler(async (req, res, next) => {
       grossProfit,
       otherIncome,
       expenses,
+      stockDamageLoss: totalDamageLoss,
       netProfit,
       breakdown: {
         grossProfit,
         otherIncome,
-        expenses: -expenses, // Show as negative for clarity
+        expenses: -expenses,
+        stockDamageLoss: -totalDamageLoss,
         netProfit,
       },
       counts: {
         saleItems: grossProfitResult[0]?.itemCount || 0,
         incomeRecords: incomeResult[0]?.incomeCount || 0,
         expenseRecords: expenseResult[0]?.expenseCount || 0,
+        damageRecords: damageCount,
       },
     },
   });
@@ -132,22 +138,19 @@ exports.getNetProfit = asyncHandler(async (req, res, next) => {
  * @returns Detailed profit breakdown
  */
 exports.getProfitStats = asyncHandler(async (req, res, next) => {
-  const { startDate, endDate } = req.query;
+  const { startDate, endDate, productLimit: productLimitParam } = req.query;
+  const productLimit = Math.min(
+    Math.max(parseInt(productLimitParam, 10) || 20, 1),
+    50
+  );
 
-  // Build date filters
-  const saleDateFilter = {};
-  if (startDate || endDate) {
-    saleDateFilter.saleDate = {};
-    if (startDate) saleDateFilter.saleDate.$gte = new Date(startDate);
-    if (endDate) saleDateFilter.saleDate.$lte = new Date(endDate);
-  }
+  const saleDateRange = buildSaleDateFilter(startDate, endDate);
+  const saleDateFilter = saleDateRange ? { saleDate: saleDateRange } : {};
 
-  const dateFilter = {};
-  if (startDate || endDate) {
-    dateFilter.date = {};
-    if (startDate) dateFilter.date.$gte = new Date(startDate);
-    if (endDate) dateFilter.date.$lte = new Date(endDate);
-  }
+  const incomeExpenseDateRange = buildSaleDateFilter(startDate, endDate);
+  const dateFilter = incomeExpenseDateRange
+    ? { date: incomeExpenseDateRange }
+    : {};
 
   // Get sales in range
   const salesInRange = await Sale.find({
@@ -169,7 +172,7 @@ exports.getProfitStats = asyncHandler(async (req, res, next) => {
         _id: null,
         totalProfit: { $sum: '$profit' },
         totalRevenue: { $sum: '$totalPrice' },
-        totalCost: { $sum: { $multiply: ['$costPricePerUnit', '$quantity'] } },
+        totalCost: { $sum: saleItemCostExpr },
         itemCount: { $sum: 1 },
         avgProfit: { $avg: '$profit' },
         minProfit: { $min: '$profit' },
@@ -214,7 +217,7 @@ exports.getProfitStats = asyncHandler(async (req, res, next) => {
       },
     },
     { $sort: { totalProfit: -1 } },
-    { $limit: 10 },
+    { $limit: productLimit },
   ]);
 
   // Monthly Gross Profit
@@ -429,8 +432,12 @@ exports.getProfitSummary = asyncHandler(async (req, res, next) => {
     throw new AppError('د پیل او پای نیټه اړینه ده', 400);
   }
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const saleDateRange = buildSaleDateFilter(startDate, endDate);
+  if (!saleDateRange) {
+    throw new AppError('د پیل او پای نیټه اړینه ده', 400);
+  }
+
+  const incomeExpenseDateRange = saleDateRange;
 
   // Build date grouping stage for sales (using saleDate)
   let saleDateGroupStage;
@@ -529,7 +536,7 @@ exports.getProfitSummary = asyncHandler(async (req, res, next) => {
     {
       $match: {
         'sale.isDeleted': false,
-        'sale.saleDate': { $gte: start, $lte: end },
+        'sale.saleDate': saleDateRange,
       },
     },
     {
@@ -544,7 +551,7 @@ exports.getProfitSummary = asyncHandler(async (req, res, next) => {
   const incomeByPeriod = await Income.aggregate([
     {
       $match: {
-        date: { $gte: start, $lte: end },
+        date: incomeExpenseDateRange,
         isDeleted: false,
       },
     },
@@ -560,7 +567,7 @@ exports.getProfitSummary = asyncHandler(async (req, res, next) => {
   const expensesByPeriod = await Expense.aggregate([
     {
       $match: {
-        date: { $gte: start, $lte: end },
+        date: incomeExpenseDateRange,
         isDeleted: false,
       },
     },
@@ -572,34 +579,50 @@ exports.getProfitSummary = asyncHandler(async (req, res, next) => {
     },
   ]);
 
+  const damageByPeriod = await aggregateDamageLossByPeriod(
+    saleDateRange,
+    groupBy
+  );
+
   // Combine all periods into a map
   const periodMap = new Map();
+
+  const ensurePeriod = (key) => {
+    if (!periodMap.has(key)) {
+      periodMap.set(key, {
+        grossProfit: 0,
+        otherIncome: 0,
+        expenses: 0,
+        stockDamageLoss: 0,
+      });
+    }
+  };
 
   // Add gross profit periods
   grossProfitByPeriod.forEach((item) => {
     const key = formatPeriodKey(item._id, groupBy);
-    if (!periodMap.has(key)) {
-      periodMap.set(key, { grossProfit: 0, otherIncome: 0, expenses: 0 });
-    }
+    ensurePeriod(key);
     periodMap.get(key).grossProfit = item.grossProfit;
   });
 
   // Add income periods
   incomeByPeriod.forEach((item) => {
     const key = formatPeriodKey(item._id, groupBy);
-    if (!periodMap.has(key)) {
-      periodMap.set(key, { grossProfit: 0, otherIncome: 0, expenses: 0 });
-    }
+    ensurePeriod(key);
     periodMap.get(key).otherIncome = item.otherIncome;
   });
 
   // Add expense periods
   expensesByPeriod.forEach((item) => {
     const key = formatPeriodKey(item._id, groupBy);
-    if (!periodMap.has(key)) {
-      periodMap.set(key, { grossProfit: 0, otherIncome: 0, expenses: 0 });
-    }
+    ensurePeriod(key);
     periodMap.get(key).expenses = item.expenses;
+  });
+
+  damageByPeriod.forEach((item) => {
+    const key = formatPeriodKey(item._id, groupBy);
+    ensurePeriod(key);
+    periodMap.get(key).stockDamageLoss = item.stockDamageLoss;
   });
 
   // Convert to array and calculate net profit
@@ -609,7 +632,12 @@ exports.getProfitSummary = asyncHandler(async (req, res, next) => {
       grossProfit: data.grossProfit || 0,
       otherIncome: data.otherIncome || 0,
       expenses: data.expenses || 0,
-      netProfit: (data.grossProfit || 0) + (data.otherIncome || 0) - (data.expenses || 0),
+      stockDamageLoss: data.stockDamageLoss || 0,
+      netProfit:
+        (data.grossProfit || 0) +
+        (data.otherIncome || 0) -
+        (data.expenses || 0) -
+        (data.stockDamageLoss || 0),
     }))
     .sort((a, b) => a.period.localeCompare(b.period));
 

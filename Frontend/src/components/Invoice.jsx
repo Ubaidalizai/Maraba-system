@@ -1,11 +1,8 @@
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
-import DateObject from "react-date-object";
-import persianCalendar from "react-date-object/calendars/persian";
-import persianLocale from "react-date-object/locales/persian_fa";
 import { CiLocationOn } from "react-icons/ci";
 import { SlCallIn } from "react-icons/sl";
-import { formatNumberWithPersianDigits } from "../utilies/helper";
+import { formatNumberWithPersianDigits, formatJalaliDate } from "../utilies/helper";
 import Table from "./Table";
 import TableBody from "./TableBody";
 import TableColumn from "./TableColumn";
@@ -15,17 +12,7 @@ import TableRow from "./TableRow";
 const Invoice = forwardRef(({ sale, customer, customerAccount }, ref) => {
   const { t } = useTranslation();
 
-  const formatPersianDate = (dateString) => {
-    try {
-      return new DateObject({
-        date: new Date(dateString),
-        calendar: persianCalendar,
-        locale: persianLocale,
-      }).format("YYYY/MM/DD");
-    } catch {
-      return new Date(dateString).toLocaleDateString("fa-IR");
-    }
-  };
+  const formatPersianDate = formatJalaliDate;
 
   // Weight & carton
   const calculateWeightAndCarton = (item) => {

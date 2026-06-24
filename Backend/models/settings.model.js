@@ -48,6 +48,12 @@ const settingsSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    /** Default days-before-expiry alert window (global). */
+    expiryNotifyDays: {
+      type: Number,
+      default: 14,
+      min: 0,
+    },
   },
   {
     timestamps: true,

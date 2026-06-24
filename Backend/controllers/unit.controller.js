@@ -132,79 +132,170 @@ const getUnit = asyncHandler(async (req, res, next) => {
   });
 });
 
+const assertUniqueUnitName = async (name, unitId) => {
+  const duplicateUnit = await Unit.findOne({
+    name,
+    isDeleted: false,
+    _id: { $ne: unitId },
+  });
+  if (duplicateUnit) {
+    throw new AppError('د دې نوم سره بل واحد دمخه شتون لري', 400);
+  }
+};
+
+const validateDerivedUnitFields = async (unitId, isBaseUnit, conversionToBase, baseUnit) => {
+  if (isBaseUnit) {
+    if (conversionToBase !== 1) {
+      throw new AppError('اساسي واحد باید د بدلون مقدار 1 ولري', 400);
+    }
+    if (baseUnit) {
+      throw new AppError('اساسي واحد نشي کولای چې اساسي واحد ولري', 400);
+    }
+    return;
+  }
+
+  if (!conversionToBase || conversionToBase <= 0) {
+    throw new AppError('غیر اساسي واحد باید د بدلون مقدار له 0 څخه زیات ولري', 400);
+  }
+  if (!baseUnit) {
+    throw new AppError('غیر اساسي واحد باید اساسي واحد ولري', 400);
+  }
+  if (String(baseUnit) === String(unitId)) {
+    throw new AppError('واحد نشي کولای چې خپل اساسي واحد وي', 400);
+  }
+
+  const baseUnitDoc = await Unit.findOne({ _id: baseUnit, isDeleted: false });
+  if (!baseUnitDoc || !baseUnitDoc.is_base_unit) {
+    throw new AppError('اساسي واحد باید یو سم فعال اساسي واحد ته اشاره وکړي', 400);
+  }
+};
+
 // @desc    Update unit
 // @route   PATCH /api/v1/unit/:id
 // @access  Private/Admin
 const updateUnit = asyncHandler(async (req, res, next) => {
-  // Check if unit is being used anywhere
-  const unitId = req.params.id;
-  
-  // Check if unit is referenced in products
-  const Product = require('../models/product.model.js');
-  const productCount = await Product.countDocuments({ baseUnit: unitId, isDeleted: false });
-  
-  // Check if unit is referenced in stock
-  const Stock = require('../models/stock.model.js');
-  const stockCount = await Stock.countDocuments({ unit: unitId, isDeleted: false });
-  
-  // Check if unit is referenced in purchase items
-  const PurchaseItem = require('../models/purchaseItem.model.js');
-  const purchaseItemCount = await PurchaseItem.countDocuments({ unit: unitId, isDeleted: false });
-  
-  // Check if unit is referenced in sale items
-  const SaleItem = require('../models/saleItem.model.js');
-  const saleItemCount = await SaleItem.countDocuments({ unit: unitId, isDeleted: false });
-  
-  const totalReferences = productCount + stockCount + purchaseItemCount + saleItemCount;
-  
-  if (totalReferences > 0) {
+  const { error } = updateUnitValidationSchema.validate(req.body);
+  if (error) {
     return res.status(400).json({
       status: 'error',
-      message: `واحد تازه کیدای نشي. دا اوس مهال په ${totalReferences} ریکاړډونو کې کاریږي (محصولات: ${productCount}، سټاک: ${stockCount}، پیرود: ${purchaseItemCount}، پلور: ${saleItemCount}). تازه کول به د تاریخي معلوماتو بشپړتیا ته زیان ورسوي.`,
+      message: error.details[0].message,
     });
   }
-  
-  // If not used anywhere, allow limited updates (only name and description)
-  const { name, description } = req.body;
-  
-  const updateData = {};
-  if (name !== undefined) {
-    // Check if another active unit has the same name
-    const duplicateUnit = await Unit.findOne({ 
-      name, 
-      isDeleted: false,
-      _id: { $ne: unitId } // Exclude current unit
-    });
-    if (duplicateUnit) {
+
+  const unitId = req.params.id;
+  const existingUnit = await Unit.findOne({ _id: unitId, isDeleted: false });
+  if (!existingUnit) {
+    throw new AppError('واحد ونه موندل شو یا دمخه حذف شوی دی', 404);
+  }
+
+  const Product = require('../models/product.model.js');
+  const Stock = require('../models/stock.model.js');
+  const PurchaseItem = require('../models/purchaseItem.model.js');
+  const SaleItem = require('../models/saleItem.model.js');
+
+  const productCount = await Product.countDocuments({ baseUnit: unitId, isDeleted: false });
+  const stockCount = await Stock.countDocuments({ unit: unitId, isDeleted: false });
+  const purchaseItemCount = await PurchaseItem.countDocuments({ unit: unitId, isDeleted: false });
+  const saleItemCount = await SaleItem.countDocuments({ unit: unitId, isDeleted: false });
+  const totalReferences = productCount + stockCount + purchaseItemCount + saleItemCount;
+
+  const { name, description, conversion_to_base, is_base_unit, base_unit, unit_type } =
+    req.body;
+
+  if (totalReferences > 0) {
+    const updateData = {};
+    if (name !== undefined) {
+      await assertUniqueUnitName(name, unitId);
+      updateData.name = name;
+    }
+    if (description !== undefined) updateData.description = description;
+
+    const structuralChange =
+      conversion_to_base !== undefined ||
+      is_base_unit !== undefined ||
+      base_unit !== undefined ||
+      unit_type !== undefined;
+
+    if (structuralChange) {
       return res.status(400).json({
         status: 'error',
-        message: 'د دې نوم سره بل واحد دمخه شتون لري',
+        message: `واحد په ${totalReferences} ریکاړډونو کې کارول کیږي. یوازې نوم او تفصیل بدلیدای شي.`,
       });
     }
-    updateData.name = name;
-  }
-  if (description !== undefined) updateData.description = description;
-  
-  if (Object.keys(updateData).length === 0) {
-    return res.status(400).json({
-      status: 'error',
-      message: 'د ناکارول شويو واحدونو لپاره یوازې نوم او تفصیل تازه کیدای شي',
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'د ناکارول شويو واحدونو لپاره یوازې نوم او تفصیل تازه کیدای شي',
+      });
+    }
+
+    const unit = await Unit.findOneAndUpdate(
+      { _id: unitId, isDeleted: false },
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('base_unit', 'name is_base_unit unit_type');
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'واحد په بریالیتوب سره تازه شو. یادونه: یوازې نوم او تفصیل بدلیدای شي.',
+      data: unit,
     });
   }
+
+  const nextIsBaseUnit =
+    is_base_unit !== undefined ? is_base_unit : existingUnit.is_base_unit;
+  const nextConversion =
+    conversion_to_base !== undefined
+      ? conversion_to_base
+      : existingUnit.conversion_to_base;
+  const nextBaseUnit =
+    base_unit !== undefined ? base_unit || null : existingUnit.base_unit;
+  const nextUnitType =
+    unit_type !== undefined ? unit_type : existingUnit.unit_type;
+  const nextName = name !== undefined ? name : existingUnit.name;
+  const nextDescription =
+    description !== undefined ? description : existingUnit.description;
+
+  if (existingUnit.is_base_unit && !nextIsBaseUnit) {
+    const dependentUnits = await Unit.countDocuments({
+      base_unit: unitId,
+      isDeleted: false,
+    });
+    if (dependentUnits > 0) {
+      throw new AppError(
+        `دا اساسي واحد د ${dependentUnits} نورو واحدونو لپاره کارول کیږي او نشي بدلیدای`,
+        400
+      );
+    }
+  }
+
+  await assertUniqueUnitName(nextName, unitId);
+  await validateDerivedUnitFields(
+    unitId,
+    nextIsBaseUnit,
+    nextIsBaseUnit ? 1 : nextConversion,
+    nextIsBaseUnit ? null : nextBaseUnit
+  );
+
+  const updateData = {
+    name: nextName,
+    description: nextDescription,
+    conversion_to_base: nextIsBaseUnit ? 1 : nextConversion,
+    is_base_unit: nextIsBaseUnit,
+    unit_type: nextUnitType,
+    base_unit: nextIsBaseUnit ? undefined : nextBaseUnit,
+  };
 
   const unit = await Unit.findOneAndUpdate(
     { _id: unitId, isDeleted: false },
     updateData,
     { new: true, runValidators: true }
-  ).populate('base_unit', 'name is_base_unit');
-
-  if (!unit) {
-    throw new AppError('واحد ونه موندل شو یا دمخه حذف شوی دی', 404);
-  }
+  ).populate('base_unit', 'name is_base_unit unit_type');
 
   res.status(200).json({
     status: 'success',
-    message: 'واحد په بریالیتوب سره تازه شو. یادونه: یوازې نوم او تفصیل بدلیدای شي.',
+    message: 'واحد په بریالیتوب سره تازه شو',
     data: unit,
   });
 });
@@ -233,7 +324,7 @@ const deleteUnit = asyncHandler(async (req, res, next) => {
   if (totalReferences > 0) {
     return res.status(400).json({
       status: 'error',
-      message: `واحد حذف کیدای نشي. دا اوس مهال په ${totalReferences} ریکاړډونو کې کاریږي (محصولات: ${productCount}، سټاک: ${stockCount}، پیرود: ${purchaseItemCount}، پلور: ${saleItemCount}). حذف به د معلوماتو بشپړتیا ته زیان ورسوي.`,
+      message: `واحد حذف کیدای نشي. دا اوس مهال په ${totalReferences} ریکاړډونو کې کاریږي (محصولات: ${productCount}، سټاک: ${stockCount}، رانیول: ${purchaseItemCount}، پلور: ${saleItemCount}). حذف به د معلوماتو بشپړتیا ته زیان ورسوي.`,
     });
   }
   

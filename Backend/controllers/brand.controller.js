@@ -1,6 +1,12 @@
 const Brand = require("../models/brand.model.js");
 const asyncHandler = require("../middlewares/asyncHandler.js");
 const AppError = require("../utils/appError.js");
+const {
+  parseDeletionFilter,
+  softDeleteUpdate,
+  createSimpleRestoreHandler,
+  createPermanentDeleteHandler,
+} = require("../utils/softDeleteHelpers.js");
 
 // @desc    Create new brand
 // @route   POST /api/v1/brand
@@ -29,12 +35,14 @@ const getAllBrands = asyncHandler(async (req, res) => {
   const limit = Number(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const types = await Brand.find({ isDeleted: false })
+  const filter = parseDeletionFilter(req.query);
+
+  const types = await Brand.find(filter)
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });
 
-  const totalBrands = await Brand.countDocuments({ isDeleted: false });
+  const totalBrands = await Brand.countDocuments(filter);
 
   res.status(200).json({
     status: "success",
@@ -93,7 +101,7 @@ const updateBrand = asyncHandler(async (req, res, next) => {
 const deleteBrand = asyncHandler(async (req, res, next) => {
   const brand = await Brand.findOneAndUpdate(
     { _id: req.params.id, isDeleted: false },
-    { isDeleted: true },
+    softDeleteUpdate(req.user?._id),
     { new: true },
   );
 
@@ -107,10 +115,24 @@ const deleteBrand = asyncHandler(async (req, res, next) => {
   });
 });
 
+const restoreBrand = createSimpleRestoreHandler(Brand, {
+  notFoundMessage: 'برانډ ونه موندل شو',
+  notDeletedMessage: 'برانډ حذف شوی نه دی',
+  successMessage: 'برانډ په بریالیتوب سره بیرته راستون شو',
+});
+
+const permanentDeleteBrand = createPermanentDeleteHandler(Brand, {
+  notFoundMessage: 'برانډ ونه موندل شو',
+  notInTrashMessage: 'لومړی باید برانډ په کثافاتو کې حذف شوی وي',
+  successMessage: 'برانډ په تل لپاره حذف شو',
+});
+
 module.exports = {
   createBrand,
   getAllBrands,
   getBrand,
   updateBrand,
   deleteBrand,
+  restoreBrand,
+  permanentDeleteBrand,
 };

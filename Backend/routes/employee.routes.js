@@ -5,8 +5,10 @@ const {
   getEmployee,
   updateEmployee,
   deleteEmployee,
+  restoreEmployee,
+  permanentDeleteEmployee,
 } = require('../controllers/employee.controller');
-const { authenticate } = require('../middlewares/authMiddleware');
+const { authenticate, authorizeAdmin } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
@@ -15,6 +17,8 @@ router.use(authenticate);
 
 // Employee routes
 router.route('/').get(getAllEmployees).post(createEmployee);
+router.patch('/:id/restore', restoreEmployee);
+router.delete('/:id/permanent', authorizeAdmin, permanentDeleteEmployee);
 router
   .route('/:id')
   .get(getEmployee)

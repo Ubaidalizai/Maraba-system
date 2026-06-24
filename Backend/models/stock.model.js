@@ -54,5 +54,7 @@ stockSchema.index(
   { unique: true, partialFilterExpression: { isDeleted: false } }
 );
 
+stockSchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Stock = mongoose.model('Stock', stockSchema);
 module.exports = Stock;

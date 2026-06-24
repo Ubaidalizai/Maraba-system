@@ -22,20 +22,19 @@ import {
   useCreateProdcut,
   useProduct,
 } from "../services/useApi";
-import { formatNumber } from "../utilies/helper";
+import { formatNumber, formatNotifyDaysBefore, formatJalaliDate } from "../utilies/helper";
 import ProductForm from "../components/ProductForm";
 import { useForm } from "react-hook-form";
 
 function Product() {
-  const { t, i18n } = useTranslation();
-  const dateLocaleTag =
-    (i18n.language || "ps").split("-")[0] === "ps" ? "ps-AF" : "fa-IR";
+  const { t } = useTranslation();
 
   const headers = useMemo(
     () => [
       { title: t("inventory.product.table.name") },
       { title: t("inventory.product.table.baseUnit") },
       { title: t("inventory.product.table.batchTracking") },
+      { title: t("inventory.product.table.notifyDays") },
       { title: t("inventory.product.table.actions") },
     ],
     [t]
@@ -169,6 +168,9 @@ function Product() {
                   </span>
                 </TableColumn>
                 <TableColumn>
+                  {formatNotifyDaysBefore(el?.notifyDaysBefore, t)}
+                </TableColumn>
+                <TableColumn>
                   <div className=" flex items-center justify-center gap-x-2">
                     <button
                       className="text-yellow-600 hover:text-yellow-900"
@@ -187,7 +189,7 @@ function Product() {
                     <button
                       className="text-red-600 hover:text-red-900"
                       onClick={() => handleDeleteProduct(el)}
-                      title="حذف"
+                      title={t("inventory.product.tooltipDelete")}
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
@@ -314,6 +316,19 @@ function Product() {
                   </p>
                 </div>
 
+                {/* Expiry notify days */}
+                <div className="flex flex-col items-start gap-x-2">
+                  <h3 className="text-sm font-medium text-gray-500 mb-1 flex items-center justify-end gap-1">
+                    <CalendarDays className="text-2xl text-palm-500" />
+                    <span className="text-lg text-palm-500">
+                      {t("inventory.product.notifyDaysLabel")}
+                    </span>
+                  </h3>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {formatNotifyDaysBefore(selectedPro.notifyDaysBefore, t)}
+                  </p>
+                </div>
+
                 {/* Created Date */}
                 <div className="flex flex-col  items-start gap-x-2">
                   <h3 className="text-sm font-medium text-gray-500 mb-1 flex items-center justify-end gap-1">
@@ -323,9 +338,7 @@ function Product() {
                     </span>
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
-                    {new Date(selectedPro.createdAt).toLocaleDateString(
-                      dateLocaleTag
-                    )}
+                    {formatJalaliDate(selectedPro.createdAt)}
                   </p>
                 </div>
 
@@ -338,9 +351,7 @@ function Product() {
                     </span>
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
-                    {new Date(selectedPro.updatedAt).toLocaleDateString(
-                      dateLocaleTag
-                    )}
+                    {formatJalaliDate(selectedPro.updatedAt)}
                   </p>
                 </div>
               </div>

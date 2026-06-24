@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { BanknotesIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, API_ENDPOINTS } from "../services/apiConfig";
 import { toast } from "react-toastify";
-import { formatNumber, normalizeDateToIso } from "../utilies/helper";
+import {
+  formatCurrency,
+  formatNumber,
+  normalizeDateToIso,
+  formatJalaliDate,
+} from "../utilies/helper";
+import { inputStyle } from "../components/ProductForm";
 import Table from "../components/Table";
 import TableHeader from "../components/TableHeader";
 import TableBody from "../components/TableBody";
@@ -14,6 +20,7 @@ import Pagination from "../components/Pagination";
 import GloableModal from "../components/GloableModal";
 import { useSubmitLock } from "../hooks/useSubmitLock.js";
 import JalaliDatePicker from "../components/JalaliDatePicker";
+import { bindNumericControlled } from "../utilies/numericInput";
 
 const fetchIncome = async ({
   page,
@@ -69,6 +76,17 @@ const deleteIncomeApi = async (id) => {
   return apiRequest(API_ENDPOINTS.INCOME.DELETE(id), { method: "DELETE" });
 };
 
+const fetchIncomeStats = async ({ category, startDate, endDate }) => {
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (startDate) params.set("startDate", startDate);
+  if (endDate) params.set("endDate", endDate);
+  const query = params.toString();
+  return apiRequest(
+    `${API_ENDPOINTS.INCOME.STATS}${query ? `?${query}` : ""}`
+  );
+};
+
 export default function Income() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -80,17 +98,29 @@ export default function Income() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState(null);
 
+  const filterParams = useMemo(
+    () => ({
+      category: category || undefined,
+      startDate: dateRange.start || undefined,
+      endDate: dateRange.end || undefined,
+    }),
+    [category, dateRange.start, dateRange.end]
+  );
+
   const { data: incomeRes, isLoading } = useQuery({
     queryKey: ["income", { page, limit, category, dateRange, search }],
     queryFn: () =>
       fetchIncome({
         page,
         limit,
-        category: category || undefined,
-        startDate: dateRange.start || undefined,
-        endDate: dateRange.end || undefined,
+        ...filterParams,
         search: search || undefined,
       }),
+  });
+
+  const { data: statsRes, isLoading: statsLoading } = useQuery({
+    queryKey: ["income-stats", filterParams],
+    queryFn: () => fetchIncomeStats(filterParams),
   });
 
   const { data: categoriesRes } = useQuery({
@@ -108,6 +138,7 @@ export default function Income() {
     onSuccess: (_, variables) => {
       toast.success(t("income.toast.createSuccess"));
       queryClient.invalidateQueries({ queryKey: ["income"] });
+      queryClient.invalidateQueries({ queryKey: ["income-stats"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
       if (variables?.placedInAccount) {
@@ -128,6 +159,7 @@ export default function Income() {
     onSuccess: (_, variables) => {
       toast.success(t("income.toast.updateSuccess"));
       queryClient.invalidateQueries({ queryKey: ["income"] });
+      queryClient.invalidateQueries({ queryKey: ["income-stats"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
       const targetAccount =
@@ -153,6 +185,7 @@ export default function Income() {
     onSuccess: () => {
       toast.success(t("income.toast.deleteSuccess"));
       queryClient.invalidateQueries({ queryKey: ["income"] });
+      queryClient.invalidateQueries({ queryKey: ["income-stats"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
       queryClient.invalidateQueries({ queryKey: ["accountLedger"] });
@@ -165,10 +198,24 @@ export default function Income() {
   const pagination = incomeRes?.pagination || {
     currentPage: 1,
     totalPages: 1,
-    total: 0,
   };
+  const total = incomeRes?.total || 0;
   const categories = categoriesRes?.data || [];
   const accounts = accountsRes?.accounts || accountsRes?.data || [];
+
+  const stats = statsRes?.data;
+  const summary = stats?.summary || {
+    totalAmount: 0,
+    totalCount: 0,
+  };
+  const selectedCategoryName = useMemo(() => {
+    if (!category) return null;
+    return categories.find((c) => c._id === category)?.name || null;
+  }, [category, categories]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [category, dateRange.start, dateRange.end, search]);
 
   const onCreate = (form) => createMutation.mutateAsync(form);
 
@@ -181,104 +228,128 @@ export default function Income() {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "—";
-    const lang = (i18n.language || "ps").split("-")[0];
-    const localeTag =
-      lang === "ps" ? "ps-AF" : "fa-IR";
-    return new Date(dateString).toLocaleDateString(localeTag);
-  };
+  const formatDate = formatJalaliDate;
 
   return (
     <div className="p-4" style={{ color: "var(--text-dark)" }}>
-      <div className="flex items-center justify-between mb-4">
-        <h1
-          className="text-xl font-bold"
-          style={{ color: "var(--primary-brown)" }}
-        >
-          {t("income.title")}
-        </h1>
-        <button
-          className={`bg-amber-600 cursor-pointer group  text-white hover:bg-amber-600/90  duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in `}
-          onClick={() => {
-            setEditingIncome(null);
-            setIsModalOpen(true);
-          }}
-        >
-          {t("income.addIncome")}
-        </button>
+      <h1
+        className="text-xl font-bold mb-4"
+        style={{ color: "var(--primary-brown)" }}
+      >
+        {t("income.title")}
+      </h1>
+
+      <div className="mb-4 w-full max-w-sm bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-full bg-amber-500 shrink-0">
+            <BanknotesIcon className="h-7 w-7 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-600">
+              {selectedCategoryName
+                ? t("income.summary.totalFiltered", {
+                    category: selectedCategoryName,
+                  })
+                : t("income.summary.totalIncome")}
+            </p>
+            {statsLoading ? (
+              <p className="text-lg text-gray-400 mt-1">
+                {t("income.summary.loading")}
+              </p>
+            ) : (
+              <>
+                <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-0.5">
+                  {formatCurrency(summary.totalAmount || 0)}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {t("income.summary.incomeCount", {
+                    count: summary.totalCount || 0,
+                  })}
+                </p>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="card mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label
-              className="block mb-2"
-              style={{ color: "var(--text-medium)" }}
-            >
-              {t("income.filters.category")}
-            </label>
-            <select
-              className={
-                "w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm px-3 py-2.5 transition duration-300 ease focus:outline-none  hover:border-slate-300 focus:border-slate-300  shadow-sm"
-              }
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="">{t("income.filters.all")}</option>
-              {categories.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+      {/* Filters + add */}
+      <div className="bg-white p-3 rounded-sm border border-slate-200 mb-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-wrap items-end gap-3 min-w-0 flex-1">
+            <div className="w-full sm:w-40 min-w-0">
+              <label
+                className="block mb-2 text-sm"
+                style={{ color: "var(--text-medium)" }}
+              >
+                {t("income.filters.category")}
+              </label>
+              <select
+                className={inputStyle}
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="">{t("income.filters.all")}</option>
+                {categories.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="w-full sm:w-36 min-w-0">
+              <JalaliDatePicker
+                label={t("income.filters.dateFrom")}
+                value={dateRange.start}
+                onChange={(nextValue) =>
+                  setDateRange((d) => ({
+                    ...d,
+                    start: normalizeDateToIso(nextValue),
+                  }))
+                }
+                placeholder={t("income.filters.dateFromPlaceholder")}
+                clearable
+              />
+            </div>
+            <div className="w-full sm:w-36 min-w-0">
+              <JalaliDatePicker
+                label={t("income.filters.dateTo")}
+                value={dateRange.end}
+                onChange={(nextValue) =>
+                  setDateRange((d) => ({
+                    ...d,
+                    end: normalizeDateToIso(nextValue),
+                  }))
+                }
+                placeholder={t("income.filters.dateToPlaceholder")}
+                clearable
+              />
+            </div>
+            <div className="w-full sm:w-44 min-w-0">
+              <label
+                className="block mb-2 text-sm"
+                style={{ color: "var(--text-medium)" }}
+              >
+                {t("income.filters.search")}
+              </label>
+              <input
+                type="text"
+                className={inputStyle}
+                placeholder={t("income.filters.searchPlaceholder")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
-          <div>
-            <JalaliDatePicker
-              label={t("income.filters.dateFrom")}
-              value={dateRange.start}
-              onChange={(nextValue) =>
-                setDateRange((d) => ({
-                  ...d,
-                  start: normalizeDateToIso(nextValue),
-                }))
-              }
-              placeholder={t("income.filters.dateFromPlaceholder")}
-              clearable
-            />
-          </div>
-          <div>
-            <JalaliDatePicker
-              label={t("income.filters.dateTo")}
-              value={dateRange.end}
-              onChange={(nextValue) =>
-                setDateRange((d) => ({
-                  ...d,
-                  end: normalizeDateToIso(nextValue),
-                }))
-              }
-              placeholder={t("income.filters.dateToPlaceholder")}
-              clearable
-            />
-          </div>
-          <div>
-            <label
-              className="block mb-2"
-              style={{ color: "var(--text-medium)" }}
-            >
-              {t("income.filters.search")}
-            </label>
-            <input
-              type="text"
-              className={
-                "w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm px-3 py-2.5 transition duration-300 ease focus:outline-none  hover:border-slate-300 focus:border-slate-300  shadow-sm"
-              }
-              placeholder={t("income.filters.searchPlaceholder")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+          <button
+            type="button"
+            className="shrink-0 bg-amber-600 cursor-pointer text-white hover:bg-amber-600/90 flex gap-2 justify-center items-center px-4 py-2 rounded-sm font-medium text-sm transition-colors h-[42px]"
+            onClick={() => {
+              setEditingIncome(null);
+              setIsModalOpen(true);
+            }}
+          >
+            {t("income.addIncome")}
+          </button>
         </div>
       </div>
 
@@ -353,7 +424,7 @@ export default function Income() {
       <Pagination
         page={pagination.currentPage}
         limit={limit}
-        total={pagination.total}
+        total={total}
         totalPages={pagination.totalPages}
         onPageChange={setPage}
         onRowsPerPageChange={setLimit}
@@ -454,15 +525,14 @@ function IncomeModal({ onClose, onSubmit, categories, accounts, initial }) {
             {t("income.modal.amount")}
           </label>
           <input
-            className={
-              "w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm px-3 py-2.5 transition duration-300 ease focus:outline-none  hover:border-slate-300 focus:border-slate-300  shadow-sm"
-            }
-            name="amount"
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.amount}
-            onChange={handleChange}
+            {...bindNumericControlled({
+              allowDecimal: true,
+              name: "amount",
+              value: form.amount,
+              onChange: handleChange,
+              className:
+                "w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm px-3 py-2.5 transition duration-300 ease focus:outline-none  hover:border-slate-300 focus:border-slate-300  shadow-sm",
+            })}
           />
         </div>
         <div>

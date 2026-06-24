@@ -25,7 +25,7 @@ import {
 import GloableModal from "./GloableModal";
 import { inputStyle } from "./ProductForm";
 import JalaliDatePicker from "./JalaliDatePicker";
-import { normalizeDateToIso } from "../utilies/helper";
+import { normalizeDateToIso, formatJalaliDate } from "../utilies/helper";
 
 const EmployeeManagement = () => {
   const { t, i18n } = useTranslation();
@@ -176,13 +176,7 @@ const EmployeeManagement = () => {
     return roleOption ? roleOption.label : role;
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
-    const lang = (i18n.language || "ps").split("-")[0];
-    const localeTag = lang === "ps" ? "ps-AF" : "fa-IR";
-    return date.toLocaleDateString(localeTag);
-  };
+  const formatDate = formatJalaliDate;
 
   if (isLoading) {
     return (

@@ -25,6 +25,13 @@ const {
   saleItemSchema,
 } = require('./sale.validation');
 const {
+  createSaleReturnSchema,
+  updateSaleReturnSchema,
+} = require('./saleReturn.validation');
+const {
+  createPurchaseReturnSchema,
+} = require('./purchaseReturn.validation');
+const {
   supplierValidationSchema,
   updateSupplierValidationSchema,
 } = require('./supplierValidation');
@@ -53,6 +60,9 @@ module.exports = {
   createSaleSchema,
   updateSaleSchema,
   saleItemSchema,
+  createSaleReturnSchema,
+  updateSaleReturnSchema,
+  createPurchaseReturnSchema,
   supplierValidationSchema,
   updateSupplierValidationSchema,
   customerValidationSchema,

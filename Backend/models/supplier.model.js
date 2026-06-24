@@ -42,6 +42,8 @@ const supplierSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+supplierSchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Supplier = mongoose.model('Supplier', supplierSchema);
 
 module.exports = Supplier;

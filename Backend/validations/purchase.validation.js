@@ -26,7 +26,7 @@ exports.createPurchaseSchema = Joi.object({
     .min(1)
     .required(),
   paidAmount: Joi.number().min(0).default(0),
-  paymentAccount: Joi.string().required(), // Cash / Safe / Saraf account ID
+  paymentAccount: Joi.string().custom(objectId).optional().allow(null, ''),
   stockLocation: Joi.string().valid('warehouse', 'store').default('warehouse'), // Where to add stock
 });
 

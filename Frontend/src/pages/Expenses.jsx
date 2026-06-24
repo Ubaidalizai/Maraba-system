@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { BanknotesIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, API_ENDPOINTS } from "../services/apiConfig";
 import { toast } from "react-toastify";
-import { formatNumber, normalizeDateToIso } from "../utilies/helper";
+import {
+  formatCurrency,
+  formatNumber,
+  normalizeDateToIso,
+  formatJalaliDate,
+} from "../utilies/helper";
 import { inputStyle } from "../components/ProductForm";
 import Button from "../components/Button";
 import Table from "../components/Table";
@@ -14,6 +19,7 @@ import TableRow from "../components/TableRow";
 import TableColumn from "../components/TableColumn";
 import Pagination from "../components/Pagination";
 import JalaliDatePicker from "../components/JalaliDatePicker";
+import { bindNumericControlled } from "../utilies/numericInput";
 
 const fetchExpenses = async ({
   page,
@@ -75,6 +81,17 @@ const deleteExpenseApi = async (id) => {
   return apiRequest(API_ENDPOINTS.EXPENSES.DELETE(id), { method: "DELETE" });
 };
 
+const fetchExpenseStats = async ({ category, startDate, endDate }) => {
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (startDate) params.set("startDate", startDate);
+  if (endDate) params.set("endDate", endDate);
+  const query = params.toString();
+  return apiRequest(
+    `${API_ENDPOINTS.EXPENSES.STATS}${query ? `?${query}` : ""}`
+  );
+};
+
 export default function Expenses() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -86,17 +103,29 @@ export default function Expenses() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
 
+  const filterParams = useMemo(
+    () => ({
+      category: category || undefined,
+      startDate: dateRange.start || undefined,
+      endDate: dateRange.end || undefined,
+    }),
+    [category, dateRange.start, dateRange.end]
+  );
+
   const { data: expensesRes, isLoading } = useQuery({
     queryKey: ["expenses", { page, limit, category, dateRange, search }],
     queryFn: () =>
       fetchExpenses({
         page,
         limit,
-        category: category || undefined,
-        startDate: dateRange.start || undefined,
-        endDate: dateRange.end || undefined,
+        ...filterParams,
         search: search || undefined,
       }),
+  });
+
+  const { data: statsRes, isLoading: statsLoading } = useQuery({
+    queryKey: ["expense-stats", filterParams],
+    queryFn: () => fetchExpenseStats(filterParams),
   });
 
   const { data: categoriesRes } = useQuery({
@@ -114,6 +143,7 @@ export default function Expenses() {
     onSuccess: (_, variables) => {
       toast.success(t("expenses.toast.createSuccess"));
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-stats"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
       if (variables?.paidFromAccount) {
@@ -134,6 +164,7 @@ export default function Expenses() {
     onSuccess: (_, variables) => {
       toast.success(t("expenses.toast.updateSuccess"));
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-stats"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
       const targetAccount =
@@ -159,6 +190,7 @@ export default function Expenses() {
     onSuccess: () => {
       toast.success(t("expenses.toast.deleteSuccess"));
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["expense-stats"] });
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["recentTransactions"] });
       queryClient.invalidateQueries({ queryKey: ["accountLedger"] });
@@ -176,6 +208,20 @@ export default function Expenses() {
   const categories = categoriesRes?.data || [];
   const accounts = accountsRes?.accounts || accountsRes?.data || [];
 
+  const stats = statsRes?.data;
+  const summary = stats?.summary || {
+    totalAmount: 0,
+    totalCount: 0,
+  };
+  const selectedCategoryName = useMemo(() => {
+    if (!category) return null;
+    return categories.find((c) => c._id === category)?.name || null;
+  }, [category, categories]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [category, dateRange.start, dateRange.end, search]);
+
   const onCreate = (form) => {
     createMutation.mutate(form);
   };
@@ -190,100 +236,128 @@ export default function Expenses() {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "—";
-    const lang = (i18n.language || "ps").split("-")[0];
-    const localeTag =
-      lang === "ps" ? "ps-AF" : "fa-IR";
-    return new Date(dateString).toLocaleDateString(localeTag);
-  };
+  const formatDate = formatJalaliDate;
 
   return (
     <div className="p-4" style={{ color: "var(--text-dark)" }}>
-      <div className="flex items-center justify-between mb-4">
-        <h1
-          className="text-xl font-bold"
-          style={{ color: "var(--primary-brown)" }}
-        >
-          {t("expenses.title")}
-        </h1>
-        <button
-          className=" bg-amber-600 cursor-pointer group  text-white hover:bg-amber-600/90  duration-200   flex gap-2 justify-center items-center  px-4 py-2 rounded-sm font-medium text-sm  transition-all ease-in duration-200`"
-          onClick={() => {
-            setEditingExpense(null);
-            setIsModalOpen(true);
-          }}
-        >
-          {t("expenses.addExpense")}
-        </button>
+      <h1
+        className="text-xl font-bold mb-4"
+        style={{ color: "var(--primary-brown)" }}
+      >
+        {t("expenses.title")}
+      </h1>
+
+      <div className="mb-4 w-full max-w-sm bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-full bg-amber-500 shrink-0">
+            <BanknotesIcon className="h-7 w-7 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-600">
+              {selectedCategoryName
+                ? t("expenses.summary.totalFiltered", {
+                    category: selectedCategoryName,
+                  })
+                : t("expenses.summary.totalExpense")}
+            </p>
+            {statsLoading ? (
+              <p className="text-lg text-gray-400 mt-1">
+                {t("expenses.summary.loading")}
+              </p>
+            ) : (
+              <>
+                <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-0.5">
+                  {formatCurrency(summary.totalAmount || 0)}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {t("expenses.summary.expenseCount", {
+                    count: summary.totalCount || 0,
+                  })}
+                </p>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className=" bg-white p-3 rounded-sm  border border-slate-200 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label
-              className="block mb-2"
-              style={{ color: "var(--text-medium)" }}
-            >
-              {t("expenses.filters.category")}
-            </label>
-            <select
-              className={inputStyle}
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="">{t("expenses.filters.all")}</option>
-              {categories.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+      {/* Filters + add */}
+      <div className="bg-white p-3 rounded-sm border border-slate-200 mb-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-wrap items-end gap-3 min-w-0 flex-1">
+            <div className="w-full sm:w-40 min-w-0">
+              <label
+                className="block mb-2 text-sm"
+                style={{ color: "var(--text-medium)" }}
+              >
+                {t("expenses.filters.category")}
+              </label>
+              <select
+                className={inputStyle}
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="">{t("expenses.filters.all")}</option>
+                {categories.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="w-full sm:w-36 min-w-0">
+              <JalaliDatePicker
+                label={t("expenses.filters.dateFrom")}
+                value={dateRange.start}
+                onChange={(nextValue) =>
+                  setDateRange((d) => ({
+                    ...d,
+                    start: normalizeDateToIso(nextValue),
+                  }))
+                }
+                placeholder={t("expenses.filters.dateFromPlaceholder")}
+                clearable
+              />
+            </div>
+            <div className="w-full sm:w-36 min-w-0">
+              <JalaliDatePicker
+                label={t("expenses.filters.dateTo")}
+                value={dateRange.end}
+                onChange={(nextValue) =>
+                  setDateRange((d) => ({
+                    ...d,
+                    end: normalizeDateToIso(nextValue),
+                  }))
+                }
+                placeholder={t("expenses.filters.dateToPlaceholder")}
+                clearable
+              />
+            </div>
+            <div className="w-full sm:w-44 min-w-0">
+              <label
+                className="block mb-2 text-sm"
+                style={{ color: "var(--text-medium)" }}
+              >
+                {t("expenses.filters.search")}
+              </label>
+              <input
+                type="text"
+                className={inputStyle}
+                placeholder={t("expenses.filters.searchPlaceholder")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
-          <div>
-            <JalaliDatePicker
-              label={t("expenses.filters.dateFrom")}
-              value={dateRange.start}
-              onChange={(nextValue) =>
-                setDateRange((d) => ({
-                  ...d,
-                  start: normalizeDateToIso(nextValue),
-                }))
-              }
-              placeholder={t("expenses.filters.dateFromPlaceholder")}
-              clearable
-            />
-          </div>
-          <div>
-            <JalaliDatePicker
-              label={t("expenses.filters.dateTo")}
-              value={dateRange.end}
-              onChange={(nextValue) =>
-                setDateRange((d) => ({
-                  ...d,
-                  end: normalizeDateToIso(nextValue),
-                }))
-              }
-              placeholder={t("expenses.filters.dateToPlaceholder")}
-              clearable
-            />
-          </div>
-          <div>
-            <label
-              className="block mb-2"
-              style={{ color: "var(--text-medium)" }}
-            >
-              {t("expenses.filters.search")}
-            </label>
-            <input
-              type="text"
-              className={inputStyle}
-              placeholder={t("expenses.filters.searchPlaceholder")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+          <button
+            type="button"
+            className="shrink-0 bg-amber-600 cursor-pointer text-white hover:bg-amber-600/90 flex gap-2 justify-center items-center px-4 py-2 rounded-sm font-medium text-sm transition-colors h-[42px]"
+            onClick={() => {
+              setEditingExpense(null);
+              setIsModalOpen(true);
+            }}
+          >
+            {t("expenses.addExpense")}
+          </button>
         </div>
       </div>
 
@@ -453,12 +527,13 @@ function ExpenseModal({ onClose, onSubmit, categories, accounts, initial }) {
               {t("expenses.modal.amount")}
             </label>
             <input
-              className={inputStyle}
-              name="amount"
-              type="number"
-              min="0"
-              value={form.amount}
-              onChange={handleChange}
+              {...bindNumericControlled({
+                allowDecimal: true,
+                name: "amount",
+                value: form.amount,
+                onChange: handleChange,
+                className: inputStyle,
+              })}
             />
           </div>
           <div>

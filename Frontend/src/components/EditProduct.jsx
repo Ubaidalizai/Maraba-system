@@ -26,11 +26,16 @@ function EditProduct({ productId, onClose }) {
     if (data?.product) {
       reset({
         name: data?.product?.name ?? "",
-        baseUnit: data?.product?.baseUnit ?? "",
+        baseUnit:
+          data?.product?.baseUnit?._id ?? data?.product?.baseUnit ?? "",
         minLevel: data?.product?.minLevel ?? 0,
         latestPurchasePrice: data?.product?.latestPurchasePrice ?? "",
         description: data?.product?.description ?? "",
         trackByBatch: data?.product?.trackByBatch ?? false,
+        notifyDaysBefore:
+          data?.product?.notifyDaysBefore != null
+            ? data.product.notifyDaysBefore
+            : "",
       });
     }
   }, [data, reset]);

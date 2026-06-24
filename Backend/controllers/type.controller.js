@@ -1,6 +1,12 @@
 const Type = require("../models/type.model.js");
 const asyncHandler = require("../middlewares/asyncHandler.js");
 const AppError = require("../utils/appError.js");
+const {
+  parseDeletionFilter,
+  softDeleteUpdate,
+  createSimpleRestoreHandler,
+  createPermanentDeleteHandler,
+} = require("../utils/softDeleteHelpers.js");
 
 // @desc    Create new type
 // @route   POST /api/v1/type
@@ -29,12 +35,14 @@ const getAllTypes = asyncHandler(async (req, res) => {
   const limit = Number(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const types = await Type.find({ isDeleted: false })
+  const filter = parseDeletionFilter(req.query);
+
+  const types = await Type.find(filter)
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });
 
-  const totalTypes = await Type.countDocuments({ isDeleted: false });
+  const totalTypes = await Type.countDocuments(filter);
 
   res.status(200).json({
     status: "success",
@@ -93,7 +101,7 @@ const updateType = asyncHandler(async (req, res, next) => {
 const deleteType = asyncHandler(async (req, res, next) => {
   const type = await Type.findOneAndUpdate(
     { _id: req.params.id, isDeleted: false },
-    { isDeleted: true },
+    softDeleteUpdate(req.user?._id),
     { new: true },
   );
 
@@ -107,10 +115,24 @@ const deleteType = asyncHandler(async (req, res, next) => {
   });
 });
 
+const restoreType = createSimpleRestoreHandler(Type, {
+  notFoundMessage: 'ډول ونه موندل شو',
+  notDeletedMessage: 'ډول حذف شوی نه دی',
+  successMessage: 'ډول په بریالیتوب سره بیرته راستون شو',
+});
+
+const permanentDeleteType = createPermanentDeleteHandler(Type, {
+  notFoundMessage: 'ډول ونه موندل شو',
+  notInTrashMessage: 'لومړی باید ډول په کثافاتو کې حذف شوی وي',
+  successMessage: 'ډول په تل لپاره حذف شو',
+});
+
 module.exports = {
   createType,
   getAllTypes,
   getType,
   updateType,
   deleteType,
+  restoreType,
+  permanentDeleteType,
 };

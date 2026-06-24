@@ -4,12 +4,9 @@ import { useTranslation } from "react-i18next";
 import { PrinterIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import DateObject from "react-date-object";
-import persianCalendar from "react-date-object/calendars/persian";
-import persianLocale from "react-date-object/locales/persian_fa";
 import { CiLocationOn } from "react-icons/ci";
 import { SlCallIn } from "react-icons/sl";
-import { formatNumberWithPersianDigits } from "../utilies/helper";
+import { formatNumberWithPersianDigits, formatJalaliDate } from "../utilies/helper";
 import { useSettings } from "../services/useApi";
 import { BACKEND_BASE_URL } from "../services/apiConfig";
 
@@ -37,17 +34,7 @@ const SaleBillPrint = ({ sale, customer, customerAccount, onClose, autoPrint = f
     { title: t("saleBilling.productHeaders.lineTotal") },
   ];
 
-  const formatPersianDate = (dateString) => {
-    try {
-      return new DateObject({
-        date: new Date(dateString),
-        calendar: persianCalendar,
-        locale: persianLocale,
-      }).format("YYYY/MM/DD");
-    } catch {
-      return new Date(dateString).toLocaleDateString("fa-IR");
-    }
-  };
+  const formatPersianDate = formatJalaliDate;
 
   // Weight & carton
   const calculateWeightAndCarton = (item) => {
@@ -62,6 +49,10 @@ const SaleBillPrint = ({ sale, customer, customerAccount, onClose, autoPrint = f
   };
 
   const services = sale?.items || [];
+  const itemsSubtotal =
+    sale?.subtotalAmount ??
+    services.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+  const discountAmount = sale?.discountAmount || 0;
 
   // Calculate totals grouped by unit
   const unitTotals = services.reduce((acc, item) => {
@@ -401,13 +392,23 @@ const SaleBillPrint = ({ sale, customer, customerAccount, onClose, autoPrint = f
             <div className="overflow-hidden w-full md:w-[280px] text-xs">
               <div className="p-2 space-y-2 font-bold">
                 {Object.entries(unitTotals).map(([unitName, total]) => (
-                  <div key={unitName} className="flex justify-between">
-                    <span className="text-[#1e2939]">{t("bill.totalUnit")} {unitName}:</span>
-                    <span className="font-medium">
-                      {formatNumberWithPersianDigits(total)}
+                  <div key={unitName} className="flex justify-between gap-3">
+                    <span className="text-[#1e2939] shrink-0">{t("bill.totalUnit")}:</span>
+                    <span className="font-medium text-left">
+                      {formatNumberWithPersianDigits(total)} {unitName}
                     </span>
                   </div>
                 ))}
+                <div className="flex justify-between border-t border-[#e5e7eb] pt-2">
+                  <span className="text-[#1e2939]">{t("bill.subtotal")}:</span>
+                  <span>{formatNumberWithPersianDigits(itemsSubtotal)} {t("reports.currencyAfn")}</span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-red-700">
+                    <span>{t("bill.discount")}:</span>
+                    <span>-{formatNumberWithPersianDigits(discountAmount)} {t("reports.currencyAfn")}</span>
+                  </div>
+                )}
               </div>
               <div className="text-[#fff] bg-[#7c4a2d] p-2 font-bold">
                 <div className="flex justify-between">

@@ -1,130 +1,139 @@
 import { useTranslation } from "react-i18next";
-import { formatNumber } from "../utilies/helper";
+import { formatNumber, formatJalaliDate } from "../utilies/helper";
 import { useSettings } from "../services/useApi";
+import {
+  pdfColors,
+  pdfFont,
+  cardStyle,
+  thStyle,
+  tdStyle,
+} from "../utilies/pdfInlineStyles";
 
 const AccountsPDF = ({ accounts, accountType, reportDate }) => {
   const { t, i18n } = useTranslation();
   const { data: settings } = useSettings();
-  
+
   const companyName = settings?.data?.settings?.companyName || t("brand.title");
 
-  const formatCreatedAt = (iso) => {
-    if (!iso) return "—";
-    const lang = (i18n.language || "ps").split("-")[0];
-    const localeTag = lang === "ps" ? "ps-AF" : "fa-IR";
-    return new Date(iso).toLocaleDateString(localeTag);
+  const formatCreatedAt = formatJalaliDate;
+
+  const totalBalance = accounts.reduce(
+    (sum, acc) => sum + (acc.currentBalance || 0),
+    0
+  );
+
+  const title =
+    accountType === "customer"
+      ? t("accountsPDF.customerTitle")
+      : t("accountsPDF.supplierTitle");
+
+  const thLarge = {
+    ...thStyle,
+    padding: "14px 16px",
+    fontSize: "12px",
   };
 
-  const totalBalance = accounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
-
-  const title = accountType === "customer" 
-    ? t("accountsPDF.customerTitle") 
-    : t("accountsPDF.supplierTitle");
+  const tdLarge = {
+    ...tdStyle,
+    padding: "14px 16px",
+    fontSize: "13px",
+  };
 
   return (
     <div
+      id="accounts-pdf-content"
       style={{
-        fontFamily: "'Noto Nastaliq Urdu', serif",
+        fontFamily: pdfFont,
         direction: "rtl",
-        padding: "3rem",
-        backgroundColor: "#ffffff",
+        padding: "32px",
+        backgroundColor: pdfColors.white,
+        color: pdfColors.text,
         minHeight: "100vh",
+        boxSizing: "border-box",
       }}
     >
-      <style>
-        {`
-          * {
-            font-family: 'Noto Nastaliq Urdu', serif !important;
-          }
-        `}
-      </style>
-
       {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-        <h1 style={{ fontSize: "3.5rem", margin: "0 0 0.5rem 0", color: "#1f2937" }}>
-          {companyName}
-        </h1>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "5rem" }}>
-        <h2 style={{ fontSize: "2.5rem", margin: "0 0 0.5rem 0", color: "#4b5563" }}>
-          {title}
-        </h2>
-        <p style={{ fontSize: "2rem", margin: "0", color: "#6b7280" }}>
-          {t("accountsPDF.date")}: {formatCreatedAt(reportDate)}
-        </p>
-        </div>
-      </div>
-
-      {/* Total Balance Summary - Simple Style */}
       <div
         style={{
-          textAlign: "center",
-          marginBottom: "2.5rem",
-          paddingBottom: "1.5rem",
-          borderBottom: "3px solid #1f2937",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: "5rem",
+          borderBottom: `1px solid ${pdfColors.border}`,
+          paddingBottom: "16px",
+          marginBottom: "24px",
         }}
       >
-        <p style={{ fontSize: "3rem", marginLeft: "3rem", color: "#6b7280" }}>
+        <p
+          style={{
+            fontSize: "14px",
+            fontWeight: "600",
+            color: pdfColors.brown,
+            margin: 0,
+          }}
+        >
+          {companyName}
+        </p>
+        <h1
+          style={{
+            fontSize: "24px",
+            fontWeight: "bold",
+            margin: "8px 0 0 0",
+            color: pdfColors.text,
+          }}
+        >
+          {title}
+        </h1>
+        <p style={{ fontSize: "14px", color: pdfColors.textMuted, margin: "6px 0 0 0" }}>
+          {t("accountsPDF.date")}: {formatCreatedAt(reportDate)}
+        </p>
+      </div>
+
+      {/* Total balance card */}
+      <div style={{ ...cardStyle({ padding: "20px" }), marginBottom: "24px" }}>
+        <p style={{ fontSize: "14px", color: pdfColors.textMuted, margin: 0 }}>
           {t("accountsPDF.totalBalance")}
         </p>
-        <p style={{ fontSize: "3.5rem", margin: "0", color: "#1f2937", fontWeight: "bold" }}>
+        <p
+          style={{
+            fontSize: "26px",
+            fontWeight: "bold",
+            margin: "8px 0 0 0",
+            color: pdfColors.text,
+          }}
+        >
           {formatNumber(totalBalance)} {t("accountsPDF.currency")}
         </p>
       </div>
 
-      {/* Accounts Table */}
-      <div style={{ marginTop: "2rem" }}>
-        <h2 style={{ fontSize: "2.5rem", marginBottom: "1.5rem", color: "#1f2937" }}>
-          {t("accountsPDF.accountsList")}
-        </h2>
-        <table
+      {/* Table */}
+      <div
+        style={{
+          border: `1px solid ${pdfColors.border}`,
+          borderRadius: "8px",
+          overflow: "hidden",
+        }}
+      >
+        <div
           style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            border: "2px solid #1f2937",
+            padding: "14px 16px",
+            borderBottom: `1px solid ${pdfColors.border}`,
+            backgroundColor: pdfColors.white,
           }}
         >
+          <h2
+            style={{
+              fontSize: "16px",
+              fontWeight: "600",
+              margin: 0,
+              color: pdfColors.text,
+            }}
+          >
+            {t("accountsPDF.accountsList")}
+          </h2>
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ backgroundColor: "#f3f4f6" }}>
-              <th
-                style={{
-                  padding: "2rem",
-                  textAlign: "right",
-                  fontSize: "2.25rem",
-                  color: "#1f2937",
-                  borderBottom: "2px solid #1f2937",
-                  fontWeight: "bold",
-                }}
-              >
-                {t("accountsPDF.accountName")}
-              </th>
-              <th
-                style={{
-                  padding: "2rem",
-                  textAlign: "right",
-                  fontSize: "2.25rem",
-                  color: "#1f2937",
-                  borderBottom: "2px solid #1f2937",
-                  fontWeight: "bold",
-                }}
-              >
-                {t("accountsPDF.createdAt")}
-              </th>
-              <th
-                style={{
-                  padding: "2rem",
-                  textAlign: "right",
-                  fontSize: "2.25rem",
-                  color: "#1f2937",
-                  borderBottom: "2px solid #1f2937",
-                  fontWeight: "bold",
-                }}
-              >
-                {t("accountsPDF.balance")}
-              </th>
+            <tr>
+              <th style={thLarge}>{t("accountsPDF.accountName")}</th>
+              <th style={thLarge}>{t("accountsPDF.createdAt")}</th>
+              <th style={thLarge}>{t("accountsPDF.balance")}</th>
             </tr>
           </thead>
           <tbody>
@@ -132,38 +141,14 @@ const AccountsPDF = ({ accounts, accountType, reportDate }) => {
               <tr
                 key={acc._id}
                 style={{
-                  backgroundColor: index % 2 === 0 ? "#ffffff" : "#f9fafb",
+                  backgroundColor: index % 2 === 1 ? pdfColors.rowAlt : pdfColors.white,
                 }}
               >
-                <td
-                  style={{
-                    padding: "2rem",
-                    fontSize: "2.125rem",
-                    color: "#1f2937",
-                    borderBottom: "1px solid #d1d5db",
-                  }}
-                >
-                  {acc.name}
-                </td>
-                <td
-                  style={{
-                    padding: "2rem",
-                    fontSize: "2.125rem",
-                    color: "#6b7280",
-                    borderBottom: "1px solid #d1d5db",
-                  }}
-                >
+                <td style={{ ...tdLarge, fontWeight: "500" }}>{acc.name}</td>
+                <td style={{ ...tdLarge, color: pdfColors.textMuted }}>
                   {formatCreatedAt(acc.createdAt)}
                 </td>
-                <td
-                  style={{
-                    padding: "2rem",
-                    fontSize: "2.125rem",
-                    color: "#1f2937",
-                    borderBottom: "1px solid #d1d5db",
-                    fontWeight: "bold",
-                  }}
-                >
+                <td style={{ ...tdLarge, fontWeight: "bold" }}>
                   {formatNumber(acc.currentBalance || 0)} {t("accountsPDF.currency")}
                 </td>
               </tr>
@@ -172,16 +157,15 @@ const AccountsPDF = ({ accounts, accountType, reportDate }) => {
         </table>
       </div>
 
-      {/* Summary Footer */}
       <div
         style={{
-          marginTop: "2.5rem",
-          paddingTop: "1.5rem",
-          borderTop: "3px solid #1f2937",
+          marginTop: "24px",
+          paddingTop: "16px",
+          borderTop: `1px solid ${pdfColors.border}`,
           textAlign: "center",
         }}
       >
-        <p style={{ fontSize: "2rem", margin: "0", color: "#1f2937", fontWeight: "bold" }}>
+        <p style={{ fontSize: "14px", fontWeight: "600", margin: 0, color: pdfColors.text }}>
           {t("accountsPDF.totalAccounts")}: {accounts.length}
         </p>
       </div>

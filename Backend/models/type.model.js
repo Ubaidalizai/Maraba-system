@@ -19,6 +19,8 @@ const typeSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+typeSchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Type = mongoose.model("Type", typeSchema);
 
 module.exports = Type;

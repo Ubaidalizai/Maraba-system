@@ -64,9 +64,7 @@ const createSaleSchema = Joi.object({
 
   saleDate: Joi.date().optional(),
 
-  placedIn: Joi.string().custom(objectId).required().messages({
-    'any.required': 'Account (Dakhal / Tajri / Saraf) is required',
-  }),
+  placedIn: Joi.string().custom(objectId).optional().allow(null, ''),
 
   invoiceType: Joi.string().valid('small', 'large').default('small'),
 
@@ -74,6 +72,12 @@ const createSaleSchema = Joi.object({
     .min(0)
     .required()
     .messages({ 'number.min': 'Paid amount must be 0 or greater' }),
+
+  discountAmount: Joi.number()
+    .min(0)
+    .optional()
+    .default(0)
+    .messages({ 'number.min': 'Discount must be 0 or greater' }),
 
   description: Joi.string().max(500).optional().allow('', null),
 
@@ -139,6 +143,11 @@ const updateSaleSchema = Joi.object({
 
   paidAmount: Joi.number().min(0).optional(),
 
+  discountAmount: Joi.number()
+    .min(0)
+    .optional()
+    .messages({ 'number.min': 'Discount must be 0 or greater' }),
+
   description: Joi.string().max(500).optional().allow('', null),
 
   reason: Joi.string().max(200).optional(),
@@ -166,6 +175,8 @@ const updateSaleSchema = Joi.object({
           'number.positive': 'Unit price must be greater than 0',
         }),
 
+        batchNumber: Joi.string().trim().min(1).max(100).optional().allow('', null),
+
         cartonCount: Joi.number().integer().min(0).optional().allow(null).messages({
           'number.base': 'Carton count must be a number',
           'number.integer': 'Carton count must be an integer',
@@ -173,9 +184,11 @@ const updateSaleSchema = Joi.object({
         }),
       })
     )
-    .optional()
+    .min(1)
+    .required()
     .messages({
       'array.base': 'Items must be an array of sale items',
+      'array.min': 'At least one sale item is required',
     }),
 });
 

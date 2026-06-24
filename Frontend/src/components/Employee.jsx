@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import React, { useState, useEffect } from "react";
 import {
   useEmployeeStocks,
@@ -12,12 +13,14 @@ import TableColumn from "../components/TableColumn";
 import TableHeader from "../components/TableHeader";
 import GloableModal from "../components/GloableModal";
 import Button from "../components/Button";
+import { formatJalaliDate, formatJalaliDateTime } from "../utilies/helper";
 import { useForm } from "react-hook-form";
 import { inputStyle } from "./ProductForm";
 import { BiTransferAlt } from "react-icons/bi";
 import { CgEye } from "react-icons/cg";
 import Select from "../components/Select";
 import { useSubmitLock } from "../hooks/useSubmitLock.js";
+import { registerNumeric } from "../utilies/numericInput";
 
 // Headers in Dari
 const tableHeader = [
@@ -28,6 +31,7 @@ const tableHeader = [
 ];
 
 const Employee = () => {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
@@ -153,7 +157,7 @@ const Employee = () => {
                   {item.quantity_in_hand}
                 </TableColumn>
                 <TableColumn>
-                  {new Date(item.createdAt).toLocaleDateString("fa-IR")}
+                  {formatJalaliDate(item.createdAt)}
                 </TableColumn>
                 <TableColumn>
                   <div className={`flex items-center gap-x-3`}>
@@ -214,7 +218,7 @@ const Employee = () => {
                     تاریخ ایجاد
                   </h3>
                   <p className="text-sm text-gray-700">
-                    {new Date(selectedItem.createdAt).toLocaleString("fa-IR")}
+                    {formatJalaliDateTime(selectedItem.createdAt)}
                   </p>
                 </div>
               </div>
@@ -228,73 +232,69 @@ const Employee = () => {
         )}
       </GloableModal>
 
-      {/* Transfer Modal */}
       <GloableModal open={showTransfer} setOpen={setShowTransfer}>
         <form
           noValidate
-          className="bg-white rounded-lg shadow-sm w-[480px] h-[430px]"
+          className="bg-white rounded-lg w-full max-w-md"
           onSubmit={handleSubmit(onSubmitTransfer)}
         >
-          <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="text-xl font-bold text-gray-900">انتقال موجودی</h2>
+          <div className="px-5 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-bold text-gray-900">
+              {t("inventory.transfer.modal.title")}
+            </h2>
           </div>
-          <div className="p-6 space-y-6">
-            <div className=" flex  gap-x-6">
-              <div>
-                <span className="text-sm  font-bold">کارمند: </span>
-                <span className="font-bold text-primary-brown-light underline">
-                  {selectedItem?.employee?.name || "N/A"}
-                </span>
-              </div>
-              <div>
-                <span className="text-sm  font-bold">محصول: </span>
-                <span className="font-bold text-primary-brown-light underline">
-                  {selectedItem?.product?.name || "N/A"}
-                </span>
-              </div>
-            </div>
+          <div className="p-5 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                مقصد انتقال
-              </label>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                {t("inventory.transfer.modal.product")}
+              </p>
+              <p className="font-semibold text-gray-900 mt-0.5">
+                {selectedItem?.product?.name || "—"}
+              </p>
+            </div>
+            <label className="block">
+              <span className="block text-sm font-medium text-gray-700 mb-1.5">
+                {t("inventory.transfer.modal.destination")}
+              </span>
               <select
                 className={inputStyle}
                 value={transferDestination}
                 onChange={(e) => setTransferDestination(e.target.value)}
               >
-                <option value="warehouse">انبار</option>
-                <option value="store">فروشگاه</option>
+                <option value="warehouse">
+                  {t("inventory.locations.warehouse")}
+                </option>
+                <option value="store">{t("inventory.locations.store")}</option>
               </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                تعداد (حداکثر {selectedItem?.quantity_in_hand})
-              </label>
+            </label>
+            <label className="block">
+              <span className="block text-sm font-medium text-gray-700 mb-1.5">
+                {t("inventory.transfer.modal.quantity")}
+              </span>
               <input
-                className={inputStyle}
-                type="number"
-                placeholder="تعداد مدنظر تانرا بنوسید"
-                min="1"
-                max={selectedItem?.quantity_in_hand}
-                {...register("quantity", {
+                {...registerNumeric("quantity", register, {
                   required: true,
                   min: 1,
                   max: selectedItem?.quantity_in_hand,
+                }, {
+                  allowDecimal: false,
+                  className: inputStyle,
+                  placeholder: t("inventory.transfer.modal.quantityPlaceholder"),
                 })}
               />
-            </div>
+            </label>
           </div>
-          <div className="p-6 border-t border-gray-200 flex justify-end gap-4">
+          <div className="px-5 py-4 border-t border-gray-200 flex justify-end gap-2">
             <Button
               onClick={() => setShowTransfer(false)}
               type="button"
-              className="bg-gray-500 text-white px-4 py-2 rounded-md"
+              className="bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
             >
-              بستن
+              {t("inventory.transfer.modal.cancel")}
             </Button>
             <Button
               type="submit"
-              className=" bg-primary-brown-light text-white px-4 py-2 rounded-md"
+              className="bg-primary-brown-light text-white"
               disabled={
                 isTransferBusy ||
                 !quantityValue ||
@@ -303,7 +303,7 @@ const Employee = () => {
               }
               isLoading={isTransferBusy}
             >
-              انتقال موجودی
+              {t("inventory.transfer.modal.submit")}
             </Button>
           </div>
         </form>

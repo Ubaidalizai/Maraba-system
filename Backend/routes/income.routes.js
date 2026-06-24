@@ -8,10 +8,11 @@ const {
   updateIncome,
   deleteIncome,
   restoreIncome,
+  permanentDeleteIncome,
   getIncomeStats,
   getIncomeSummary,
 } = require('../controllers/income.controller');
-const { authenticate } = require('../middlewares/authMiddleware');
+const { authenticate, authorizeAdmin } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
@@ -55,9 +56,7 @@ router.patch('/:id', updateIncome);
 // Restore a deleted income record
 // PATCH /api/v1/income/:id/restore
 router.patch('/:id/restore', restoreIncome);
-
-// Delete an income record (soft delete)
-// DELETE /api/v1/income/:id
+router.delete('/:id/permanent', authorizeAdmin, permanentDeleteIncome);
 router.delete('/:id', deleteIncome);
 
 module.exports = router;

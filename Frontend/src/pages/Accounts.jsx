@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -32,15 +33,17 @@ import {
   useSystemAccounts,
   useAccountTotals,
 } from "../services/useApi";
-import { fetchAccounts } from "../services/apiUtiles";
+import { fetchAccounts, fetchAccount } from "../services/apiUtiles";
 import GloableModal from "../components/GloableModal";
 import { inputStyle } from "../components/ProductForm";
 import { toast } from "react-toastify";
-import { formatNumber, formatCurrency } from "../utilies/helper";
+import { formatNumber, formatCurrency, formatJalaliDate } from "../utilies/helper";
 import { useSubmitLock } from "../hooks/useSubmitLock.js";
 import AccountsPDF from "../components/AccountsPDF";
+import { registerNumeric } from "../utilies/numericInput";
 
-console.log('useSystemAccounts imported:', typeof useSystemAccounts);
+const transferInputStyle =
+  "w-full bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm px-3 py-2.5 transition duration-200 ease focus:outline-none hover:border-slate-300 focus:border-slate-300 shadow-sm";
 
 const Accounts = () => {
   const { t, i18n } = useTranslation();
@@ -75,6 +78,9 @@ const Accounts = () => {
   const [deletedId, setDeletedId] = useState(null);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [allAccountsForPDF, setAllAccountsForPDF] = useState([]);
+  const [transactionBalancesReady, setTransactionBalancesReady] = useState(true);
+  const transactionModalAccountIdRef = useRef(null);
+  const queryClient = useQueryClient();
   const { data: accountsResp, isLoading } = useAccounts({
     type,
     search,
@@ -188,19 +194,47 @@ const Accounts = () => {
     deleteAccountMutation(deletedId);
   };
 
-  const handleAddTransaction = (acc) => {
+  const handleAddTransaction = async (acc) => {
+    transactionModalAccountIdRef.current = acc._id;
+    setTransactionBalancesReady(false);
     setSelectedAccount(acc);
     setShowTransactionModal(true);
     // Pre-select transaction type based on account type
-    const transactionType = acc.type === 'supplier' ? 'Credit' : 'Debit';
+    const transactionType = acc.type === "supplier" ? "Credit" : "Debit";
     setValueTransaction("transactionType", transactionType);
     setValueTransaction("amount", "");
     setValueTransaction("systemAccountId", "");
     setValueTransaction("description", "");
+
+    try {
+      const [detailRes] = await Promise.all([
+        fetchAccount(acc._id),
+        queryClient.refetchQueries({ queryKey: ["systemAccounts"] }),
+      ]);
+      if (transactionModalAccountIdRef.current !== acc._id) return;
+      const fresh = detailRes?.account ?? detailRes?.data;
+      if (fresh) {
+        setSelectedAccount((prev) =>
+          prev && String(prev._id) === String(acc._id) ? { ...prev, ...fresh } : prev
+        );
+      }
+    } catch (e) {
+      console.error("Failed to refresh account balances for transaction modal:", e);
+      toast.error(
+        e?.message || "د بیلانس تازه کول ناکام شول؛ تاسو کولی شئ بیا هڅه وکړئ."
+      );
+    } finally {
+      if (transactionModalAccountIdRef.current === acc._id) {
+        setTransactionBalancesReady(true);
+      }
+    }
   };
 
   const onSubmitTransaction = transactionSubmitLock.wrapSubmit(async (data) => {
     try {
+      if (!transactionBalancesReady || !selectedAccount) {
+        return;
+      }
       if (!data.systemAccountId) {
         toast.error('مهرباني وکړئ سیسټم حساب وټاکئ');
         return;
@@ -234,6 +268,8 @@ const Accounts = () => {
       await runMutation(createTransaction, transactionData);
       setShowTransactionModal(false);
       setSelectedAccount(null);
+      transactionModalAccountIdRef.current = null;
+      setTransactionBalancesReady(true);
       resetTransaction();
     } catch (err) {
       console.error('Transaction error:', err);
@@ -256,13 +292,7 @@ const Accounts = () => {
     }
   };
 
-  const formatCreatedAt = (iso) => {
-    if (!iso) return "—";
-    const lang = (i18n.language || "ps").split("-")[0];
-    const localeTag =
-      lang === "ps" ? "ps-AF" : "fa-IR";
-    return new Date(iso).toLocaleDateString(localeTag);
-  };
+  const formatCreatedAt = formatJalaliDate;
 
   const patchOklabColors = (element) => {
     const allElements = element.querySelectorAll("*");
@@ -306,10 +336,10 @@ const Accounts = () => {
       void pdfContent.offsetHeight;
 
       const canvas = await html2canvas(pdfContent, {
-        scale: 1.5,
+        scale: 1.2,
         useCORS: true,
         logging: false,
-        letterRendering: true,
+        letterRendering: false,
         backgroundColor: "#ffffff",
       });
 
@@ -318,8 +348,13 @@ const Accounts = () => {
         throw new Error("Failed to capture PDF content - canvas has zero dimensions");
       }
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.85);
-      const pdf = new jsPDF("p", "mm", "a4");
+      const imgData = canvas.toDataURL("image/jpeg", 0.72);
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+        compress: true,
+      });
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       const imgWidth = canvas.width;
@@ -363,7 +398,7 @@ const Accounts = () => {
             <button
               onClick={exportToPDF}
               disabled={exportingPDF}
-              className={`bg-green-500 text-white px-4 py-2 rounded-sm hover:bg-green-600 flex items-center gap-2 ${
+              className={`btn-primary flex items-center gap-2 px-4 py-2 rounded-sm text-sm ${
                 exportingPDF ? "opacity-60 cursor-not-allowed" : ""
               }`}
             >
@@ -371,15 +406,16 @@ const Accounts = () => {
               {exportingPDF ? "PDF جوړیږي..." : t("accountsPDF.exportPDF")}
             </button>
           )}
-          {(type === "cashier" || type === "safe" || type === "saraf") &&
-          (<button
-            onClick={() => setShowTransferModal(true)}
-            className="bg-blue-500 text-white px-4 py-2 rounded-sm hover:bg-blue-600 flex items-center gap-2"
-          >
-            <ArrowUpIcon className="h-5 w-5" />
-            <ArrowDownIcon className="h-5 w-5 -ml-4" />
-            {t("accounts.transfer.title")}
-          </button>
+          {(type === "cashier" || type === "safe" || type === "saraf") && (
+            <button
+              type="button"
+              onClick={() => setShowTransferModal(true)}
+              className="btn-primary text-sm px-3.5 py-2 rounded-sm flex items-center gap-1.5"
+            >
+              <ArrowUpIcon className="h-4 w-4" />
+              <ArrowDownIcon className="h-4 w-4 -ml-3" />
+              {t("accounts.transfer.title")}
+            </button>
           )}
           <button
             onClick={() => {
@@ -428,52 +464,52 @@ const Accounts = () => {
         </div>
       )}
 
-      {/* Type filter and search */}
-      <div className="bg-white rounded-lg  border border-gray-200 p-6">
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="flex flex-wrap gap-2">
-            {[
-              { id: "supplier", icon: BuildingOfficeIcon },
-              { id: "customer", icon: UserIcon },
-              { id: "employee", icon: UserIcon },
-              { id: "cashier", icon: BanknotesIcon },
-              { id: "safe", icon: CurrencyDollarIcon },
-              { id: "saraf", icon: CurrencyDollarIcon },
-            ].map((typeOption) => (
-              <button
-                key={typeOption.id}
-                onClick={() => {
-                  setType(typeOption.id);
-                  setSearchParams({ type: typeOption.id });
+      {/* Tabs and Table */}
+      <div className="bg-white rounded-lg border border-gray-200/70">
+        <div className="border-b border-gray-200/70 mb-1 rounded-md">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <nav className="flex flex-wrap -mb-px gap-x-1 flex-1 min-w-0">
+              {[
+                { id: "supplier", icon: BuildingOfficeIcon },
+                { id: "customer", icon: UserIcon },
+                { id: "employee", icon: UserIcon },
+                { id: "cashier", icon: BanknotesIcon },
+                { id: "safe", icon: CurrencyDollarIcon },
+                { id: "saraf", icon: CurrencyDollarIcon },
+              ].map((typeOption) => (
+                <button
+                  key={typeOption.id}
+                  type="button"
+                  onClick={() => {
+                    setType(typeOption.id);
+                    setSearchParams({ type: typeOption.id });
+                    setPage(1);
+                  }}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                    type === typeOption.id
+                      ? "border-amber-600 text-amber-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <typeOption.icon className="h-5 w-5" />
+                  {t(`accounts.types.${typeOption.id}`)}
+                </button>
+              ))}
+            </nav>
+            <div className="flex items-center gap-2 shrink-0 px-4 md:px-6 pb-4 md:pb-0">
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
                   setPage(1);
                 }}
-                className={`px-4 py-2 rounded-sm flex items-center gap-2 transition-colors ${
-                  type === typeOption.id
-                    ? "bg-amber-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                <typeOption.icon className="h-4 w-4" />
-                {t(`accounts.types.${typeOption.id}`)}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              placeholder={t("accounts.searchPlaceholder")}
-              className={inputStyle}
-            />
+                placeholder={t("accounts.searchPlaceholder")}
+                className={inputStyle}
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Accounts Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -782,13 +818,11 @@ const Accounts = () => {
                       {t("accounts.modal.openingBalance")}
                     </label>
                     <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      className={inputStyle}
                       defaultValue={0}
                       placeholder="0"
-                      {...register("openingBalance", { valueAsNumber: true })}
+                      {...registerNumeric("openingBalance", register, {}, {
+                        className: inputStyle,
+                      })}
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       {t("accounts.modal.openingBalanceHint")}
@@ -844,16 +878,18 @@ const Accounts = () => {
         isClose={true}
       >
         {selectedAccount && (
-          <div className=" overflow-y-auto w-[480px] h-[500px]">
+          <div className="w-full max-w-[min(720px,calc(100vw-2rem))] max-h-[calc(100vh-2.5rem)] overflow-y-auto overscroll-contain">
             <div className="bg-white rounded-lg shadow-xl">
-              <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">
+              <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                   {t("accounts.transaction.title")}
                 </h2>
                 <button
                   onClick={() => {
                     setShowTransactionModal(false);
                     setSelectedAccount(null);
+                    transactionModalAccountIdRef.current = null;
+                    setTransactionBalancesReady(true);
                   }}
                   className="text-gray-500 hover:text-gray-700"
                 >
@@ -862,15 +898,17 @@ const Accounts = () => {
               </div>
               <form
                 onSubmit={handleSubmitTransaction(onSubmitTransaction)}
-                className="p-6 space-y-4"
+                className="px-6 py-4 sm:px-6 sm:py-5 space-y-3"
               >
-                <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
                   <h3 className="font-semibold text-blue-900 mb-2">
                     {t("accounts.transaction.account")}: {selectedAccount.name}
                   </h3>
                   <p className="text-sm text-blue-700">
                     {t("accounts.transaction.currentBalance")}:{" "}
-                    {formatNumber(selectedAccount.currentBalance ?? 0)} AFN
+                    {transactionBalancesReady
+                      ? `${formatNumber(selectedAccount.currentBalance ?? 0)} AFN`
+                      : t("accounts.table.loading")}
                   </p>
                 </div>
 
@@ -896,56 +934,62 @@ const Accounts = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t("accounts.transaction.systemAccountLabel")}
-                  </label>
                   <p className="text-xs text-gray-500 mb-2">
-                    {selectedAccount.type === 'supplier' 
+                    {selectedAccount.type === "supplier"
                       ? t("accounts.transaction.systemAccountSupplier")
                       : t("accounts.transaction.systemAccountCustomer")}
                   </p>
-                  <select
-                    className={`${inputStyle} ${transactionErrors.systemAccountId ? 'border-red-500' : ''}`}
-                    {...registerTransaction("systemAccountId", { required: true })}
-                  >
-                    <option value="">
-                      {t("accounts.transaction.selectSystemAccount")}
-                    </option>
-                    {systemAccountsData?.accounts?.map((acc) => (
-                      <option key={acc._id} value={acc._id}>
-                        {acc.name} ({formatNumber(acc.currentBalance)} AFN)
-                      </option>
-                    ))}
-                  </select>
-                  {transactionErrors.systemAccountId && (
-                    <p className="text-red-500 text-xs mt-1">
-                      مهرباني وکړئ سیسټم حساب وټاکئ
-                    </p>
-                  )}
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {t("accounts.transaction.systemAccountLabel")}
+                      </label>
+                      <select
+                        className={`${inputStyle} ${transactionErrors.systemAccountId ? "border-red-500" : ""}`}
+                        disabled={!transactionBalancesReady}
+                        {...registerTransaction("systemAccountId", { required: true })}
+                      >
+                        <option value="">
+                          {t("accounts.transaction.selectSystemAccount")}
+                        </option>
+                        {systemAccountsData?.accounts?.map((acc) => (
+                          <option key={acc._id} value={acc._id}>
+                            {acc.name} ({formatNumber(acc.currentBalance)} AFN)
+                          </option>
+                        ))}
+                      </select>
+                      {transactionErrors.systemAccountId && (
+                        <p className="text-red-500 text-xs mt-1">
+                          مهرباني وکړئ سیسټم حساب وټاکئ
+                        </p>
+                      )}
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t("accounts.transaction.amount")}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    onWheel={(e) => e.target.blur()}
-                    className={`${inputStyle} ${transactionErrors.amount ? 'border-red-500' : ''}`}
-                    placeholder={t("accounts.transaction.amountPlaceholder")}
-                    {...registerTransaction("amount", { 
-                      required: "اندازه اړینه ده",
-                      min: { value: 0.01, message: "اندازه باید له 0 څخه زیاته وي" },
-                      validate: value => parseFloat(value) > 0 || "اندازه باید مثبته وي"
-                    })}
-                  />
-                  {transactionErrors.amount && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {transactionErrors.amount.message}
-                    </p>
-                  )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {t("accounts.transaction.amount")}
+                      </label>
+                      <input
+                        {...registerNumeric("amount", registerTransaction, {
+                          required: "اندازه اړینه ده",
+                          min: {
+                            value: 0.01,
+                            message: "اندازه باید له 0 څخه زیاته وي",
+                          },
+                          validate: (value) =>
+                            parseFloat(value) > 0 || "اندازه باید مثبته وي",
+                        }, {
+                          className: `${inputStyle} ${transactionErrors.amount ? "border-red-500" : ""}`,
+                          placeholder: t("accounts.transaction.amountPlaceholder"),
+                        })}
+                      />
+                      {transactionErrors.amount && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {transactionErrors.amount.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -954,7 +998,7 @@ const Accounts = () => {
                   </label>
                   <textarea
                     className={inputStyle}
-                    rows={3}
+                    rows={2}
                     placeholder={t(
                       "accounts.transaction.descriptionPlaceholder"
                     )}
@@ -962,7 +1006,7 @@ const Accounts = () => {
                   />
                 </div>
 
-                <div className="bg-yellow-50 p-3 rounded-lg">
+                <div className="bg-yellow-50 p-2.5 sm:p-3 rounded-lg">
                   <p className="text-sm text-yellow-800">
                     <strong>{t("accounts.transaction.noteLabel")}</strong>
                     {watchedTransactionType === "Credit" &&
@@ -974,12 +1018,14 @@ const Accounts = () => {
                   </p>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-4">
+                <div className="flex justify-end gap-2 pt-2 pb-1">
                   <button
                     type="button"
                     onClick={() => {
                       setShowTransactionModal(false);
                       setSelectedAccount(null);
+                      transactionModalAccountIdRef.current = null;
+                      setTransactionBalancesReady(true);
                     }}
                     className="px-4 py-2 border border-gray-300 rounded-sm hover:bg-gray-50"
                   >
@@ -987,7 +1033,9 @@ const Accounts = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={isTransactionActionPending}
+                    disabled={
+                      isTransactionActionPending || !transactionBalancesReady
+                    }
                     className={`px-4 py-2 bg-amber-600 text-white rounded-sm hover:bg-amber-700 ${
                       isTransactionActionPending
                         ? "opacity-60 cursor-not-allowed"
@@ -1011,110 +1059,129 @@ const Accounts = () => {
         setOpen={setShowTransferModal}
         isClose={true}
       >
-        <div className="overflow-y-auto w-[480px] h-auto max-h-[600px] rounded-md">
-          <div className="bg-white rounded-lg shadow-xl">
-            <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900">
+        <div className="w-full max-w-[min(580px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] overflow-y-auto">
+          <div className="bg-white rounded-sm shadow-lg border border-slate-200">
+            <div
+              className="px-5 py-3 border-b flex justify-between items-center"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <h2
+                className="text-lg font-semibold"
+                style={{ color: "var(--primary-brown)" }}
+              >
                 {t("accounts.transfer.title")}
               </h2>
               <button
+                type="button"
                 onClick={() => {
                   setShowTransferModal(false);
                   resetTransfer();
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-400 hover:text-gray-600 p-0.5"
               >
-                <XMarkIcon className="h-6 w-6" />
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
             <form
               onSubmit={handleSubmitTransfer(onSubmitTransfer)}
-              className="p-6 space-y-4"
+              className="px-5 py-4 space-y-4"
             >
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t("accounts.transfer.fromAccount")}
-                </label>
-                <select
-                  className={inputStyle}
-                  {...registerTransfer("fromAccountId", { required: true })}
-                >
-                  <option value="">
-                    {t("accounts.transfer.selectFromAccount")}
-                  </option>
-                  {systemAccountsData?.accounts?.map((acc) => (
-                    <option key={acc._id} value={acc._id}>
-                      {acc.name} ({formatNumber(acc.currentBalance)} AFN)
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    className="block text-sm font-medium mb-1.5"
+                    style={{ color: "var(--text-medium)" }}
+                  >
+                    {t("accounts.transfer.fromAccount")}
+                  </label>
+                  <select
+                    className={transferInputStyle}
+                    {...registerTransfer("fromAccountId", { required: true })}
+                  >
+                    <option value="">
+                      {t("accounts.transfer.selectFromAccount")}
                     </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t("accounts.transfer.toAccount")}
-                </label>
-                <select
-                  className={inputStyle}
-                  {...registerTransfer("toAccountId", { required: true })}
-                >
-                  <option value="">
-                    {t("accounts.transfer.selectToAccount")}
-                  </option>
-                  {systemAccountsData?.accounts
-                    ?.filter((acc) => acc._id !== watchedFromAccount)
-                    .map((acc) => (
+                    {systemAccountsData?.accounts?.map((acc) => (
                       <option key={acc._id} value={acc._id}>
-                        {acc.name} ({formatNumber(acc.currentBalance)} AFN)
+                        {acc.name} ({formatNumber(acc.currentBalance)})
                       </option>
                     ))}
-                </select>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    className="block text-sm font-medium mb-1.5"
+                    style={{ color: "var(--text-medium)" }}
+                  >
+                    {t("accounts.transfer.toAccount")}
+                  </label>
+                  <select
+                    className={transferInputStyle}
+                    {...registerTransfer("toAccountId", { required: true })}
+                  >
+                    <option value="">
+                      {t("accounts.transfer.selectToAccount")}
+                    </option>
+                    {systemAccountsData?.accounts
+                      ?.filter((acc) => acc._id !== watchedFromAccount)
+                      .map((acc) => (
+                        <option key={acc._id} value={acc._id}>
+                          {acc.name} ({formatNumber(acc.currentBalance)})
+                        </option>
+                      ))}
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t("accounts.transfer.amount")}
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  className={inputStyle}
-                  placeholder={t("accounts.transfer.amountPlaceholder")}
-                  {...registerTransfer("amount", {
-                    required: true,
-                    min: 0.01,
-                  })}
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    className="block text-sm font-medium mb-1.5"
+                    style={{ color: "var(--text-medium)" }}
+                  >
+                    {t("accounts.transfer.amount")}
+                  </label>
+                  <input
+                    {...registerNumeric("amount", registerTransfer, {
+                      required: true,
+                      min: 0.01,
+                    }, {
+                      className: transferInputStyle,
+                      placeholder: t("accounts.transfer.amountPlaceholder"),
+                    })}
+                  />
+                </div>
+                <div>
+                  <label
+                    className="block text-sm font-medium mb-1.5"
+                    style={{ color: "var(--text-medium)" }}
+                  >
+                    {t("accounts.transfer.description")}
+                  </label>
+                  <input
+                    type="text"
+                    className={transferInputStyle}
+                    placeholder={t("accounts.transfer.descriptionPlaceholder")}
+                    {...registerTransfer("description")}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t("accounts.transfer.description")}
-                </label>
-                <textarea
-                  className={inputStyle}
-                  rows={3}
-                  placeholder={t("accounts.transfer.descriptionPlaceholder")}
-                  {...registerTransfer("description")}
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => {
                     setShowTransferModal(false);
                     resetTransfer();
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-sm hover:bg-gray-50"
+                  className="text-sm px-4 py-2 rounded-sm border border-slate-300 text-slate-600 hover:bg-slate-50"
                 >
                   {t("accounts.transfer.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={isTransferring}
-                  className={`px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 ${
+                  className={`btn-primary text-sm px-4 py-2 rounded-sm ${
                     isTransferring ? "opacity-60 cursor-not-allowed" : ""
                   }`}
                 >

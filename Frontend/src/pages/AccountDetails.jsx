@@ -10,17 +10,25 @@ import {
   FunnelIcon,
   PlusIcon,
   DocumentArrowDownIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 import { FaWhatsapp } from "react-icons/fa";
 import { useAccountLedger, useSystemAccounts, useCreateTransaction, useAccountTransactionVolume } from "../services/useApi";
 import Pagination from "../components/Pagination";
 import JalaliDatePicker from "../components/JalaliDatePicker";
-import { normalizeDateToIso } from "../utilies/helper";
+import { normalizeDateToIso, formatJalaliDate } from "../utilies/helper";
 import Spinner from "../components/Spinner";
 import { toast } from "react-toastify";
-import { usePDF } from "react-to-pdf";
+import { usePDF, Resolution } from "react-to-pdf";
 import AccountStatementPDF from "../components/AccountStatementPDF";
 import { formatWhatsAppBalanceMessage, formatWhatsAppPhone, openWhatsApp } from "../utils/whatsappFormatter";
+import { bindNumericControlled } from "../utilies/numericInput";
+import {
+  formatTransactionDescription,
+  getMoneyDirection,
+  getTransactionSource,
+  isLedgerTransactionClickable,
+} from "../utilies/formatLedgerTransaction";
 
 const EMPTY_LEDGER = [];
 
@@ -28,7 +36,17 @@ const AccountDetails = () => {
   const { t, i18n } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toPDF, targetRef } = usePDF({ filename: 'account-statement.pdf' });
+  const { toPDF, targetRef } = usePDF({
+    filename: "account-statement.pdf",
+    resolution: Resolution.NORMAL,
+    canvas: {
+      mimeType: "image/jpeg",
+      qualityRatio: 0.72,
+    },
+    overrides: {
+      pdf: { compress: true },
+    },
+  });
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [transactionType, setTransactionType] = useState("");
@@ -93,13 +111,7 @@ const AccountDetails = () => {
     return new Intl.NumberFormat(localeTag).format(amount);
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "—";
-    const lang = (i18n.language || "ps").split("-")[0];
-    const localeTag =
-      lang === "ps" ? "ps-AF" : "fa-IR";
-    return new Date(dateString).toLocaleDateString(localeTag);
-  };
+  const formatDate = formatJalaliDate;
 
   const getBalanceInfo = (balance, accountType) => {
     if (accountType === "cashier" || accountType === "safe") {
@@ -162,20 +174,6 @@ const AccountDetails = () => {
     }
   };
 
-  const getTransactionTypeColor = (type) => {
-    switch (type) {
-      case "Credit":
-      case "Transfer":
-        return "text-green-600 bg-green-100";
-      case "Debit":
-        return "text-red-600 bg-red-100";
-      case "Expense":
-        return "text-orange-600 bg-orange-100";
-      default:
-        return "text-gray-600 bg-gray-100";
-    }
-  };
-
   const getTransactionTypeLabel = (type) => {
     const key = `accountDetails.txTypes.${type}`;
     const translated = t(key);
@@ -183,20 +181,15 @@ const AccountDetails = () => {
   };
 
   const handleTransactionClick = (transaction) => {
-    if (transaction.referenceType && transaction.referenceId) {
-      if (transaction.referenceType === "purchase") {
-        // Navigate to purchases page with modal action
-        navigate(`/purchases?openId=${transaction.referenceId}&action=view`);
-      } else if (transaction.referenceType === "sale") {
-        // Navigate to sales page with view action (show details modal first)
-        navigate(`/sales?openId=${transaction.referenceId}&action=view`);
-      }
+    if (!isLedgerTransactionClickable(transaction)) return;
+    if (transaction.referenceType === "purchase") {
+      navigate(`/purchases?openId=${transaction.referenceId}&action=view`);
+    } else if (transaction.referenceType === "sale") {
+      navigate(`/sales?openId=${transaction.referenceId}&action=view`);
     }
   };
 
-  const isClickable = (transaction) => {
-    return transaction.referenceType && transaction.referenceId;
-  };
+  const isClickable = isLedgerTransactionClickable;
 
   const handleStartDateChange = (nextValue) => {
     const iso = normalizeDateToIso(nextValue);
@@ -258,7 +251,7 @@ const AccountDetails = () => {
     }
   };
 
-  const canRecordPayment = ["customer", "supplier", "employee"].includes(accountType);
+  const canRecordPayment = accountType === "employee";
   const canExportPDF = ["customer", "supplier", "saraf"].includes(accountType);
   const canSendWhatsApp = ["customer", "supplier", "saraf"].includes(accountType) && contactInfo?.phone;
 
@@ -352,12 +345,13 @@ const AccountDetails = () => {
           {canExportPDF && (
             <button
               onClick={handleExportPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="btn-primary shadow-none hover:shadow-none flex items-center gap-2 px-4 py-2 rounded-lg text-sm"
             >
               <DocumentArrowDownIcon className="h-5 w-5" />
               <span>PDF ډاونلوډ</span>
             </button>
           )}
+          {canRecordPayment && (
             <button
               onClick={() => setShowPaymentModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -383,14 +377,13 @@ const AccountDetails = () => {
           formatCurrency={formatCurrency}
           formatDate={formatDate}
           getBalanceInfo={getBalanceInfo}
-          getTransactionTypeLabel={getTransactionTypeLabel}
         />
       </div>
 
       {/* Account Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div
-          className={`rounded-lg shadow-sm border border-gray-200 p-6 ${
+          className={`rounded-lg border border-gray-200 p-6 ${
             getBalanceInfo(currentBalance, accountType).bgColor
           }`}
         >
@@ -421,7 +414,7 @@ const AccountDetails = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">
@@ -437,7 +430,7 @@ const AccountDetails = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">
@@ -454,7 +447,7 @@ const AccountDetails = () => {
         </div>
 
         {(accountType === 'customer' || accountType === 'supplier') && (
-          <div className="bg-blue-50 rounded-lg shadow-sm border border-blue-200 p-6">
+          <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-blue-700">
@@ -473,7 +466,7 @@ const AccountDetails = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">
             {t("accountDetails.filtersTitle")}
@@ -524,7 +517,7 @@ const AccountDetails = () => {
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="bg-white rounded-lg border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
             {t("accountDetails.transactionsTitle")}
@@ -546,7 +539,10 @@ const AccountDetails = () => {
                   {t("accountDetails.table.date")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  {t("accountDetails.table.type")}
+                  {t("accountDetails.table.source")}
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  {t("accountDetails.table.movement")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                   {t("accountDetails.table.amount")}
@@ -557,41 +553,52 @@ const AccountDetails = () => {
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                   {t("accountDetails.table.description")}
                 </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  {t("accountDetails.table.actions")}
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {ledger.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={7}
                     className="px-6 py-8 text-center text-gray-500"
                   >
                     {t("accountDetails.table.empty")}
                   </td>
                 </tr>
               ) : (
-                paginatedLedger.map((transaction, index) => (
+                paginatedLedger.map((transaction, index) => {
+                  const source = getTransactionSource(transaction, t);
+                  const movement = getMoneyDirection(transaction, t);
+                  const description = formatTransactionDescription(transaction, t);
+                  const clickable = isClickable(transaction);
+
+                  return (
                   <tr
                     key={transaction.transactionId || index}
-                    className={`hover:bg-gray-50 ${
-                      isClickable(transaction) ? "cursor-pointer" : ""
-                    }`}
-                    onClick={() => handleTransactionClick(transaction)}
+                    className="hover:bg-gray-50"
                   >
-                    <td className="px-6 py-4 text-sm text-gray-900">
+                    <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">
                       {formatDate(transaction.date)}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <span
-                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getTransactionTypeColor(
-                          transaction.type
-                        )}`}
+                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${source.badgeClass}`}
                       >
-                        {getTransactionTypeLabel(transaction.type)}
+                        {source.label}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <span
+                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${movement.badgeClass}`}
+                      >
+                        {movement.label}
                       </span>
                     </td>
                     <td
-                      className={`px-6 py-4 text-sm font-semibold ${
+                      className={`px-6 py-4 text-sm font-semibold whitespace-nowrap ${
                         transaction.amount > 0
                           ? "text-green-600"
                           : "text-red-600"
@@ -600,19 +607,30 @@ const AccountDetails = () => {
                       {transaction.amount > 0 ? "+" : ""}
                       {formatCurrency(transaction.amount)} AFN
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
+                    <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">
                       {formatCurrency(transaction.balanceAfter)} AFN
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {transaction.description || "-"}
-                      {isClickable(transaction) && (
-                        <span className="ml-2 text-xs text-blue-600">
-                          {t("accountDetails.clickToView")}
-                        </span>
+                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
+                      {description}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {clickable ? (
+                        <button
+                          type="button"
+                          onClick={() => handleTransactionClick(transaction)}
+                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-medium"
+                          title={t("accountDetails.viewRecord")}
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                          {t("accountDetails.viewRecord")}
+                        </button>
+                      ) : (
+                        <span className="text-gray-300">—</span>
                       )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -637,7 +655,7 @@ const AccountDetails = () => {
       {/* Payment Modal */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+          <div className="bg-white rounded-lg w-full max-w-md mx-4">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">
                 {accountType === "customer" ? "پیسې ترلاسه کول" : "پیسې ورکول"}
@@ -670,15 +688,15 @@ const AccountDetails = () => {
                   اندازه *
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  value={paymentForm.amount}
-                  onChange={(e) =>
-                    setPaymentForm({ ...paymentForm, amount: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="اندازه داخل کړئ"
-                  required
+                  {...bindNumericControlled({
+                    allowDecimal: true,
+                    value: paymentForm.amount,
+                    onChange: (e) =>
+                      setPaymentForm({ ...paymentForm, amount: e.target.value }),
+                    className: "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500",
+                    placeholder: "اندازه داخل کړئ",
+                    required: true,
+                  })}
                 />
               </div>
 

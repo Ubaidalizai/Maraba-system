@@ -9,7 +9,7 @@ import {
   CubeIcon,
   CurrencyDollarIcon,
 } from "@heroicons/react/24/outline";
-import { ChartBarIcon, ShieldCheckIcon, ShoppingCartIcon } from "lucide-react";
+import { ChartBarIcon, ShieldCheckIcon, ShoppingCartIcon, Trash2 } from "lucide-react";
 import { GiProfit } from "react-icons/gi";
 import {
   MdAccountBalanceWallet,
@@ -22,7 +22,38 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { BACKEND_BASE_URL } from "../services/apiConfig";
 import { useClickOutSide } from "../hooks/useClickOutSide";
-import { useSettings } from "../services/useApi";
+import { useSettings, useTrashSummary } from "../services/useApi";
+
+function TrashNavIcon({ count, title }) {
+  const hasItems = count > 0;
+
+  return (
+    <span className="relative inline-flex items-center justify-center">
+      <Trash2
+        title={title}
+        aria-label={title}
+        strokeWidth={hasItems ? 2.25 : 1.5}
+        className={`text-[20px] transition-all duration-300 ${
+          hasItems
+            ? "fill-current/25 stroke-current"
+            : "fill-none opacity-40 stroke-current"
+        }`}
+      />
+      {hasItems ? (
+        <span
+          aria-hidden="true"
+          className="absolute -top-1.5 -left-1.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center leading-none ring-2 ring-white/40 pointer-events-none"
+          style={{
+            backgroundColor: "var(--amber)",
+            color: "var(--primary-brown-dark)",
+          }}
+        >
+          {count > 99 ? "99+" : count}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 const navItem = [
   { nameKey: "nav.dashboard", path: "/", icon: <AiOutlineHome /> },
@@ -88,6 +119,11 @@ const navItem = [
     icon: <ChartBarIcon className=" text-[20px]" />,
   },
   {
+    nameKey: "nav.trash",
+    path: "/trash",
+    isTrash: true,
+  },
+  {
     nameKey: "nav.admin",
     path: "/admin",
     icon: <ShieldCheckIcon className=" text-[20px]" />,
@@ -105,6 +141,11 @@ function AppSidebar() {
   const ref = useClickOutSide(() => setShowUserMenu(false));
   const navigate = useNavigate();
   const { data: settings } = useSettings();
+  const { data: trashSummary } = useTrashSummary();
+  const trashCount = trashSummary?.total ?? 0;
+  const trashNavTitle = trashCount > 0
+    ? t("trash.navHasItems", { count: trashCount })
+    : t("trash.navEmpty");
   
   const companyName = settings?.data?.settings?.companyName || t("brand.title");
   const handleLogout = async () => {
@@ -224,10 +265,14 @@ function AppSidebar() {
                       : "menu-item-icon-inactive"
                   }`}
                 >
-                  {nav.icon}
+                  {nav.isTrash ? (
+                    <TrashNavIcon count={trashCount} title={trashNavTitle} />
+                  ) : (
+                    nav.icon
+                  )}
                 </span>
                 {(isExpanded || isHoverd || isMobileOpen) && (
-                  <span className="menu-item-text  ">{t(nav.nameKey)}</span>
+                  <span className="menu-item-text">{t(nav.nameKey)}</span>
                 )}
               </NavLink>
             )

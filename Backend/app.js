@@ -36,6 +36,9 @@ const incomeRoutes = require('./routes/income.routes');
 const profitRoutes = require('./routes/profit.routes');
 const reportsRoutes = require('./routes/reports.routes');
 const settingsRoutes = require('./routes/settings.routes');
+const trashRoutes = require('./routes/trash.routes');
+const stockDamageRoutes = require('./routes/stockDamage.routes');
+const backupRoutes = require('./routes/backup.routes');
 
 const app = express();
 
@@ -63,11 +66,12 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Limit requests from same API
+// Limit requests from same API (backup routes use their own limiters)
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 180,
   message: 'Too many requests. Please slow down.',
+  skip: (req) => req.originalUrl.startsWith('/api/v1/backup'),
 });
 app.use('/api', limiter);
 
@@ -120,6 +124,9 @@ app.use('/api/v1/income', incomeRoutes);
 app.use('/api/v1/profit', profitRoutes);
 app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/settings', settingsRoutes);
+app.use('/api/v1/trash', trashRoutes);
+app.use('/api/v1/stock-damages', stockDamageRoutes);
+app.use('/api/v1/backup', backupRoutes);
 
 app.all('*', (req, res) => {
   throw new AppError(`Can't find ${req.originalUrl} on this server!`, 404);

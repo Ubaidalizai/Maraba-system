@@ -19,6 +19,8 @@ const brandSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+brandSchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Brand = mongoose.model("Brand", brandSchema);
 
 module.exports = Brand;

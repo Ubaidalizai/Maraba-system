@@ -151,3 +151,123 @@ export function normalizeDateToIso(value) {
 
   return "";
 }
+
+/** Display product notify-days override or settings default label. */
+export function formatNotifyDaysBefore(notifyDaysBefore, t) {
+  if (notifyDaysBefore != null && notifyDaysBefore !== "") {
+    return `${formatNumber(notifyDaysBefore)} ${t("inventory.product.notifyDaysSuffix")}`;
+  }
+  return t("inventory.product.notifyDaysDefault");
+}
+
+const DARI_MONTH_NAMES = [
+  "حمل",
+  "ثور",
+  "جوزا",
+  "سرطان",
+  "اسد",
+  "سنبله",
+  "میزان",
+  "عقرب",
+  "قوس",
+  "جدی",
+  "دلو",
+  "حوت",
+];
+
+/** Gregorian YYYY-MM (from month picker) → Jalali month label, e.g. «جدی ۱۴۰۴». */
+export function formatReportMonthPeriod(monthValue) {
+  if (!monthValue || !String(monthValue).includes("-")) return "";
+  const iso = `${monthValue}-01`;
+  try {
+    const jalali = new DateObject({
+      date: iso,
+      format: "YYYY-MM-DD",
+      calendar: gregorianCalendar,
+    }).convert(persianCalendar);
+    const monthIndex = parseInt(jalali.format("M"), 10) - 1;
+    const monthName = DARI_MONTH_NAMES[monthIndex] || jalali.format("MMMM");
+    return `${monthName} ${toPersianDigits(jalali.format("YYYY"))}`;
+  } catch {
+    return monthValue;
+  }
+}
+
+/** Gregorian date → Jalali month label for charts (e.g. «جدی ۱۴۰۴»). */
+export function formatJalaliMonthFromDate(value) {
+  if (!value) return "";
+  const iso =
+    value instanceof Date
+      ? value.toISOString().slice(0, 10)
+      : normalizeDateToIso(value);
+  if (!iso) return "";
+  return formatReportMonthPeriod(iso.slice(0, 7));
+}
+
+/**
+ * Display a stored Gregorian ISO / Date value as Hijri Shamsi (YYYY/MM/DD).
+ */
+export function formatJalaliDate(value, options = {}) {
+  const { fallback = "-", withPersianDigits = true, format = "YYYY/MM/DD" } = options;
+  if (value == null || value === "") return fallback;
+
+  try {
+    let gregorianDate;
+
+    if (value instanceof DateObject) {
+      gregorianDate = value.convert(gregorianCalendar);
+    } else if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) return fallback;
+      gregorianDate = new DateObject({ date: value, calendar: gregorianCalendar });
+    } else {
+      const raw = toEnglishDigits(String(value).trim());
+      if (!raw) return fallback;
+
+      if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) {
+        const parsed = new Date(raw);
+        if (Number.isNaN(parsed.getTime())) return fallback;
+        gregorianDate = new DateObject({ date: parsed, calendar: gregorianCalendar });
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        gregorianDate = new DateObject({
+          date: raw,
+          format: "YYYY-MM-DD",
+          calendar: gregorianCalendar,
+        });
+      } else {
+        const iso = normalizeDateToIso(raw);
+        if (!iso) return fallback;
+        gregorianDate = new DateObject({
+          date: iso,
+          format: "YYYY-MM-DD",
+          calendar: gregorianCalendar,
+        });
+      }
+    }
+
+    if (!gregorianDate?.isValid) return fallback;
+
+    const jalali = gregorianDate.convert(persianCalendar, persianLocale);
+    const formatted = jalali.format(format);
+    return withPersianDigits ? toPersianDigits(formatted) : formatted;
+  } catch {
+    return fallback;
+  }
+}
+
+/** Display date + time in Hijri Shamsi (YYYY/MM/DD HH:mm). */
+export function formatJalaliDateTime(value, options = {}) {
+  const { fallback = "-" } = options;
+  if (value == null || value === "") return fallback;
+
+  try {
+    const parsed = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(parsed.getTime())) return fallback;
+
+    const gregorianDate = new DateObject({ date: parsed, calendar: gregorianCalendar });
+    const jalali = gregorianDate.convert(persianCalendar, persianLocale);
+    const formatted = `${jalali.format("YYYY/MM/DD")} ${jalali.format("HH:mm")}`;
+    return toPersianDigits(formatted);
+  } catch {
+    return fallback;
+  }
+}

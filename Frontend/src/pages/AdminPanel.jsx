@@ -6,6 +6,7 @@ import UnitManagement from "../components/UnitManagement";
 import CustomerManagement from "../components/CustomerManagement";
 import EmployeeManagement from "../components/EmployeeManagement";
 import SettingsManagement from "../components/SettingsManagement";
+import BackupManagement from "../components/BackupManagement";
 import SarafManagement from "../components/SarafManagement";
 import {
   BuildingOfficeIcon,
@@ -16,6 +17,7 @@ import {
   TagIcon,
   IdentificationIcon,
   BanknotesIcon,
+  CircleStackIcon,
 } from "@heroicons/react/24/outline";
 import { inputStyle } from "../components/ProductForm";
 import GloableModal from "../components/GloableModal";
@@ -40,10 +42,12 @@ import { useSubmitLock } from "../hooks/useSubmitLock.js";
 
 const AdminPanel = () => {
   const { t } = useTranslation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [activeSection, setActiveSection] = useState("suppliers");
+  const isAdmin = user?.role === "admin";
   const adminSections = useMemo(
-    () => [
+    () => {
+      const sections = [
       {
         id: "profile",
         name: t("admin.sections.profile.name"),
@@ -98,8 +102,18 @@ const AdminPanel = () => {
         icon: ScaleIcon,
         description: t("admin.sections.units.description"),
       },
-    ],
-    [t]
+      ];
+      if (isAdmin) {
+        sections.push({
+          id: "backup",
+          name: t("admin.sections.backup.name"),
+          icon: CircleStackIcon,
+          description: t("admin.sections.backup.description"),
+        });
+      }
+      return sections;
+    },
+    [t, isAdmin]
   );
   if (!isAuthenticated) {
     return (
@@ -133,6 +147,8 @@ const AdminPanel = () => {
         return <EmployeeManagement />;
       case "units":
         return <UnitManagement />;
+      case "backup":
+        return <BackupManagement />;
       default:
         return <SupplierManagement />;
     }
@@ -173,9 +189,9 @@ const AdminPanel = () => {
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:items-start">
+          {/* Sidebar — stays fixed while main content scrolls */}
+          <div className="lg:col-span-1 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
             <div className="card">
               <h3 className="text-lg font-semibold mb-4 text-[var(--text-dark)]">
                 {t("admin.sectionsTitle")}

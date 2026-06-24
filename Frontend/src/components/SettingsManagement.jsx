@@ -4,6 +4,7 @@ import { PhotoIcon } from "@heroicons/react/24/outline";
 import { useSettings, useUpdateSettings } from "../services/useApi";
 import { BACKEND_BASE_URL } from "../services/apiConfig";
 import { inputStyle } from "./ProductForm";
+import { bindNumericControlled } from "../utilies/numericInput";
 
 const SettingsManagement = () => {
   const { t } = useTranslation();
@@ -21,6 +22,7 @@ const SettingsManagement = () => {
     website: "",
     taxId: "",
     description: "",
+    expiryNotifyDays: "",
   });
 
   useEffect(() => {
@@ -37,6 +39,10 @@ const SettingsManagement = () => {
         website: s.website || "",
         taxId: s.taxId || "",
         description: s.description || "",
+        expiryNotifyDays:
+          s.expiryNotifyDays !== undefined && s.expiryNotifyDays !== null
+            ? String(s.expiryNotifyDays)
+            : "14",
       });
     }
   }, [settingsData]);
@@ -194,6 +200,29 @@ const SettingsManagement = () => {
                 rows={2}
                 placeholder={t("admin.settingsPage.addressPlaceholder")}
               />
+            </div>
+            <div>
+              <label
+                className="block mb-2 text-sm font-medium"
+                style={{ color: "var(--text-medium)" }}
+              >
+                {t("admin.settingsPage.expiryNotifyDays")}
+              </label>
+              <input
+                {...bindNumericControlled({
+                  allowDecimal: false,
+                  value: form.expiryNotifyDays,
+                  onChange: (e) =>
+                    setForm({ ...form, expiryNotifyDays: e.target.value }),
+                  className: inputStyle,
+                  placeholder: t(
+                    "admin.settingsPage.expiryNotifyDaysPlaceholder"
+                  ),
+                })}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {t("admin.settingsPage.expiryNotifyDaysHint")}
+              </p>
             </div>
           </div>
         </div>

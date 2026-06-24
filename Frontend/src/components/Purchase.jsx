@@ -30,7 +30,12 @@ import TableMenuModal from "./TableMenuModal";
 import TableRow from "./TableRow";
 import SupplierForm from "./SupplierForm";
 import PurchaseForm from "./PurchaseForm";
-import { formatCurrency } from "../utilies/helper";
+import { formatCurrency, formatJalaliDate } from "../utilies/helper";
+import {
+  getPaymentStatusColor,
+  getPaymentStatusTableLabelKey,
+  resolvePaymentStatus,
+} from "../utilies/paymentStatus";
 const tableHeader = [
   { title: "نمبر بیل" },
   { title: "تاریخ" },
@@ -235,7 +240,7 @@ function Purchase({ getPaymentStatusColor }) {
               <TableRow key={purchase._id}>
                 <TableColumn>{purchase._id}</TableColumn>
                 <TableColumn>
-                  {new Date(purchase.purchaseDate).toLocaleDateString()}
+                  {formatJalaliDate(purchase.purchaseDate)}
                 </TableColumn>
                 <TableColumn>
                   {getSupplierDisplayName(purchase)}
@@ -252,15 +257,21 @@ function Purchase({ getPaymentStatusColor }) {
                 </TableColumn>
                 <TableColumn>نقد</TableColumn>
                 <TableColumn>
-                  <span
-                    className={getPaymentStatusColor(
-                      purchase.dueAmount > 0 ? "partial" : "paid"
-                    )}
-                  >
-                    {purchase.dueAmount > 0
-                      ? "نسبی پرداخت شده"
-                      : "تمام پرداخت شده"}
-                  </span>
+                  {(() => {
+                    const status = resolvePaymentStatus(purchase);
+                    const labels = {
+                      statusFullyPaid: "تمام پرداخت شده",
+                      statusPartialPaid: "نسبی پرداخت شده",
+                      statusUnpaid: "پرداخت نشده",
+                    };
+                    return (
+                      <span
+                        className={getPaymentStatusColor(status)}
+                      >
+                        {labels[getPaymentStatusTableLabelKey(status)]}
+                      </span>
+                    );
+                  })()}
                 </TableColumn>
                 <TableColumn
                   className={` relative ${
@@ -361,9 +372,7 @@ function Purchase({ getPaymentStatusColor }) {
                     تاریخ خرید
                   </h3>
                   <p className="text-lg font-semibold text-gray-900">
-                    {new Date(
-                      selectedPurchase.purchaseDate
-                    ).toLocaleDateString()}
+                    {formatJalaliDate(selectedPurchase.purchaseDate)}
                   </p>
                 </div>
                 <div>

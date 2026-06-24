@@ -37,6 +37,8 @@ const employeeStockSchema = new mongoose.Schema(
 // Ensure unique stock record per employee + product + batchNumber
 employeeStockSchema.index({ employee: 1, product: 1, batchNumber: 1 }, { unique: true });
 
+employeeStockSchema.plugin(require('../plugins/softDeletePlugin'));
+
 const EmployeeStock = mongoose.model('EmployeeStock', employeeStockSchema);
 
 module.exports = EmployeeStock;

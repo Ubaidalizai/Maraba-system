@@ -5,7 +5,11 @@ import SearchInput from "./SearchInput";
 import Select from "./Select";
 import TableHeader from "./TableHeader";
 import TableBody from "./TableBody";
-import { formatCurrency } from "../utilies/helper";
+import { formatCurrency, formatJalaliDate } from "../utilies/helper";
+import {
+  getPaymentStatusColor,
+  resolvePaymentStatus,
+} from "../utilies/paymentStatus";
 import TableMenuModal from "./TableMenuModal";
 import Menus from "./Menu";
 import { HiPencil, HiSquare2Stack, HiTrash } from "react-icons/hi2";
@@ -21,15 +25,6 @@ import TableColumn from "./TableColumn";
 import Confirmation from "./Confirmation";
 import GloableModal from "./GloableModal";
 import Button from "./Button";
-
-function formatSaleDate(iso) {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleDateString("ps-AF", { dateStyle: "medium" });
-  } catch {
-    return "";
-  }
-}
 
 function Sale({ getBillTypeColor, getPaymentStatusColor }) {
   const { t } = useTranslation();
@@ -121,7 +116,7 @@ function Sale({ getBillTypeColor, getPaymentStatusColor }) {
           {filteredSales?.data?.map((sale, index) => (
             <TableRow key={index}>
               <TableColumn>{sale.id}</TableColumn>
-              <TableColumn>{formatSaleDate(sale.saleDate)}</TableColumn>
+              <TableColumn>{formatJalaliDate(sale.saleDate)}</TableColumn>
               <TableColumn>{currentCustomer(sale.customer)?.name}</TableColumn>
               <TableColumn>{currentEmployee(sale.employee)?.name}</TableColumn>
               <TableColumn>
@@ -146,15 +141,24 @@ function Sale({ getBillTypeColor, getPaymentStatusColor }) {
                 </span>
               </TableColumn>
               <TableColumn>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPaymentStatusColor(
-                    sale.dueAmount === 0 ? "paid" : "partial"
-                  )}`}
-                >
-                  {sale.dueAmount === 0
-                    ? t("saleBilling.paymentPaid")
-                    : t("saleBilling.paymentPartial")}
-                </span>
+                {(() => {
+                  const status = resolvePaymentStatus(sale);
+                  const labelKey =
+                    status === "paid"
+                      ? "paymentPaid"
+                      : status === "partial"
+                        ? "paymentPartial"
+                        : "paymentUnpaid";
+                  return (
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPaymentStatusColor(
+                        status
+                      )}`}
+                    >
+                      {t(`saleBilling.${labelKey}`)}
+                    </span>
+                  );
+                })()}
               </TableColumn>
               <TableColumn
                 className={` relative ${
@@ -233,7 +237,7 @@ function Sale({ getBillTypeColor, getPaymentStatusColor }) {
                     {t("saleBilling.headers.date")}
                   </h3>
                   <p className="text-lg font-semibold">
-                    {formatSaleDate(selectedSale.saleDate)}
+                    {formatJalaliDate(selectedSale.saleDate)}
                   </p>
                 </div>
                 <div>
@@ -269,15 +273,24 @@ function Sale({ getBillTypeColor, getPaymentStatusColor }) {
                     {t("saleBilling.paymentType")}
                   </h3>
                   <p className="text-lg font-semibold capitalize">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPaymentStatusColor(
-                        selectedSale.dueAmount === 0 ? "paid" : "partial"
-                      )}`}
-                    >
-                      {selectedSale.dueAmount === 0
-                        ? t("saleBilling.paymentPaid")
-                        : t("saleBilling.paymentPartial")}
-                    </span>
+                    {(() => {
+                      const status = resolvePaymentStatus(selectedSale);
+                      const labelKey =
+                        status === "paid"
+                          ? "paymentPaid"
+                          : status === "partial"
+                            ? "paymentPartial"
+                            : "paymentUnpaid";
+                      return (
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPaymentStatusColor(
+                            status
+                          )}`}
+                        >
+                          {t(`saleBilling.${labelKey}`)}
+                        </span>
+                      );
+                    })()}
                   </p>
                 </div>
               </div>

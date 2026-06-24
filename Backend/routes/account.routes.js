@@ -8,13 +8,14 @@ const {
   updateAccount,
   deleteAccount,
   restoreAccount,
+  permanentDeleteAccount,
   getAccountBalances,
   getAccountTotals,
   getCashFlowReport,
   transferBetweenAccounts,
   getAccountTransactionVolume,
 } = require('../controllers/account.controller');
-const { authenticate } = require('../middlewares/authMiddleware');
+const { authenticate, authorizeAdmin } = require('../middlewares/authMiddleware');
 const {
   getAccountLedger,
 } = require('../controllers/accountTransaction.controller');
@@ -33,6 +34,7 @@ router.get('/reports/cashflow', getCashFlowReport);
 router.get('/totals', getAccountTotals);
 router.route('/:id').get(getAccount).patch(updateAccount).delete(deleteAccount);
 router.patch('/:id/restore', restoreAccount);
+router.delete('/:id/permanent', authorizeAdmin, permanentDeleteAccount);
 router.get('/:id/ledger', getAccountLedger);
 router.get('/:id/transaction-volume', getAccountTransactionVolume);
 

@@ -20,6 +20,21 @@ const convertPashtoToEnglish = (value) => {
 
 export const useConvertPashtoDigits = () => {
   useEffect(() => {
+    // Set LTR direction for all number inputs
+    const setNumberInputsLTR = () => {
+      document.querySelectorAll('input[type="number"]').forEach((input) => {
+        input.setAttribute('dir', 'ltr');
+        input.style.textAlign = 'right';
+        input.style.direction = 'ltr';
+      });
+    };
+
+    // Run on mount and when DOM changes
+    setNumberInputsLTR();
+
+    const observer = new MutationObserver(setNumberInputsLTR);
+    observer.observe(document.body, { childList: true, subtree: true });
+
     const handleKeyDown = (e) => {
       const input = e.target;
       
@@ -30,15 +45,11 @@ export const useConvertPashtoDigits = () => {
         if (pashtoToEnglishMap[key]) {
           e.preventDefault();
           
-          const cursorPosition = input.selectionStart;
           const currentValue = input.value;
           const englishDigit = pashtoToEnglishMap[key];
           
-          // Insert the English digit at cursor position
-          const newValue = 
-            currentValue.slice(0, cursorPosition) + 
-            englishDigit + 
-            currentValue.slice(cursorPosition);
+          // Append digit at the end (fixes RTL insertion issue)
+          const newValue = currentValue + englishDigit;
           
           input.value = newValue;
           
@@ -46,8 +57,26 @@ export const useConvertPashtoDigits = () => {
           const event = new Event('input', { bubbles: true });
           input.dispatchEvent(event);
           
-          // Move cursor after the inserted digit
-          input.setSelectionRange(cursorPosition + 1, cursorPosition + 1);
+          // Move cursor to end
+          input.setSelectionRange(newValue.length, newValue.length);
+        }
+      }
+    };
+
+    // Also handle input event to convert Pashto digits to English
+    const handleInput = (e) => {
+      const input = e.target;
+      
+      if (input.tagName === 'INPUT' && input.type === 'number') {
+        const value = input.value;
+        const hasPashtoDigits = /[۰-۹]/.test(value);
+        
+        if (hasPashtoDigits) {
+          const convertedValue = convertPashtoToEnglish(value);
+          input.value = convertedValue;
+          
+          const event = new Event('input', { bubbles: true });
+          input.dispatchEvent(event);
         }
       }
     };
@@ -86,13 +115,36 @@ export const useConvertPashtoDigits = () => {
       }
     };
 
+    // Handle composition events for mobile IME keyboards
+    const handleCompositionEnd = (e) => {
+      const input = e.target;
+      
+      if (input.tagName === 'INPUT' && input.type === 'number') {
+        const value = input.value;
+        const hasPashtoDigits = /[۰-۹]/.test(value);
+        
+        if (hasPashtoDigits) {
+          const convertedValue = convertPashtoToEnglish(value);
+          input.value = convertedValue;
+          
+          const event = new Event('input', { bubbles: true });
+          input.dispatchEvent(event);
+        }
+      }
+    };
+
     // Use capture phase to catch events before React
     document.addEventListener('keydown', handleKeyDown, true);
+    document.addEventListener('input', handleInput, true);
     document.addEventListener('paste', handlePaste, true);
+    document.addEventListener('compositionend', handleCompositionEnd, true);
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown, true);
+      document.removeEventListener('input', handleInput, true);
       document.removeEventListener('paste', handlePaste, true);
+      document.removeEventListener('compositionend', handleCompositionEnd, true);
+      observer.disconnect();
     };
   }, []);
 };

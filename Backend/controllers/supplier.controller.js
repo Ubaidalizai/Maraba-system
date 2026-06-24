@@ -1,6 +1,12 @@
 const Supplier = require('../models/supplier.model');
 const asyncHandler = require('../middlewares/asyncHandler');
 const AppError = require('../utils/appError');
+const {
+  parseDeletionFilter,
+  softDeleteUpdate,
+  createSimpleRestoreHandler,
+  createPermanentDeleteHandler,
+} = require('../utils/softDeleteHelpers');
 
 // @desc    Create new supplier
 // @route   POST /api/v1/suppliers
@@ -29,12 +35,14 @@ const getAllSuppliers = asyncHandler(async (req, res) => {
   const limit = Number(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const suppliers = await Supplier.find({ isDeleted: false })
+  const filter = parseDeletionFilter(req.query);
+
+  const suppliers = await Supplier.find(filter)
     .skip(skip)
     .limit(limit)
     .sort({ createdAt: -1 });
 
-  const totalSuppliers = await Supplier.countDocuments({ isDeleted: false });
+  const totalSuppliers = await Supplier.countDocuments(filter);
 
   res.status(200).json({
     status: 'success',
@@ -93,7 +101,7 @@ const updateSupplier = asyncHandler(async (req, res, next) => {
 const deleteSupplier = asyncHandler(async (req, res, next) => {
   const supplier = await Supplier.findOneAndUpdate(
     { _id: req.params.id, isDeleted: false },
-    { isDeleted: true },
+    softDeleteUpdate(req.user?._id),
     { new: true }
   );
 
@@ -107,10 +115,24 @@ const deleteSupplier = asyncHandler(async (req, res, next) => {
   });
 });
 
+const restoreSupplier = createSimpleRestoreHandler(Supplier, {
+  notFoundMessage: 'عرضه کوونکی ونه موندل شو',
+  notDeletedMessage: 'عرضه کوونکی حذف شوی نه دی',
+  successMessage: 'عرضه کوونکی په بریالیتوب سره بیرته راستون شو',
+});
+
+const permanentDeleteSupplier = createPermanentDeleteHandler(Supplier, {
+  notFoundMessage: 'عرضه کوونکی ونه موندل شو',
+  notInTrashMessage: 'لومړی باید عرضه کوونکی په کثافاتو کې حذف شوی وي',
+  successMessage: 'عرضه کوونکی په تل لپاره حذف شو',
+});
+
 module.exports = {
   createSupplier,
   getAllSuppliers,
   getSupplier,
   updateSupplier,
   deleteSupplier,
+  restoreSupplier,
+  permanentDeleteSupplier,
 };

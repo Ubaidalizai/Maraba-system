@@ -22,6 +22,7 @@ const accountTransactionSchema = new mongoose.Schema(
         'Credit',
         'Debit',
         'SaleReturn',
+        'PurchaseReturn',
       ],
       required: true,
     },
@@ -32,7 +33,7 @@ const accountTransactionSchema = new mongoose.Schema(
     },
     referenceType: {
       type: String,
-      enum: ['sale', 'purchase', 'transfer', 'expense', 'income', 'saleReturn', 'payment'],
+      enum: ['sale', 'purchase', 'transfer', 'expense', 'income', 'saleReturn', 'purchaseReturn', 'payment'],
     },
     referenceId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -50,6 +51,10 @@ const accountTransactionSchema = new mongoose.Schema(
     // reversal metadata
     reversed: { type: Boolean, default: false },
     reversalTransaction: { type: mongoose.Schema.Types.ObjectId },
+    reversesTransaction: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AccountTransaction',
+    },
     reversedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     reversedAt: { type: Date },
   },
@@ -59,6 +64,8 @@ const accountTransactionSchema = new mongoose.Schema(
 // Indexes
 accountTransactionSchema.index({ account: 1, date: -1 });
 accountTransactionSchema.index({ referenceType: 1, referenceId: 1 });
+
+accountTransactionSchema.plugin(require('../plugins/softDeletePlugin'));
 
 const AccountTransaction = mongoose.model(
   'AccountTransaction',

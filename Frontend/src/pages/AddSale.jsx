@@ -13,7 +13,7 @@ import SaleBillPrint from "../components/SaleBillPrint";
 const AddSale = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const createSaleMutation = useCreateSale();
+  const { mutateAsync: createSaleAsync } = useCreateSale();
   const { data: customers } = useCustomers();
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [saleToPrint, setSaleToPrint] = useState(null);
@@ -28,87 +28,83 @@ const AddSale = () => {
       saleType: "cash",
       billType: "small",
       discount: 0,
+      discountAmount: 0,
       tax: 0,
       notes: "",
       items: [],
     },
   });
 
-  const handleCreateSale = (saleData) => {
-    createSaleMutation.mutate(saleData, {
-      onSuccess: async (createdSale) => {
-        const saleResponse = createdSale.sale || createdSale;
-        const saleId = saleResponse._id || saleResponse.id;
-        const customerId = saleResponse.customer?._id || saleResponse.customer;
+  const handleCreateSale = async (saleData) => {
+    try {
+      const createdSale = await createSaleAsync(saleData);
+      const saleResponse = createdSale.sale || createdSale;
+      const saleId = saleResponse._id || saleResponse.id;
+      const customerId = saleResponse.customer?._id || saleResponse.customer;
 
-        let fullSale = saleResponse;
-        try {
-          const detail = await fetchSale(saleId);
-          if (detail) {
-            fullSale = detail.sale || detail;
-          }
-        } catch (err) {
-          console.error("Error fetching sale details:", err);
+      let fullSale = saleResponse;
+      try {
+        const detail = await fetchSale(saleId);
+        if (detail) {
+          fullSale = detail.sale || detail;
         }
+      } catch (err) {
+        console.error("Error fetching sale details:", err);
+      }
 
-        const customer = customers?.data?.find((c) => c._id === customerId);
+      const customer = customers?.data?.find((c) => c._id === customerId);
 
-        if (customerId) {
-          try {
-            const accountsData = await fetchAccounts({
-              type: "customer",
-            });
-            const customerAccount = accountsData?.accounts?.find(
-              (acc) => acc.refId === customerId
-            );
+      if (customerId) {
+        try {
+          const accountsData = await fetchAccounts({
+            type: "customer",
+          });
+          const customerAccount = accountsData?.accounts?.find(
+            (acc) => acc.refId === customerId
+          );
 
-            setSaleToPrint(fullSale);
-            setCustomerToPrint(customer);
-            setCustomerAccountToPrint(customerAccount || null);
-            setShowPrintModal(true);
-          } catch (error) {
-            console.error("Error fetching customer account:", error);
-            setSaleToPrint(fullSale);
-            setCustomerToPrint(customer);
-            setCustomerAccountToPrint(null);
-            setShowPrintModal(true);
-          }
-        } else {
           setSaleToPrint(fullSale);
-          setCustomerToPrint(null);
+          setCustomerToPrint(customer);
+          setCustomerAccountToPrint(customerAccount || null);
+          setShowPrintModal(true);
+        } catch (error) {
+          console.error("Error fetching customer account:", error);
+          setSaleToPrint(fullSale);
+          setCustomerToPrint(customer);
           setCustomerAccountToPrint(null);
           setShowPrintModal(true);
         }
-      },
-      onError: (error) => {
-        toast.error(`${t("sales.toast.createError")}: ${error.message}`);
-      },
-    });
+      } else {
+        setSaleToPrint(fullSale);
+        setCustomerToPrint(null);
+        setCustomerAccountToPrint(null);
+        setShowPrintModal(true);
+      }
+    } catch (error) {
+      toast.error(`${t("sales.toast.createError")}: ${error.message}`);
+      throw error;
+    }
   };
 
   return (
     <div>
-      <div className="bg-white p-4 border border-gray-200 rounded-sm max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-4">
+      <div className="p-4 bg-white rounded-sm border border-gray-200">
+        <div className="rounded-2xl mb-4">
+          <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={() => navigate("/sales")}
-              className="p-2 cursor-pointer hover:bg-gray-100 rounded-lg"
+              className="p-2 hover:bg-gray-100 rounded-sm transition-colors"
             >
               <ArrowRightIcon className="h-5 w-5 text-gray-600" />
             </button>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900">
-                {t("sales.filters.addSale")}
-              </h1>
-            </div>
+            <h1 className="text-xl font-bold text-gray-900">
+              {t("sales.filters.addSale")}
+            </h1>
           </div>
         </div>
 
-        {/* Sale Form */}
-        <div className="">
-          <SaleForm
+        <SaleForm
             register={register}
             handleSubmit={handleSubmit}
             watch={watch}
@@ -118,7 +114,6 @@ const AddSale = () => {
             editMode={false}
             saleToEdit={null}
           />
-        </div>
       </div>
 
       {/* Print Modal */}

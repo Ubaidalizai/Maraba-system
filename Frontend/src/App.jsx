@@ -7,7 +7,6 @@ import {
 } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Bounce, ToastContainer } from "react-toastify";
-import useConvertPashtoDigits from "./hooks/useConvertPashtoDigits";
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -24,11 +23,13 @@ import Login from "./pages/Login";
 import Purchases from "./pages/Purchases";
 import PurchaseDetails from "./pages/PurchaseDetails";
 import Reports from "./pages/Reports";
+import Trash from "./pages/Trash";
 import Sales from "./pages/Sales";
 import SaleDetails from "./pages/SaleDetails";
 import AddSale from "./pages/AddSale";
 import EditSale from "./pages/EditSale";
 import AddPurchase from "./pages/AddPurchase";
+import EditPurchase from "./pages/EditPurchase";
 import SaleBill from "./pages/SaleBill";
 import PrintSimple from "./pages/PrintSimple";
 import TestPDF from "./components/TestPDF";
@@ -63,8 +64,6 @@ function AppToastContainer() {
 }
 
 function App() {
-  useConvertPashtoDigits();
-  
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -88,6 +87,7 @@ function App() {
                 <Route path="/inventory" element={<Inventory />} />
                 <Route path="/purchases" element={<Purchases />} />
                 <Route path="/purchases/add" element={<AddPurchase />} />
+                <Route path="/purchases/edit/:id" element={<EditPurchase />} />
                 <Route path="/purchases/:id" element={<PurchaseDetails />} />
                 <Route path="/sales" element={<Sales />} />
                 <Route path="/sales/add" element={<AddSale />} />
@@ -98,6 +98,7 @@ function App() {
                 <Route path="/accounts" element={<Accounts />} />
                 <Route path="/accounts/:id" element={<AccountDetails />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/trash" element={<Trash />} />
                 <Route path="/admin" element={<AdminPanel />} />
                 <Route path="/invoice/:id" element={<SaleBill />} />
                 <Route path="/print" element={<PrintSimple />} />

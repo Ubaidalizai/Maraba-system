@@ -7,27 +7,27 @@ import {
   ShoppingCartIcon,
 } from "@heroicons/react/24/outline";
 import {
-  useSuppliers,
   useProducts,
   useUnits,
   useSystemAccounts,
   useCreatePurchase,
   useAccounts,
 } from "../services/useApi";
-import { formatCurrency, normalizeDateToIso } from "../utilies/helper";
+import { formatCurrency, normalizeDateToIso, formatJalaliDate } from "../utilies/helper";
+import { getPurchaseUnitsForProduct } from "../utilies/unitHelper";
 import GloableModal from "./GloableModal";
 import { toast } from "react-toastify";
 import { useSubmitLock } from "../hooks/useSubmitLock.js";
 import JalaliDatePicker from "./JalaliDatePicker";
 import Select from "./Select";
 import { inputStyle } from "./ProductForm.jsx";
+import { registerNumeric, bindNumericControlled } from "../utilies/numericInput";
 
 const EASTERN_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 
 const PurchaseModal = ({ isOpen, onClose }) => {
   const { t, i18n } = useTranslation();
   const { register, handleSubmit, watch, reset, setValue } = useForm();
-  const { data: suppliers } = useSuppliers();
   const { data: products } = useProducts();
   const { data: units } = useUnits();
   const { data: systemAccounts } = useSystemAccounts();
@@ -42,12 +42,7 @@ const PurchaseModal = ({ isOpen, onClose }) => {
     return raw.replace(/\d/g, (d) => EASTERN_DIGITS[d]);
   };
 
-  const formatPurchaseDate = (iso) => {
-    if (!iso) return "—";
-    const lang = (i18n.language || "ps").split("-")[0];
-    const localeTag = lang === "ps" ? "ps-AF" : "fa-IR";
-    return new Date(iso).toLocaleDateString(localeTag);
-  };
+  const formatPurchaseDate = formatJalaliDate;
 
   const formatMoney = (val) => {
     const n = typeof val === "string" ? parseFloat(val) : Number(val);
@@ -87,18 +82,7 @@ const PurchaseModal = ({ isOpen, onClose }) => {
     );
     if (!selectedProduct) return [];
 
-    const productUnitId =
-      selectedProduct.baseUnit?._id || selectedProduct.baseUnit;
-    const productUnit = units.data.find((u) => u._id === productUnitId);
-    if (!productUnit) return [];
-
-    if (productUnit.base_unit) {
-      const baseUnitId = productUnit.base_unit._id || productUnit.base_unit;
-      const baseUnit = units.data.find((u) => u._id === baseUnitId);
-      return baseUnit ? [baseUnit, productUnit] : [productUnit];
-    }
-
-    return [productUnit];
+    return getPurchaseUnitsForProduct(selectedProduct, units.data);
   }, [currentItem.product, products?.data, units?.data]);
 
   useEffect(() => {
@@ -148,8 +132,8 @@ const PurchaseModal = ({ isOpen, onClose }) => {
     if (
       !currentItem.product ||
       !currentItem.unit ||
-      currentItem.quantity <= 0 ||
-      currentItem.unitPrice <= 0
+      Number(currentItem.quantity) <= 0 ||
+      Number(currentItem.unitPrice) <= 0
     ) {
       toast.error(t("purchaseModal.toast.fillRequired"));
       return;
@@ -260,15 +244,10 @@ const PurchaseModal = ({ isOpen, onClose }) => {
               <Select
                 label={t("purchaseModal.supplierAccountLabel")}
                 options={
-                  supplierAccounts?.map((acc) => {
-                    const supName = suppliers?.data?.find(
-                      (s) => s._id === acc.refId
-                    )?.name;
-                    return {
-                      value: acc._id,
-                      label: supName ? `${acc.name} — ${supName}` : acc.name,
-                    };
-                  }) || []
+                  supplierAccounts?.map((acc) => ({
+                    value: acc._id,
+                    label: acc.name,
+                  })) || []
                 }
                 value={watchedValues.supplierAccount}
                 onChange={(value) => {
@@ -303,7 +282,7 @@ const PurchaseModal = ({ isOpen, onClose }) => {
                 options={
                   systemAccounts?.accounts?.map((account) => ({
                     value: account._id,
-                    label: `${account.name} (${account.type})`,
+                    label: account.name,
                   })) || []
                 }
                 value={watchedValues.paymentAccount}
@@ -319,11 +298,10 @@ const PurchaseModal = ({ isOpen, onClose }) => {
                 {t("purchaseModal.paidAmount")}
               </label>
               <input
-                type="number"
-                step="0.01"
-                {...register("paidAmount")}
-                className={inputStyle}
-                placeholder={t("purchaseModal.placeholderZero")}
+                {...registerNumeric("paidAmount", register, {}, {
+                  className: inputStyle,
+                  placeholder: t("purchaseModal.placeholderZero"),
+                })}
               />
             </div>
           </div>
@@ -396,17 +374,17 @@ const PurchaseModal = ({ isOpen, onClose }) => {
                   {t("purchaseModal.quantityLabel")}
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  value={currentItem.quantity || ""}
-                  onChange={(e) =>
-                    setCurrentItem({
-                      ...currentItem,
-                      quantity: Number(e.target.value),
-                    })
-                  }
-                  className={inputStyle}
-                  placeholder={t("purchaseModal.placeholderZero")}
+                  {...bindNumericControlled({
+                    allowDecimal: true,
+                    value: currentItem.quantity,
+                    onChange: (e) =>
+                      setCurrentItem({
+                        ...currentItem,
+                        quantity: e.target.value,
+                      }),
+                    className: inputStyle,
+                    placeholder: t("purchaseModal.placeholderZero"),
+                  })}
                 />
               </div>
 
@@ -415,17 +393,17 @@ const PurchaseModal = ({ isOpen, onClose }) => {
                   {t("purchaseModal.unitPriceLabel")}
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  value={currentItem.unitPrice || ""}
-                  onChange={(e) =>
-                    setCurrentItem({
-                      ...currentItem,
-                      unitPrice: Number(e.target.value),
-                    })
-                  }
-                  className={inputStyle}
-                  placeholder={t("purchaseModal.placeholderMoney")}
+                  {...bindNumericControlled({
+                    allowDecimal: true,
+                    value: currentItem.unitPrice,
+                    onChange: (e) =>
+                      setCurrentItem({
+                        ...currentItem,
+                        unitPrice: e.target.value,
+                      }),
+                    className: inputStyle,
+                    placeholder: t("purchaseModal.placeholderMoney"),
+                  })}
                 />
               </div>
 

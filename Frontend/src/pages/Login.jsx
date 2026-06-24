@@ -1,17 +1,25 @@
-import { BsEye } from "react-icons/bs";
-import React, { useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import {
+  BuildingStorefrontIcon,
+  EnvelopeIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  LockClosedIcon,
+} from "@heroicons/react/24/outline";
 import { useAuth } from "../hooks/useAuth";
 import { toast } from "react-toastify";
-import { inputStyle } from "../components/ProductForm";
 import GloableModal from "../components/GloableModal";
 import { useForm } from "react-hook-form";
 import { useForgotPassword } from "../services/useApi";
 
+const fieldClass =
+  "w-full rounded-xl border border-slate-200 bg-slate-50/80 py-3 ps-11 pe-4 text-sm text-slate-800 placeholder:text-slate-400 transition focus:border-dategold-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-dategold-100";
+
 const Login = () => {
   const { t } = useTranslation();
-  const [isOpen, setIsOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [forgotPassword, setForgotPassword] = useState(false);
   const { mutate: sendEmail, isPending } = useForgotPassword();
   const [formData, setFormData] = useState({
@@ -30,10 +38,12 @@ const Login = () => {
       [name]: value,
     }));
   };
+
   const handleForgot = (data) => {
     sendEmail({ email: data.email });
     reset();
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -52,128 +62,148 @@ const Login = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center relative"
+      className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 py-10"
       style={{
-        backgroundColor: "var(--background)",
         fontFamily: "var(--font-family)",
+        background:
+          "linear-gradient(145deg, var(--beige-light) 0%, #ffffff 45%, var(--color-palm-100, #d4e1df) 100%)",
       }}
     >
-      <div className="max-w-md border-2 border-slate-200 rounded-sm bg-white w-full space-y-8 p-8">
-        {/* Header */}
-        <div className="text-center">
-          <h2
-            className="text-3xl font-bold"
-            style={{ color: "var(--primary-brown)" }}
-          >
-            {t("login.title")}
-          </h2>
-          <p className="mt-2 text-sm" style={{ color: "var(--text-medium)" }}>
-            {t("login.subtitle")}
-          </p>
-        </div>
+      <div
+        className="pointer-events-none absolute -top-24 -end-24 h-72 w-72 rounded-full bg-dategold-100/60 blur-3xl"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute -bottom-20 -start-16 h-64 w-64 rounded-full bg-palm-100/70 blur-3xl"
+        aria-hidden
+      />
 
-        {/* Login Form */}
-        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
-          <div className="space-y-3">
-            {/* Email Field */}
-            <div className=" flex flex-col gap-y-2">
-              <label
-                htmlFor="email"
-                className="block text-[16px] font-medium"
-                style={{ color: "var(--text-dark)" }}
-              >
-                {t("login.email")}
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                className={inputStyle}
-                style={{
-                  borderColor: "var(--border)",
-                  backgroundColor: "var(--surface)",
-                  color: "var(--text-dark)",
-                  focusRingColor: "var(--primary-brown)",
-                }}
-                placeholder={t("login.emailPlaceholder")}
-              />
+      <div className="relative w-full max-w-[420px]">
+        <div className="rounded-2xl border border-white/70 bg-white/90 p-8 shadow-[0_20px_60px_-15px_rgba(84,53,36,0.18)] backdrop-blur-sm sm:p-10">
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-dategold-200 to-dategold-400 text-white shadow-md">
+              <BuildingStorefrontIcon className="h-7 w-7" aria-hidden />
             </div>
-
-            {/* Password Field */}
-            <div className=" relative flex flex-col gap-y-2 ">
-              <label
-                htmlFor="password"
-                className="block text-[16px] font-medium"
-                style={{ color: "var(--text-dark)" }}
-              >
-                {t("login.password")}
-              </label>
-              <input
-                id="password"
-                name="password"
-                type={isOpen ? "text" : "password"}
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className={inputStyle}
-                style={{
-                  borderColor: "var(--border)",
-                  backgroundColor: "var(--surface)",
-                  color: "var(--text-dark)",
-                  focusRingColor: "var(--primary-brown)",
-                }}
-                placeholder={t("login.passwordPlaceholder")}
-              />
-              <BsEye
-                onClick={() => setIsOpen((isOpen) => !isOpen)}
-                className=" text-[18px] absolute top-[45px] cursor-pointer text-slate-700 end-3"
-              />
-            </div>
+            <p className="text-xs font-medium uppercase tracking-wide text-dategold-400">
+              {t("brand.title")}
+            </p>
+            <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+              {t("login.title")}
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+              {t("login.subtitle")}
+            </p>
           </div>
-          <p
-            onClick={() => setForgotPassword(true)}
-            className={" text-[16px]  underline cursor-pointer"}
-          >
-            {t("login.forgotPassword")}
-          </p>
-          {/* Submit Button */}
-          <div className=" pt-2">
+
+          <form className="space-y-5" onSubmit={handleSubmit} autoComplete="on">
+            <div className="space-y-4">
+              <div>
+                <label
+                  htmlFor="email"
+                  className="mb-1.5 block text-sm font-medium text-slate-700"
+                >
+                  {t("login.email")}
+                </label>
+                <div className="relative">
+                  <EnvelopeIcon
+                    className="pointer-events-none absolute top-1/2 start-3.5 h-5 w-5 -translate-y-1/2 text-slate-400"
+                    aria-hidden
+                  />
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    autoComplete="username"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={fieldClass}
+                    placeholder={t("login.emailPlaceholder")}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="mb-1.5 block text-sm font-medium text-slate-700"
+                >
+                  {t("login.password")}
+                </label>
+                <div className="relative">
+                  <LockClosedIcon
+                    className="pointer-events-none absolute top-1/2 start-3.5 h-5 w-5 -translate-y-1/2 text-slate-400"
+                    aria-hidden
+                  />
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    autoComplete="current-password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className={`${fieldClass} pe-11`}
+                    placeholder={t("login.passwordPlaceholder")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute top-1/2 end-3 -translate-y-1/2 rounded-md p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                    aria-label={showPassword ? t("login.hidePassword") : t("login.showPassword")}
+                  >
+                    {showPassword ? (
+                      <EyeSlashIcon className="h-5 w-5" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setForgotPassword(true)}
+                className="text-sm font-medium text-dategold-400 transition hover:text-dategold-500 hover:underline"
+              >
+                {t("login.forgotPassword")}
+              </button>
+            </div>
+
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-sm shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                backgroundColor: isLoading
-                  ? "var(--text-medium)"
-                  : "var(--primary-brown)",
-                focusRingColor: "var(--primary-brown)",
-              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-dategold-400 to-dategold-300 py-3.5 text-sm font-semibold text-white shadow-md transition hover:from-dategold-500 hover:to-dategold-400 focus:outline-none focus:ring-2 focus:ring-dategold-200 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white me-2"></div>
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                   {t("login.submitting")}
-                </div>
+                </>
               ) : (
                 t("login.submit")
               )}
             </button>
-          </div>
-        </form>
+          </form>
+
+          <p className="mt-6 text-center text-xs text-slate-400">
+            {t("brand.tagline")}
+          </p>
+        </div>
       </div>
+
       <GloableModal
         open={forgotPassword}
         setOpen={setForgotPassword}
         isClose={true}
       >
-        <div className="bg-white shadow-xl rounded-sm p-8 w-full max-w-md">
-          <h2 className="text-2xl font-bold text-gray-800 text-center mb-2">
+        <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
+          <h2 className="text-center text-xl font-bold text-slate-900">
             {t("login.forgotTitle")}
           </h2>
-          <p className="text-gray-500 text-center mb-6 text-sm">
+          <p className="mb-6 mt-2 text-center text-sm leading-relaxed text-slate-500">
             {t("login.forgotDescription")}
           </p>
 
@@ -184,38 +214,40 @@ const Login = () => {
           >
             <div>
               <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                htmlFor="forgot-email"
+                className="mb-1.5 block text-sm font-medium text-slate-700"
               >
                 {t("login.forgotEmailLabel")}
               </label>
               <input
-                id="email"
+                id="forgot-email"
                 {...register("email")}
                 type="email"
                 required
-                placeholder="example@gmail.com"
-                className="w-full px-4 py-3 rounded-sm border border-gray-300 focus:ring-1 focus:ring-primary-brown-light focus:border-primary-brown-light outline-none text-start"
+                placeholder={t("login.emailPlaceholder")}
+                className={fieldClass}
               />
             </div>
 
             <button
               type="submit"
-              className="w-full py-3  bg-primary-brown text-white font-semibold rounded-sm  cursor-pointer  hover:bg-primary-brown-light  transition duration-200"
+              disabled={isPending}
+              className="w-full rounded-xl bg-dategold-400 py-3 text-sm font-semibold text-white transition hover:bg-dategold-500 disabled:opacity-60"
             >
-              {t("login.forgotSubmit")} <span>{isPending && "..."}</span>
+              {isPending ? t("login.forgotSubmitting") : t("login.forgotSubmit")}
             </button>
           </form>
 
-          <p className="text-center text-sm text-gray-500 mt-6">
-            {t("login.rememberPassword")}
-            <p
+          <div className="mt-6 text-center text-sm text-slate-500">
+            <span>{t("login.rememberPassword")} </span>
+            <button
+              type="button"
               onClick={() => setForgotPassword(false)}
-              className="text-primary-brown-light  hover:underline"
+              className="font-medium text-dategold-400 hover:text-dategold-500 hover:underline"
             >
               {t("login.backToLogin")}
-            </p>
-          </p>
+            </button>
+          </div>
         </div>
       </GloableModal>
     </div>

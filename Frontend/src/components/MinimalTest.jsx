@@ -23,7 +23,7 @@ const MinimalTest = () => {
           <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>۱۵۰,۰۰۰ افغانی</p>
         </div>
         <div style={{ border: '2px solid #d1d5db', padding: '1rem', borderRadius: '0.5rem' }}>
-          <h3 style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>ټول پیرودونه</h3>
+            <h3 style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>ټول رانیولونه</h3>
           <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>۸۵,۰۰۰ افغانی</p>
         </div>
         <div style={{ border: '2px solid #d1d5db', padding: '1rem', borderRadius: '0.5rem' }}>

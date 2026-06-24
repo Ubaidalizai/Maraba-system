@@ -2,7 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BiTrashAlt } from 'react-icons/bi';
 import { CgClose } from 'react-icons/cg';
-import { ShoppingCartIcon, PlusIcon } from '@heroicons/react/24/outline';
+import {
+  ShoppingCartIcon,
+  PlusIcon,
+  PencilIcon,
+} from '@heroicons/react/24/outline';
 import { useSubmitLock } from '../hooks/useSubmitLock.js';
 import {
   useAccounts,
@@ -14,9 +18,13 @@ import {
   useUnits,
 } from '../services/useApi';
 import { formatCurrency, normalizeDateToIso } from '../utilies/helper';
+import { registerNumeric, bindNumericControlled } from '../utilies/numericInput';
+import { resolveSaleFromQuery } from '../utilies/saleQuery';
 import {
   formatUnitDisplay,
   formatPurchasePriceDisplay,
+  getSaleUnitsForProduct,
+  minSalePriceForUnit,
 } from '../utilies/unitHelper';
 import JalaliDatePicker from './JalaliDatePicker';
 import Select from './Select';
@@ -36,6 +44,7 @@ function SaleForm({
   onSubmit,
   editMode = false,
   saleToEdit = null,
+  isSaving: isSavingProp = false,
 }) {
   const { t } = useTranslation();
   const productHeader = useMemo(
@@ -46,19 +55,18 @@ function SaleForm({
       { title: t('saleForm.table.unitPrice') },
       { title: t('saleForm.table.lineTotal') },
       { title: t('saleForm.table.batchNo') },
-      { title: t('saleForm.table.expiry') },
       { title: t('saleForm.table.actions') },
     ],
     [t],
   );
   const [items, setItems] = useState([]);
+  const [editingItemIndex, setEditingItemIndex] = useState(null);
   const [currentItem, setCurrentItem] = useState({
     product: '',
     unit: '',
     batchNumber: '',
     quantity: null,
     unitPrice: null,
-    expiryDate: '',
     cartonCount: null,
   });
   const [saleType, setSaleType] = useState('customer');
@@ -137,23 +145,50 @@ function SaleForm({
       }
     });
 
+    if (editMode && saleToEdit?.items?.length) {
+      saleToEdit.items.forEach((item) => {
+        const id = item.product?._id || item.product;
+        const name = item.product?.name;
+        if (id && !productMap.has(id)) {
+          productMap.set(id, {
+            value: id,
+            label: name || t('saleForm.unknownProduct'),
+          });
+        }
+      });
+    }
+
     const result = Array.from(productMap.values());
     return result;
-  }, [stockData, employeeStockData, selectedEmployee]);
+  }, [stockData, employeeStockData, selectedEmployee, editMode, saleToEdit, t]);
 
-  // Helper function to validate sale price against purchase price
+  // Helper function to validate sale price against purchase price (same unit as price input)
   const validateSalePrice = React.useCallback(
     (productId, unitId, batchNumber, unitPrice) => {
-      if (!productId || !unitId || !unitPrice)
-        return { isValid: true, purchasePrice: 0 };
+      if (!productId || !unitId || unitPrice === '' || unitPrice == null) {
+        return { isValid: true, purchasePrice: 0, minUnitPrice: 0 };
+      }
 
       const selectedProduct = productsData?.data?.find(
         (p) => p._id === productId,
       );
       const selectedUnit = units?.data?.find((u) => u._id === unitId);
 
-      if (!selectedProduct || !selectedUnit)
-        return { isValid: true, purchasePrice: 0 };
+      if (!selectedProduct || !selectedUnit) {
+        return { isValid: true, purchasePrice: 0, minUnitPrice: 0 };
+      }
+
+      const primaryUnitId =
+        selectedProduct.baseUnit?._id || selectedProduct.baseUnit;
+      const primaryUnit =
+        typeof selectedProduct.baseUnit === 'object' &&
+        selectedProduct.baseUnit?._id
+          ? selectedProduct.baseUnit
+          : units?.data?.find((u) => u._id === primaryUnitId);
+
+      if (!primaryUnit) {
+        return { isValid: true, purchasePrice: 0, minUnitPrice: 0 };
+      }
 
       const dataSource =
         selectedEmployee && employeeStockData
@@ -168,22 +203,28 @@ function SaleForm({
           )
         : null;
 
-      const purchasePricePerBaseUnit =
+      const purchasePricePerPrimary =
         stockItem?.purchasePricePerBaseUnit ||
         selectedProduct?.latestPurchasePrice ||
         0;
 
-      const salePricePerBaseUnit =
-        parseFloat(unitPrice) / (selectedUnit.conversion_to_base || 1);
+      const minUnitPrice = minSalePriceForUnit(
+        purchasePricePerPrimary,
+        selectedUnit,
+        primaryUnit,
+      );
 
+      const salePrice = parseFloat(unitPrice);
       const isValid =
-        purchasePricePerBaseUnit === 0 ||
-        salePricePerBaseUnit >= purchasePricePerBaseUnit;
+        minUnitPrice === 0 ||
+        Number.isNaN(salePrice) ||
+        salePrice + 0.009 >= minUnitPrice;
 
       return {
         isValid,
-        purchasePrice: purchasePricePerBaseUnit,
-        salePrice: salePricePerBaseUnit,
+        purchasePrice: purchasePricePerPrimary,
+        minUnitPrice,
+        salePrice,
       };
     },
     [productsData, units, selectedEmployee, employeeStockData, stockData],
@@ -208,25 +249,19 @@ function SaleForm({
     );
     if (!selectedProduct) return [];
 
-    const productUnitId =
-      selectedProduct.baseUnit?._id || selectedProduct.baseUnit;
-    const productUnit = units.data.find((u) => u._id === productUnitId);
-    if (!productUnit) return [];
-
-    // If product unit is a derived unit (has base_unit), include its base unit too
-    if (productUnit.base_unit) {
-      const baseUnitId = productUnit.base_unit._id || productUnit.base_unit;
-      const baseUnit = units.data.find((u) => u._id === baseUnitId);
-      return baseUnit ? [baseUnit, productUnit] : [productUnit];
-    }
-
-    // If product unit is a base unit, return only it
-    return [productUnit];
+    return getSaleUnitsForProduct(selectedProduct, units.data);
   }, [currentItem?.product, units?.data, productsData?.data]);
 
-  // Auto-select product unit when product changes
+  // Auto-select product unit when product changes (keep valid unit when editing a line)
   useEffect(() => {
     if (currentItem.product && availableUnits.length > 0) {
+      if (
+        currentItem.unit &&
+        availableUnits.find((u) => u._id === currentItem.unit)
+      ) {
+        return;
+      }
+
       const productUnit = productsData?.data?.find(
         (p) => p._id === currentItem.product,
       );
@@ -246,18 +281,41 @@ function SaleForm({
     }
   }, [currentItem.product, availableUnits, productsData?.data]);
 
+  const resolvedSaleToEdit = useMemo(
+    () => (saleToEdit ? resolveSaleFromQuery(saleToEdit) : null),
+    [saleToEdit],
+  );
+
+  const editPaidAmount = Number(resolvedSaleToEdit?.paidAmount) || 0;
+
+  const editPartyDisplayName = useMemo(() => {
+    if (!resolvedSaleToEdit) return '—';
+    if (saleType === 'customer') {
+      return (
+        resolvedSaleToEdit.customerName ||
+        resolvedSaleToEdit.customerAccount?.name ||
+        '—'
+      );
+    }
+    if (saleType === 'employee') {
+      return resolvedSaleToEdit.employeeAccount?.name || '—';
+    }
+    return t('saleForm.typeWalkIn');
+  }, [resolvedSaleToEdit, saleType, t]);
+
   // Populate form when editing
   useEffect(() => {
-    if (editMode && saleToEdit) {
+    if (editMode && resolvedSaleToEdit) {
+      const sale = resolvedSaleToEdit;
       // Set sale type and customer/employee based on available data
       const customerRefId =
-        saleToEdit.customerAccount?.refId ||
-        saleToEdit.customer?._id ||
-        saleToEdit.customer;
+        sale.customerAccount?.refId ||
+        sale.customer?._id ||
+        sale.customer;
       const employeeRefId =
-        saleToEdit.employeeAccount?.refId ||
-        saleToEdit.employee?._id ||
-        saleToEdit.employee;
+        sale.employeeAccount?.refId ||
+        sale.employee?._id ||
+        sale.employee;
 
       if (customerRefId) {
         setSaleType('customer');
@@ -270,12 +328,12 @@ function SaleForm({
       }
 
       // Set items from sale
-      if (saleToEdit.items && saleToEdit.items.length > 0) {
-        const formattedItems = saleToEdit.items.map((item) => ({
+      if (sale.items && sale.items.length > 0) {
+        const formattedItems = sale.items.map((item) => ({
           product: item.product?._id || item.product || '',
+          productName: item.product?.name || '',
           unit: item.unit?._id || item.unit || '',
           batchNumber: item.batchNumber || '',
-          expiryDate: item.expiryDate || '',
           quantity: item.quantity || 0,
           unitPrice: item.unitPrice || 0,
           cartonCount: item.cartonCount || null,
@@ -284,21 +342,21 @@ function SaleForm({
       }
 
       // Set other fields
-      if (saleToEdit.placedIn) {
-        setValue('placedIn', saleToEdit.placedIn._id || saleToEdit.placedIn);
+      if (sale.placedIn) {
+        setValue('placedIn', sale.placedIn._id || sale.placedIn);
       }
-      if (saleToEdit.invoiceType) {
-        setValue('invoiceType', saleToEdit.invoiceType);
+      if (sale.invoiceType) {
+        setValue('invoiceType', sale.invoiceType);
       }
-      if (saleToEdit.paidAmount !== undefined) {
-        setValue('paidAmount', saleToEdit.paidAmount);
+      if (sale.paidAmount !== undefined) {
+        setValue('paidAmount', sale.paidAmount);
       }
-      if (saleToEdit.saleDate) {
+      setValue('discountAmount', sale.discountAmount || 0);
+      if (sale.saleDate) {
         const dateValue =
-          typeof saleToEdit.saleDate === 'string' &&
-          saleToEdit.saleDate.includes('T')
-            ? saleToEdit.saleDate.split('T')[0]
-            : saleToEdit.saleDate;
+          typeof sale.saleDate === 'string' && sale.saleDate.includes('T')
+            ? sale.saleDate.split('T')[0]
+            : sale.saleDate;
         setValue(
           'saleDate',
           normalizeDateToIso(dateValue) ||
@@ -306,10 +364,52 @@ function SaleForm({
         );
       }
     }
-  }, [editMode, saleToEdit, setValue]);
+  }, [editMode, resolvedSaleToEdit, setValue]);
+
+  const emptyCurrentItem = () => ({
+    product: '',
+    unit: '',
+    batchNumber: '',
+    quantity: '',
+    unitPrice: '',
+    cartonCount: '',
+  });
+
+  const resolveProductLabel = (item) =>
+    item.productName ||
+    products.find((p) => p.value === item.product)?.label ||
+    productsData?.data?.find((p) => p._id === item.product)?.name ||
+    '—';
+
+  const cancelLineEdit = () => {
+    setCurrentItem(emptyCurrentItem());
+    setEditingItemIndex(null);
+    setValidationErrors({});
+  };
+
+  const loadItemForEdit = (index) => {
+    const item = items[index];
+    if (!item) return;
+
+    setCurrentItem({
+      product: item.product,
+      unit: item.unit,
+      batchNumber: item.batchNumber || '',
+      quantity: item.quantity ?? '',
+      unitPrice: item.unitPrice ?? '',
+      cartonCount: item.cartonCount ?? '',
+    });
+    setEditingItemIndex(index);
+    setValidationErrors({});
+  };
 
   const removeItem = (index) => {
-    setItems(items.filter((_, i) => i !== index));
+    if (editingItemIndex === index) {
+      cancelLineEdit();
+    } else if (editingItemIndex !== null && editingItemIndex > index) {
+      setEditingItemIndex((prev) => prev - 1);
+    }
+    setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleAddItem = () => {
@@ -328,23 +428,34 @@ function SaleForm({
     }
 
     setValidationErrors({});
-    setItems([...items, { ...currentItem }]);
-    setCurrentItem({
-      product: '',
-      unit: '',
-      batchNumber: '',
-      quantity: '',
-      unitPrice: '',
-      expiryDate: '',
-      cartonCount: '',
-    });
+    const selectedProduct = productsData?.data?.find(
+      (p) => p._id === currentItem.product,
+    );
+    const lineItem = {
+      ...currentItem,
+      productName:
+        selectedProduct?.name || resolveProductLabel(currentItem),
+    };
+
+    if (editingItemIndex !== null) {
+      setItems((prev) =>
+        prev.map((item, index) =>
+          index === editingItemIndex ? lineItem : item,
+        ),
+      );
+      cancelLineEdit();
+      return;
+    }
+
+    setItems((prev) => [...prev, lineItem]);
+    setCurrentItem(emptyCurrentItem());
   };
 
   const handleRemove = (index) => {
     removeItem(index);
   };
 
-  const calculateTotal = () => {
+  const calculateSubtotal = () => {
     return items.reduce((total, item) => {
       const itemTotal =
         parseFloat(item.quantity || 0) * parseFloat(item.unitPrice || 0);
@@ -353,46 +464,83 @@ function SaleForm({
   };
 
   const rawPaidAmount = watch('paidAmount');
-  const paidAmountValue = Number(rawPaidAmount) || 0;
-  const totalAmountValue = calculateTotal();
+  const rawDiscountAmount = watch('discountAmount');
+  const paidAmountValue = editMode
+    ? editPaidAmount
+    : Number(rawPaidAmount) || 0;
+  const subtotalAmountValue = calculateSubtotal();
+  const discountAmountValue = Math.max(0, Number(rawDiscountAmount) || 0);
+  const totalAmountValue = Math.max(subtotalAmountValue - discountAmountValue, 0);
   const remainingAmount = Math.max(totalAmountValue - paidAmountValue, 0);
 
   const handleFormSubmit = wrapSubmit(async (data) => {
     // Validate sale type and account selection
-    if (saleType === 'customer' && !data.customer) {
+    if (!editMode && saleType === 'customer' && !data.customer) {
       toast.error(t('saleForm.validation.customerRequired'));
       return;
     }
-    if (saleType === 'employee' && !data.employee) {
+    if (!editMode && saleType === 'employee' && !data.employee) {
       toast.error(t('saleForm.validation.employeeRequired'));
       return;
     }
-    // Validate walk-in sales must be fully paid
-    if (saleType === 'walkin') {
-      const total = calculateTotal();
-      if (data.paidAmount < total) {
+    // Validate walk-in sales must be fully paid (create only)
+    if (!editMode && saleType === 'walkin') {
+      if (data.paidAmount < totalAmountValue) {
         toast.error(t('saleForm.validation.walkinMustBePaid'));
         return;
       }
     }
 
-    // Validate paid amount before submission
-    const total = calculateTotal();
-    if (data.paidAmount > total) {
+    if (discountAmountValue > subtotalAmountValue) {
+      toast.error(t('saleForm.validation.discountExceedsSubtotal'));
+      return;
+    }
+
+    // Validate paid amount before submission (create only)
+    if (!editMode && data.paidAmount > totalAmountValue) {
       toast.error(
         t('saleForm.validation.paidExceedsTotal', {
           paid: data.paidAmount,
-          total: total.toFixed(2),
+          total: totalAmountValue.toFixed(2),
         }),
       );
       return;
     }
 
+    const paidAtCreate = editMode ? 0 : Number(data.paidAmount) || 0;
+    const needsReceiptAccount =
+      !editMode && (saleType === 'walkin' || paidAtCreate > 0);
+    if (needsReceiptAccount && !data.placedIn) {
+      toast.error(t('saleForm.selectAccount'));
+      return;
+    }
+
     setLoading(true);
     try {
+      const editCustomerId =
+        resolvedSaleToEdit?.customer?._id ||
+        resolvedSaleToEdit?.customer ||
+        null;
+      const editEmployeeId =
+        resolvedSaleToEdit?.employee?._id ||
+        resolvedSaleToEdit?.employee ||
+        null;
+
       const saleData = {
-        customer: saleType === 'customer' ? data.customer : null,
-        employee: saleType === 'employee' ? data.employee : null,
+        customer: editMode
+          ? saleType === 'customer'
+            ? editCustomerId
+            : null
+          : saleType === 'customer'
+            ? data.customer
+            : null,
+        employee: editMode
+          ? saleType === 'employee'
+            ? editEmployeeId
+            : null
+          : saleType === 'employee'
+            ? data.employee
+            : null,
         saleDate:
           normalizeDateToIso(data.saleDate) ||
           new Date().toISOString().slice(0, 10),
@@ -404,29 +552,38 @@ function SaleForm({
             unit: item.unit,
             quantity: parseFloat(item.quantity),
             unitPrice: parseFloat(item.unitPrice),
+            batchNumber: item.batchNumber || undefined,
             cartonCount: item.cartonCount || undefined,
           })),
-        paidAmount: data.paidAmount || 0,
-        placedIn: data.placedIn || accounts?.[0]?._id,
+        ...(editMode
+          ? {}
+          : { paidAmount: data.paidAmount || 0 }),
+        discountAmount: discountAmountValue,
+        ...(needsReceiptAccount && data.placedIn
+          ? { placedIn: data.placedIn }
+          : {}),
         invoiceType: data.invoiceType || 'small',
       };
 
       if (onSubmit) {
         await onSubmit(saleData);
-        // Reset form after successful submission (only in create mode)
         if (!editMode) {
           setValue('description', '');
+          setValue('discountAmount', 0);
           setItems([]);
+          setCurrentItem(emptyCurrentItem());
+          setEditingItemIndex(null);
         }
       }
     } catch (error) {
       console.error('Error submitting form:', error);
+      throw error;
     } finally {
       setLoading(false);
     }
   });
 
-  const isSaving = loading || isSubmitting;
+  const isSaving = loading || isSubmitting || isSavingProp;
 
   // Show loading state if data is being fetched
   if (
@@ -454,21 +611,22 @@ function SaleForm({
     >
       <div className='space-y-6'>
         {/* Sale Type Selection */}
-        <div className='flex items-center gap-4'>
-            <label className='text-sm font-semibold text-gray-500 uppercase tracking-wide'>
-              {t('saleForm.saleType')}
-            </label>
+        <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4'>
+          <label className='text-sm font-semibold text-gray-500 uppercase tracking-wide'>
+            {t('saleForm.saleType')}
+          </label>
           <div className='flex gap-2'>
             {['customer', 'employee', 'walkin'].map((type) => (
               <button
                 key={type}
                 type='button'
-                onClick={() => setSaleType(type)}
+                disabled={editMode}
+                onClick={() => !editMode && setSaleType(type)}
                 className={`px-4.5 py-1.5 rounded-sm text-sm font-semibold border transition-all ${
                   saleType === type
                     ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-amber-400 hover:text-amber-600'
-                }`}
+                } ${editMode ? 'opacity-60 cursor-not-allowed hover:border-gray-200 hover:text-gray-600' : ''}`}
               >
                 {type === 'customer'
                   ? t('saleForm.typeCustomer')
@@ -481,7 +639,7 @@ function SaleForm({
         </div>
 
         <div className='border-t border-gray-200 pt-4'>
-          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5'>
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-5'>
             {/* Customer/Employee Selection */}
             <div>
               <label className='block text-sm font-semibold text-gray-700 mb-2'>
@@ -494,43 +652,51 @@ function SaleForm({
                   <span className='text-red-500 ml-1'>{t('saleForm.requiredStar')}</span>
                 )}
               </label>
-              {saleType === 'customer' && (
-                <div>
-                  <Select
-                    label=''
-                    options={customerAccounts.map((acc) => ({
-                      value: acc.refId,
-                      label: acc.name,
-                    }))}
-                    value={watch('customer')}
-                    onChange={(value) => setValue('customer', value)}
-                    defaultSelected={t('saleForm.selectCustomerAccount')}
-                  />
+              {editMode ? (
+                <div className='w-full px-3 py-2 bg-gray-100 border border-slate-200 rounded-sm text-slate-700 text-sm'>
+                  {editPartyDisplayName}
                 </div>
-              )}
-              {saleType === 'employee' && (
-                <div>
-                  <Select
-                    label=''
-                    options={employeeAccounts.map((acc) => ({
-                      value: acc.refId,
-                      label: acc.name,
-                    }))}
-                    value={watch('employee')}
-                    onChange={(value) => setValue('employee', value)}
-                    defaultSelected={t('saleForm.selectEmployeeAccount')}
-                  />
-                  <p className='text-sm text-gray-500 mt-2'>
-                    {t('saleForm.accountCount', {
-                      count: employeeAccounts.length,
-                    })}
-                  </p>
-                </div>
-              )}
-              {saleType === 'walkin' && (
-                <div className='w-full px-2 py-1 bg-gray-100 border border-gray-200 rounded-sm text-gray-500 text-center font-medium'>
-                  {t('saleForm.walkInHint')}
-                </div>
+              ) : (
+                <>
+                  {saleType === 'customer' && (
+                    <div>
+                      <Select
+                        label=''
+                        options={customerAccounts.map((acc) => ({
+                          value: acc.refId,
+                          label: acc.name,
+                        }))}
+                        value={watch('customer')}
+                        onChange={(value) => setValue('customer', value)}
+                        defaultSelected={t('saleForm.selectCustomerAccount')}
+                      />
+                    </div>
+                  )}
+                  {saleType === 'employee' && (
+                    <div>
+                      <Select
+                        label=''
+                        options={employeeAccounts.map((acc) => ({
+                          value: acc.refId,
+                          label: acc.name,
+                        }))}
+                        value={watch('employee')}
+                        onChange={(value) => setValue('employee', value)}
+                        defaultSelected={t('saleForm.selectEmployeeAccount')}
+                      />
+                      <p className='text-sm text-gray-500 mt-2'>
+                        {t('saleForm.accountCount', {
+                          count: employeeAccounts.length,
+                        })}
+                      </p>
+                    </div>
+                  )}
+                  {saleType === 'walkin' && (
+                    <div className='w-full px-2 py-1 bg-gray-100 border border-gray-200 rounded-sm text-gray-500 text-center font-medium'>
+                      {t('saleForm.walkInHint')}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -553,48 +719,85 @@ function SaleForm({
               />
             </div>
 
-            {/* Account Selection */}
-            <div>
-              <label className='block text-sm font-semibold text-gray-700 mb-2'>
-                {t('saleForm.receiptAccount')}
-              </label>
-              <Select
-                label=''
-                options={accounts.map((acc) => ({
-                  value: acc._id,
-                  label: acc.name,
-                }))}
-                value={watch('placedIn')}
-                onChange={(value) => setValue('placedIn', value)}
-                defaultSelected={t('saleForm.selectAccount')}
-              />
-            </div>
+            {/* Receipt account (required only when paying now) */}
+            {!editMode && (
+              <div>
+                <label className='block text-sm font-semibold text-gray-700 mb-2'>
+                  {t('saleForm.receiptAccount')}
+                </label>
+                <Select
+                  label=''
+                  options={accounts.map((acc) => ({
+                    value: acc._id,
+                    label: acc.name,
+                  }))}
+                  value={watch('placedIn')}
+                  onChange={(value) => setValue('placedIn', value)}
+                  defaultSelected={t('saleForm.selectAccount')}
+                />
+              </div>
+            )}
 
-            {/* Paid Amount */}
+            {/* Paid Amount — create only; extra payments use sales payment modal */}
             <div>
               <label className='block text-sm font-semibold text-gray-700 mb-2'>
                 {t('saleForm.paidAmount')}
               </label>
-              <input
-                type='number'
-                step='1'
-                {...register('paidAmount', {
-                  valueAsNumber: true,
-                  validate: (value) => {
-                    const total = calculateTotal();
-                    if (value > total) {
-                      return t('saleForm.validation.paidExceedsTotalField', {
-                        total: total.toFixed(2),
-                      });
+              {editMode ? (
+                <div className='w-full text-slate-700 text-sm border border-slate-200 bg-gray-100 px-3 py-2 rounded-sm'>
+                  {formatCurrency(editPaidAmount)}
+                </div>
+              ) : (
+                <input
+                  {...registerNumeric(
+                    'paidAmount',
+                    register,
+                    {
+                      validate: (value) => {
+                        if (value > totalAmountValue) {
+                          return t('saleForm.validation.paidExceedsTotalField', {
+                            total: totalAmountValue.toFixed(2),
+                          });
+                        }
+                        return true;
+                      },
+                    },
+                    {
+                      className:
+                        'w-full font-custom dark:text-slate-500 bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 pr-3 pl-3 py-2 transition duration-300 ease focus:outline-none focus:border-amber-500 hover:border-slate-300 focus:shadow-md rounded-sm',
+                      placeholder: t('saleForm.paidPlaceholder'),
                     }
-                    return true;
+                  )}
+                />
+              )}
+            </div>
+
+            {/* Discount */}
+            <div>
+              <label className='block text-sm font-semibold text-gray-700 mb-2'>
+                {t('saleForm.discountAmount')}
+              </label>
+              <input
+                {...registerNumeric(
+                  'discountAmount',
+                  register,
+                  {
+                    validate: (value) => {
+                      const discount = Math.max(0, Number(value) || 0);
+                      if (discount > subtotalAmountValue) {
+                        return t('saleForm.validation.discountExceedsSubtotalField', {
+                          subtotal: subtotalAmountValue.toFixed(2),
+                        });
+                      }
+                      return true;
+                    },
                   },
-                })}
-                onWheel={(e) => e.target.blur()}
-                className='w-full font-custom dark:text-slate-500 bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 pr-3 pl-3 py-2 transition duration-300 ease focus:outline-none focus:border-amber-500 hover:border-slate-300 focus:shadow-md rounded-sm'
-                placeholder={t('saleForm.paidPlaceholder')}
-                min='0'
-                max={calculateTotal()}
+                  {
+                    className:
+                      'w-full font-custom dark:text-slate-500 bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 pr-3 pl-3 py-2 transition duration-300 ease focus:outline-none focus:border-amber-500 hover:border-slate-300 focus:shadow-md rounded-sm',
+                    placeholder: t('saleForm.discountPlaceholder'),
+                  }
+                )}
               />
             </div>
 
@@ -632,22 +835,47 @@ function SaleForm({
         {/* Items Section */}
         <div className='border border-gray-200 rounded-sm'>
           <div className='flex justify-between items-center px-6 py-3 bg-gray-50 border-b border-gray-200'>
-            <h3 className='text-sm font-semibold text-gray-500 uppercase tracking-wide'>
-              {t('saleForm.itemsTitle')}
-            </h3>
-            <button
-              type='button'
-              onClick={handleAddItem}
-              disabled={isSaving}
-              className={`px-4 py-2 rounded-sm text-sm font-semibold flex items-center gap-2 transition-all ${
-                isSaving
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-amber-600 text-white hover:bg-amber-700'
-              }`}
-            >
-              <PlusIcon className='h-4 w-4' />
-              {isSaving ? t('saleForm.addItemSaving') : t('saleForm.addItem')}
-            </button>
+            <div className='min-w-0'>
+              <h3 className='text-sm font-semibold text-gray-500 uppercase tracking-wide'>
+                {t('saleForm.itemsTitle')}
+              </h3>
+              {items.length > 0 && (
+                <p className='text-xs text-gray-500 mt-0.5'>
+                  {editingItemIndex !== null
+                    ? t('saleForm.editingLineHint')
+                    : t('saleForm.editLineHint')}
+                </p>
+              )}
+            </div>
+            <div className='flex items-center gap-2 shrink-0'>
+              {editingItemIndex !== null && (
+                <button
+                  type='button'
+                  onClick={cancelLineEdit}
+                  disabled={isSaving}
+                  className='px-4 py-2 rounded-sm text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100 transition-all disabled:opacity-50'
+                >
+                  {t('saleForm.cancelEditLine')}
+                </button>
+              )}
+              <button
+                type='button'
+                onClick={handleAddItem}
+                disabled={isSaving}
+                className={`px-4 py-2 rounded-sm text-sm font-semibold flex items-center gap-2 transition-all ${
+                  isSaving
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-amber-600 text-white hover:bg-amber-700'
+                }`}
+              >
+                <PlusIcon className='h-4 w-4' />
+                {isSaving
+                  ? t('saleForm.addItemSaving')
+                  : editingItemIndex !== null
+                    ? t('saleForm.updateItem')
+                    : t('saleForm.addItem')}
+              </button>
+            </div>
           </div>
           <div className='p-6 bg-amber-50/40 border-b border-gray-200'>
             <div className='grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 w-full'>
@@ -786,23 +1014,23 @@ function SaleForm({
                   </span>
                 </label>
                 <input
-                  type='number'
-                  placeholder={t('saleForm.quantityPlaceholder')}
-                  value={currentItem?.quantity}
-                  min='0'
-                  onWheel={(e) => e.target.blur()}
-                  onChange={(e) => {
-                    setCurrentItem((s) => ({ ...s, quantity: e.target.value }));
-                    setValidationErrors((prev) => ({
-                      ...prev,
-                      quantity: undefined,
-                    }));
-                  }}
-                  className={`w-full font-custom dark:text-slate-500 bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border rounded-sm px-3 py-2 transition duration-300 ease focus:outline-none focus:border-amber-500 hover:border-slate-300 focus:shadow ${
-                    validationErrors.quantity
-                      ? 'border-red-500'
-                      : 'border-slate-200'
-                  }`}
+                  {...bindNumericControlled({
+                    allowDecimal: true,
+                    placeholder: t('saleForm.quantityPlaceholder'),
+                    value: currentItem?.quantity,
+                    onChange: (e) => {
+                      setCurrentItem((s) => ({ ...s, quantity: e.target.value }));
+                      setValidationErrors((prev) => ({
+                        ...prev,
+                        quantity: undefined,
+                      }));
+                    },
+                    className: `w-full font-custom dark:text-slate-500 bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border rounded-sm px-3 py-2 transition duration-300 ease focus:outline-none focus:border-amber-500 hover:border-slate-300 focus:shadow ${
+                      validationErrors.quantity
+                        ? 'border-red-500'
+                        : 'border-slate-200'
+                    }`,
+                  })}
                 />
                 {validationErrors.quantity && (
                   <p className='text-red-600 text-xs mt-0.5'>
@@ -818,35 +1046,34 @@ function SaleForm({
                   </span>
                 </label>
                 <input
-                  placeholder={t('saleForm.pricePlaceholder')}
-                  type='number'
-                  step='0.01'
-                  min='0'
-                  value={currentItem?.unitPrice}
-                  onWheel={(e) => e.target.blur()}
-                  onChange={(e) => {
-                    setCurrentItem((s) => ({
-                      ...s,
-                      unitPrice: e.target.value,
-                    }));
-                    setValidationErrors((prev) => ({
-                      ...prev,
-                      unitPrice: undefined,
-                    }));
-                  }}
-                  className={`w-full font-custom bg-transparent placeholder:text-slate-400 text-sm border rounded-sm px-3 py-2 transition duration-300 ease focus:outline-none focus:border-amber-500 hover:border-slate-300 focus:shadow ${(() => {
-                    if (validationErrors.unitPrice)
-                      return 'border-red-500 text-red-600';
-                    const validation = validateSalePrice(
-                      currentItem?.product,
-                      currentItem?.unit,
-                      currentItem?.batchNumber,
-                      currentItem?.unitPrice,
-                    );
-                    return validation.isValid
-                      ? 'border-slate-200 text-slate-700'
-                      : 'border-red-500 focus:border-red-600 text-red-600';
-                  })()}`}
+                  {...bindNumericControlled({
+                    allowDecimal: true,
+                    placeholder: t('saleForm.pricePlaceholder'),
+                    value: currentItem?.unitPrice,
+                    onChange: (e) => {
+                      setCurrentItem((s) => ({
+                        ...s,
+                        unitPrice: e.target.value,
+                      }));
+                      setValidationErrors((prev) => ({
+                        ...prev,
+                        unitPrice: undefined,
+                      }));
+                    },
+                    className: `w-full font-custom bg-transparent placeholder:text-slate-400 text-sm border rounded-sm px-3 py-2 transition duration-300 ease focus:outline-none focus:border-amber-500 hover:border-slate-300 focus:shadow ${(() => {
+                      if (validationErrors.unitPrice)
+                        return 'border-red-500 text-red-600';
+                      const validation = validateSalePrice(
+                        currentItem?.product,
+                        currentItem?.unit,
+                        currentItem?.batchNumber,
+                        currentItem?.unitPrice,
+                      );
+                      return validation.isValid
+                        ? 'border-slate-200 text-slate-700'
+                        : 'border-red-500 focus:border-red-600 text-red-600';
+                    })()}`,
+                  })}
                 />
                 {validationErrors.unitPrice && (
                   <p className='text-red-600 text-xs mt-0.5'>
@@ -860,10 +1087,20 @@ function SaleForm({
                     currentItem?.batchNumber,
                     currentItem?.unitPrice,
                   );
-                  if (!validation.isValid && validation.purchasePrice > 0) {
+                  const selectedUnit = units?.data?.find(
+                    (u) => u._id === currentItem?.unit,
+                  );
+                  if (
+                    !validation.isValid &&
+                    validation.minUnitPrice > 0 &&
+                    currentItem?.unitPrice
+                  ) {
                     return (
                       <p className='text-red-600 text-xs mt-0.5'>
-                        {t('saleForm.belowPurchaseWarning')}
+                        {t('saleForm.belowPurchaseWarning', {
+                          min: validation.minUnitPrice.toLocaleString(),
+                          unit: selectedUnit?.name || '',
+                        })}
                       </p>
                     );
                   }
@@ -888,17 +1125,6 @@ function SaleForm({
                   className='w-full font-custom dark:text-slate-500 bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded-sm px-3 py-2.5 transition duration-300 ease focus:outline-none focus:border-amber-500 hover:border-slate-300 focus:shadow'
                 />
               </div> */}
-              <div>
-                <JalaliDatePicker
-                  label={t('saleForm.expiryDate')}
-                  value={currentItem?.expiryDate}
-                  onChange={(date) =>
-                    setCurrentItem((s) => ({ ...s, expiryDate: date }))
-                  }
-                  placeholder={t('saleForm.datePlaceholder')}
-                  clearable={true}
-                />
-              </div>
             </div>
           </div>
           {items?.length > 0 && (
@@ -907,11 +1133,15 @@ function SaleForm({
                 <TableHeader headerData={productHeader} />
                 <TableBody>
                   {items?.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableColumn>
-                        {products.find((p) => p.value === item.product)
-                          ?.label || item.product}
-                      </TableColumn>
+                    <TableRow
+                      key={index}
+                      className={
+                        editingItemIndex === index
+                          ? 'bg-amber-50 ring-1 ring-inset ring-amber-300'
+                          : ''
+                      }
+                    >
+                      <TableColumn>{resolveProductLabel(item)}</TableColumn>
                       <TableColumn>
                         {formatUnitDisplay(
                           item.quantity,
@@ -928,15 +1158,29 @@ function SaleForm({
                         )}
                       </TableColumn>
                       <TableColumn>{item.batchNumber}</TableColumn>
-                      <TableColumn>{item.expiryDate}</TableColumn>
                       <TableColumn>
-                        <button
-                          type='button'
-                          onClick={() => handleRemove(index)}
-                          className=' p-1 '
-                        >
-                          <BiTrashAlt className=' text-warning-orange' />
-                        </button>
+                        <div className='flex items-center justify-end gap-1'>
+                          <button
+                            type='button'
+                            onClick={() => loadItemForEdit(index)}
+                            title={t('saleForm.actions.edit')}
+                            className={`p-1 rounded-sm transition-colors ${
+                              editingItemIndex === index
+                                ? 'text-amber-700 bg-amber-100'
+                                : 'text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50'
+                            }`}
+                          >
+                            <PencilIcon className='h-4 w-4' />
+                          </button>
+                          <button
+                            type='button'
+                            onClick={() => handleRemove(index)}
+                            title={t('saleForm.actions.delete')}
+                            className='p-1 rounded-sm text-red-600 hover:text-red-900 hover:bg-red-50 transition-colors'
+                          >
+                            <BiTrashAlt className='h-4 w-4' />
+                          </button>
+                        </div>
                       </TableColumn>
                     </TableRow>
                   ))}
@@ -960,7 +1204,23 @@ function SaleForm({
             />
           </div>
           <div className='border border-gray-200 rounded-sm overflow-hidden'>
-            <div className='grid grid-cols-3 divide-x divide-gray-200'>
+            <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-x divide-gray-200'>
+              <div className='text-center py-3 px-2'>
+                <span className='text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1'>
+                  {t('saleForm.summarySubtotal')}
+                </span>
+                <span className='text-lg font-bold text-gray-800'>
+                  {subtotalAmountValue.toFixed(2)}
+                </span>
+              </div>
+              <div className='text-center py-3 px-2'>
+                <span className='text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1'>
+                  {t('saleForm.summaryDiscount')}
+                </span>
+                <span className='text-lg font-bold text-red-600'>
+                  {discountAmountValue.toFixed(2)}
+                </span>
+              </div>
               <div className='text-center py-3 px-2'>
                 <span className='text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1'>
                   {t('saleForm.summaryFinal')}
@@ -1007,9 +1267,11 @@ function SaleForm({
           disabled={isSaving}
         >
           {isSaving
-            ? t('saleForm.submitting')
+            ? editMode
+              ? t('sales.edit.saving')
+              : t('saleForm.submitting')
             : editMode
-              ? t('saleForm.submitEdit')
+              ? t('sales.edit.save')
               : t('saleForm.submitNew')}
         </button>
       </div>

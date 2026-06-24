@@ -6,6 +6,17 @@ const Category = require('../models/category.model');
 const AuditLog = require('../models/auditLog.model');
 const Account = require('../models/account.model');
 const AccountTransaction = require('../models/accountTransaction.model');
+const {
+  parseDeletionFilter,
+  markSoftDeleted,
+  markRestored,
+  validateObjectId,
+} = require('../utils/softDeleteHelpers');
+const {
+  undoLinkedAccountTransactions,
+  redoLinkedAccountTransactions,
+  updateLinkedAccountTransactionOnEdit,
+} = require('../utils/incomeExpenseTrashAccounts');
 
 // @desc    Get all expenses with filtering and pagination
 // @route   GET /api/v1/expenses
@@ -24,7 +35,7 @@ exports.getAllExpenses = asyncHandler(async (req, res, next) => {
   } = req.query;
 
   // Build filter object
-  const filter = { isDeleted: false };
+  const filter = parseDeletionFilter(req.query);
 
   if (category) filter.category = new mongoose.Types.ObjectId(category);
   if (createdBy) filter.createdBy = new mongoose.Types.ObjectId(createdBy);
@@ -349,59 +360,22 @@ exports.updateExpense = asyncHandler(async (req, res, next) => {
 
     const oldData = expense.toObject();
 
-    // Find existing transaction
-    const existingTxn = await AccountTransaction.findOne(
-      { referenceType: 'expense', referenceId: expense._id, isDeleted: false },
-      null,
-      { session }
-    );
-
-    let newPaidFromAccount = paidFromAccount !== undefined ? paidFromAccount : expense.paidFromAccount;
+    let newPaidFromAccount =
+      paidFromAccount !== undefined ? paidFromAccount : expense.paidFromAccount;
     if (!newPaidFromAccount) {
       throw new AppError('د تادیې حساب اړین دی', 400);
     }
 
-    const moneyAccount = await Account.findOne({ _id: newPaidFromAccount, isDeleted: false }, null, { session });
+    const moneyAccount = await Account.findOne(
+      { _id: newPaidFromAccount, isDeleted: false },
+      null,
+      { session }
+    );
     if (!moneyAccount) {
       throw new AppError('د تادیې حساب ونه موندل شو', 404);
     }
     if (!['cashier', 'safe', 'saraf'].includes(moneyAccount.type)) {
       throw new AppError('د تادیې حساب باید د صندوق، خزانه، یا صراف ډول وي', 400);
-    }
-
-    // Reverse existing transaction if present
-    if (existingTxn && !existingTxn.reversed) {
-      // Credit back the old amount to the old account using atomic increment
-      const oldAccountId = existingTxn.account.toString();
-      // existingTxn.amount is negative, so Math.abs gives us the positive amount to add back
-      await Account.findByIdAndUpdate(
-        oldAccountId,
-        { $inc: { currentBalance: Math.abs(existingTxn.amount) } },
-        { session }
-      );
-
-      const reversal = await AccountTransaction.create(
-        [
-          {
-            account: existingTxn.account,
-            date: new Date(),
-            transactionType: 'Expense',
-            amount: Math.abs(existingTxn.amount), // Positive amount to reverse the negative
-            referenceType: 'expense',
-            referenceId: expense._id,
-            description: `Reversal of expense txn ${existingTxn._id.toString()}`,
-            created_by: req.user._id,
-            reversed: false,
-          },
-        ],
-        { session }
-      );
-
-      existingTxn.reversed = true;
-      existingTxn.reversalTransaction = reversal[0]._id;
-      existingTxn.reversedBy = req.user._id;
-      existingTxn.reversedAt = new Date();
-      await existingTxn.save({ session });
     }
 
     // Apply new fields to expense
@@ -410,38 +384,30 @@ exports.updateExpense = asyncHandler(async (req, res, next) => {
     if (date !== undefined) expense.date = new Date(date);
     if (description !== undefined) expense.description = description;
     expense.paidFromAccount = newPaidFromAccount;
-    await expense.save({ session });
 
-    // Post new transaction
-    // Get category name for auto-generated description
-    const updatedCategoryDoc = await Category.findById(expense.category, null, { session });
+    const updatedCategoryDoc = await Category.findById(expense.category, null, {
+      session,
+    });
     const categoryName = updatedCategoryDoc ? updatedCategoryDoc.name : 'هزینه';
-    
-    // Auto-generate description from expense data
-    const autoDescription = `هزینه: ${categoryName}${expense.amount ? ` - مبلغ: ${expense.amount.toLocaleString()} افغانی` : ''}`;
-    
-    const txn = await AccountTransaction.create(
-      [
-        {
-          account: newPaidFromAccount,
-          date: expense.date,
-          transactionType: 'Expense',
-          amount: -Math.abs(expense.amount),
-          referenceType: 'expense',
-          referenceId: expense._id,
-          description: autoDescription,
-          created_by: req.user._id,
-        },
-      ],
-      { session }
+    const autoDescription =
+      expense.description ||
+      `هزینه: ${categoryName}${expense.amount ? ` - مبلغ: ${expense.amount.toLocaleString()} افغانی` : ''}`;
+
+    await updateLinkedAccountTransactionOnEdit(
+      session,
+      'expense',
+      expense._id,
+      req.user._id,
+      {
+        amount: expense.amount,
+        accountId: expense.paidFromAccount,
+        date: expense.date,
+        description: autoDescription,
+        transactionType: 'Expense',
+      }
     );
 
-    // Decrease new account balance using atomic increment
-    await Account.findByIdAndUpdate(
-      newPaidFromAccount,
-      { $inc: { currentBalance: -Math.abs(expense.amount) } },
-      { session }
-    );
+    await expense.save({ session });
 
     // Audit log
     await AuditLog.create(
@@ -500,53 +466,15 @@ exports.deleteExpense = asyncHandler(async (req, res, next) => {
 
     const oldData = expense.toObject();
 
-    // Find the LATEST non-reversed transaction (to handle updates correctly)
-    const existingTxn = await AccountTransaction.findOne(
-      { 
-        referenceType: 'expense', 
-        referenceId: expense._id, 
-        isDeleted: false,
-        $or: [{ reversed: false }, { reversed: { $exists: false } }]
-      },
-      null,
-      { session, sort: { createdAt: -1 } } // Get the latest transaction
+    await undoLinkedAccountTransactions(
+      session,
+      'expense',
+      expense._id,
+      req.user?._id
     );
 
-    if (existingTxn) {
-      // Credit back the amount to the account using atomic increment
-      const accountId = existingTxn.account.toString();
-      // existingTxn.amount is negative, so Math.abs gives us the positive amount to add back
-      await Account.findByIdAndUpdate(
-        accountId,
-        { $inc: { currentBalance: Math.abs(existingTxn.amount) } },
-        { session }
-      );
-
-      const reversal = await AccountTransaction.create(
-        [
-          {
-            account: existingTxn.account,
-            date: new Date(),
-            transactionType: 'Expense',
-            amount: Math.abs(existingTxn.amount), // Positive amount to reverse the negative
-            referenceType: 'expense',
-            referenceId: expense._id,
-            description: `Reversal of expense txn ${existingTxn._id.toString()} (delete)`,
-            created_by: req.user._id,
-          },
-        ],
-        { session }
-      );
-
-      existingTxn.reversed = true;
-      existingTxn.reversalTransaction = reversal[0]._id;
-      existingTxn.reversedBy = req.user._id;
-      existingTxn.reversedAt = new Date();
-      await existingTxn.save({ session });
-    }
-
     // Soft delete
-    expense.isDeleted = true;
+    markSoftDeleted(expense, req.user._id);
     await expense.save({ session });
 
     // Audit log
@@ -580,63 +508,100 @@ exports.deleteExpense = asyncHandler(async (req, res, next) => {
   }
 });
 
-// @desc    Restore a deleted expense
+// @desc    Restore a deleted expense (re-applies account transaction)
 // @route   PATCH /api/v1/expenses/:id/restore
 exports.restoreExpense = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
+  validateObjectId(id, 'ناسم هزینه ID');
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('ناسم هزینه ID', 400);
-  }
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  const expense = await Expense.findOne({ _id: id, isDeleted: true });
-  if (!expense) {
-    throw new AppError('حذف شوې هزینه ونه موندل شوه', 404);
-  }
-
-  // Validate category still exists and is active
-  const categoryDoc = await Category.findOne({
-    _id: expense.category,
-    isDeleted: false,
-    isActive: true,
-    $or: [{ type: 'expense' }, { type: 'both' }],
-  });
-
-  if (!categoryDoc) {
-    throw new AppError(
-      'هزینه بیرته نشي راستنیدلی: کېټګورۍ نور شتون نلري یا غیرفعاله ده',
-      400
+  try {
+    const expense = await Expense.findOne(
+      { _id: id, isDeleted: true },
+      null,
+      { session }
     );
+    if (!expense) {
+      throw new AppError('حذف شوې هزینه ونه موندل شوه', 404);
+    }
+
+    const categoryDoc = await Category.findOne(
+      {
+        _id: expense.category,
+        isDeleted: false,
+        isActive: true,
+        $or: [{ type: 'expense' }, { type: 'both' }],
+      },
+      null,
+      { session }
+    );
+    if (!categoryDoc) {
+      throw new AppError(
+        'هزینه بیرته نشي راستنیدلی: کېټګورۍ نور شتون نلري یا غیرفعاله ده',
+        400
+      );
+    }
+
+    if (!expense.paidFromAccount) {
+      throw new AppError('د تادیې حساب شتون نلري', 400);
+    }
+
+    const moneyAccount = await Account.findOne(
+      { _id: expense.paidFromAccount, isDeleted: false },
+      null,
+      { session }
+    );
+    if (!moneyAccount) {
+      throw new AppError('د تادیې حساب ونه موندل شو یا حذف شوی دی', 400);
+    }
+
+    await redoLinkedAccountTransactions(
+      session,
+      'expense',
+      expense._id,
+      req.user?._id
+    );
+
+    const oldData = expense.toObject();
+    markRestored(expense);
+    await expense.save({ session });
+
+    await expense.populate([
+      { path: 'category', select: 'name type color' },
+      { path: 'createdBy', select: 'name' },
+    ]);
+
+    await AuditLog.create(
+      [
+        {
+          tableName: 'Expense',
+          recordId: expense._id,
+          operation: 'RESTORE',
+          oldData,
+          newData: expense.toObject(),
+          reason: `Expense restored: ${expense.amount}`,
+          changedBy: req.user?.name || 'System',
+          changedAt: new Date(),
+        },
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      success: true,
+      message: 'هزینه په بریالیتوب سره بیرته راستنه شوه',
+      data: expense,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    throw err;
   }
-
-  const oldData = expense.toObject();
-
-  // Restore expense
-  expense.isDeleted = false;
-  await expense.save();
-
-  await expense.populate([
-    { path: 'category', select: 'name type color' },
-    { path: 'createdBy', select: 'name' },
-  ]);
-
-  // Audit log
-  await AuditLog.create({
-    tableName: 'Expense',
-    recordId: expense._id,
-    operation: 'UPDATE',
-    oldData,
-    newData: expense.toObject(),
-    reason: `Expense restored: ${expense.amount}`,
-    changedBy: req.user?.name || 'System',
-    changedAt: new Date(),
-  });
-
-  res.status(200).json({
-    success: true,
-    message: 'هزینه په بریالیتوب سره بیرته راستنه شوه',
-    data: expense,
-  });
 });
 
 // @desc    Get expense statistics
@@ -850,5 +815,28 @@ exports.getExpenseSummary = asyncHandler(async (req, res, next) => {
         totalCount: formattedSummary.reduce((sum, item) => sum + item.count, 0),
       },
     },
+  });
+});
+
+// @desc    Permanently delete a soft-deleted expense
+// @route   DELETE /api/v1/expenses/:id/permanent
+exports.permanentDeleteExpense = asyncHandler(async (req, res, next) => {
+  validateObjectId(req.params.id, 'ناسم هزینه ID');
+
+  const expense = await Expense.findById(req.params.id);
+  if (!expense) throw new AppError('هزینه ونه موندل شوه', 404);
+  if (!expense.isDeleted) {
+    throw new AppError('لومړی باید هزینه په کثافاتو کې حذف شوې وي', 400);
+  }
+
+  await AccountTransaction.deleteMany({
+    referenceType: 'expense',
+    referenceId: expense._id,
+  });
+  await Expense.deleteOne({ _id: expense._id });
+
+  res.status(200).json({
+    success: true,
+    message: 'هزینه په تل لپاره حذف شوه',
   });
 });

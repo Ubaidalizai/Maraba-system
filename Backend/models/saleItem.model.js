@@ -69,6 +69,8 @@ const saleItemSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+saleItemSchema.plugin(require('../plugins/softDeletePlugin'));
+
 // Prevent OverwriteModelError when using hot-reload (nodemon) or when models are required multiple times
 const SaleItem =
   mongoose.models.SaleItem || mongoose.model('SaleItem', saleItemSchema);

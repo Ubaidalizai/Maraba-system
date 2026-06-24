@@ -5,16 +5,18 @@ const {
   getCustomer,
   updateCustomer,
   deleteCustomer,
+  restoreCustomer,
+  permanentDeleteCustomer,
 } = require('../controllers/customer.controller');
-const { authenticate } = require('../middlewares/authMiddleware');
+const { authenticate, authorizeAdmin } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
-// All routes are protected
 router.use(authenticate);
 
-// Customer routes
 router.route('/').get(getAllCustomers).post(createCustomer);
+router.patch('/:id/restore', restoreCustomer);
+router.delete('/:id/permanent', authorizeAdmin, permanentDeleteCustomer);
 router
   .route('/:id')
   .get(getCustomer)

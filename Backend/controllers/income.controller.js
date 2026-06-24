@@ -6,6 +6,17 @@ const Category = require('../models/category.model');
 const AuditLog = require('../models/auditLog.model');
 const Account = require('../models/account.model');
 const AccountTransaction = require('../models/accountTransaction.model');
+const {
+  parseDeletionFilter,
+  markSoftDeleted,
+  markRestored,
+  validateObjectId,
+} = require('../utils/softDeleteHelpers');
+const {
+  undoLinkedAccountTransactions,
+  redoLinkedAccountTransactions,
+  updateLinkedAccountTransactionOnEdit,
+} = require('../utils/incomeExpenseTrashAccounts');
 
 const normalizeStringInput = (value) => {
   if (typeof value !== 'string') return '';
@@ -40,7 +51,7 @@ exports.getAllIncome = asyncHandler(async (req, res, next) => {
   } = req.query;
 
   // Build filter object
-  const filter = { isDeleted: false };
+  const filter = parseDeletionFilter(req.query);
 
   if (category) filter.category = new mongoose.Types.ObjectId(category);
   if (createdBy) filter.createdBy = new mongoose.Types.ObjectId(createdBy);
@@ -449,59 +460,22 @@ exports.updateIncome = asyncHandler(async (req, res, next) => {
 
     const oldData = income.toObject();
 
-    // Find existing transaction
-    const existingTxn = await AccountTransaction.findOne(
-      { referenceType: 'income', referenceId: income._id, isDeleted: false },
-      null,
-      { session }
-    );
-
-    let newPlacedInAccount = placedInAccount !== undefined ? placedInAccount : income.placedInAccount;
+    let newPlacedInAccount =
+      placedInAccount !== undefined ? placedInAccount : income.placedInAccount;
     if (!newPlacedInAccount) {
       throw new AppError('د ځای پرځای کولو حساب اړین دی', 400);
     }
 
-    const moneyAccount = await Account.findOne({ _id: newPlacedInAccount, isDeleted: false }, null, { session });
+    const moneyAccount = await Account.findOne(
+      { _id: newPlacedInAccount, isDeleted: false },
+      null,
+      { session }
+    );
     if (!moneyAccount) {
       throw new AppError('د ځای پرځای کولو حساب ونه موندل شو', 404);
     }
     if (!['cashier', 'safe', 'saraf'].includes(moneyAccount.type)) {
       throw new AppError('د ځای پرځای کولو حساب باید د صندوق، خزانه، یا صراف ډول وي', 400);
-    }
-
-    // Reverse existing transaction if present
-    if (existingTxn && !existingTxn.reversed) {
-      // Debit back the old amount from the old account (reversing the credit)
-      const oldAccountId = existingTxn.account.toString();
-      // existingTxn.amount is positive for income, so we subtract it
-      await Account.findByIdAndUpdate(
-        oldAccountId,
-        { $inc: { currentBalance: -Math.abs(existingTxn.amount) } },
-        { session }
-      );
-
-      const reversal = await AccountTransaction.create(
-        [
-          {
-            account: existingTxn.account,
-            date: new Date(),
-            transactionType: 'Credit',
-            amount: -Math.abs(existingTxn.amount), // Negative amount to reverse the positive
-            referenceType: 'income',
-            referenceId: income._id,
-            description: `Reversal of income txn ${existingTxn._id.toString()}`,
-            created_by: req.user._id,
-            reversed: false,
-          },
-        ],
-        { session }
-      );
-
-      existingTxn.reversed = true;
-      existingTxn.reversalTransaction = reversal[0]._id;
-      existingTxn.reversedBy = req.user._id;
-      existingTxn.reversedAt = new Date();
-      await existingTxn.save({ session });
     }
 
     // Apply new fields to income
@@ -512,46 +486,37 @@ exports.updateIncome = asyncHandler(async (req, res, next) => {
       const normalizedDesc = normalizeStringInput(description);
       income.description = normalizedDesc || undefined;
     }
-    // Source is optional - keep existing if not provided
     if (source !== undefined) {
       income.source = resolveIncomeSource(source);
     } else if (!income.source) {
       income.source = 'درآمد عمومی';
     }
     income.placedInAccount = newPlacedInAccount;
-    await income.save({ session });
 
-    // Post new transaction
-    // Get category name for description
-    const updatedCategoryDoc = await Category.findById(income.category, null, { session });
+    const updatedCategoryDoc = await Category.findById(income.category, null, {
+      session,
+    });
     const categoryName = updatedCategoryDoc ? updatedCategoryDoc.name : 'Income';
     const txnDescription = buildIncomeDescription(
-      description,
-      `Income update: ${categoryName} from ${income.source}`
-    );
-    
-    const txn = await AccountTransaction.create(
-      [
-        {
-          account: newPlacedInAccount,
-          date: income.date,
-          transactionType: 'Credit',
-          amount: Math.abs(income.amount),
-          referenceType: 'income',
-          referenceId: income._id,
-          description: txnDescription,
-          created_by: req.user._id,
-        },
-      ],
-      { session }
+      income.description,
+      `Income: ${categoryName} from ${income.source}`
     );
 
-    // Increase new account balance using atomic increment
-    await Account.findByIdAndUpdate(
-      newPlacedInAccount,
-      { $inc: { currentBalance: Math.abs(income.amount) } },
-      { session }
+    await updateLinkedAccountTransactionOnEdit(
+      session,
+      'income',
+      income._id,
+      req.user._id,
+      {
+        amount: income.amount,
+        accountId: income.placedInAccount,
+        date: income.date,
+        description: txnDescription,
+        transactionType: 'Credit',
+      }
     );
+
+    await income.save({ session });
 
     // Audit log
     await AuditLog.create(
@@ -611,53 +576,15 @@ exports.deleteIncome = asyncHandler(async (req, res, next) => {
 
     const oldData = income.toObject();
 
-    // Find the LATEST non-reversed transaction (to handle updates correctly)
-    const existingTxn = await AccountTransaction.findOne(
-      { 
-        referenceType: 'income', 
-        referenceId: income._id, 
-        isDeleted: false,
-        $or: [{ reversed: false }, { reversed: { $exists: false } }]
-      },
-      null,
-      { session, sort: { createdAt: -1 } } // Get the latest transaction
+    await undoLinkedAccountTransactions(
+      session,
+      'income',
+      income._id,
+      req.user?._id
     );
 
-    if (existingTxn) {
-      // Debit back the amount from the account (reversing the credit)
-      const accountId = existingTxn.account.toString();
-      // existingTxn.amount is positive for income, so we subtract it
-      await Account.findByIdAndUpdate(
-        accountId,
-        { $inc: { currentBalance: -Math.abs(existingTxn.amount) } },
-        { session }
-      );
-
-      const reversal = await AccountTransaction.create(
-        [
-          {
-            account: existingTxn.account,
-            date: new Date(),
-            transactionType: 'Credit',
-            amount: -Math.abs(existingTxn.amount), // Negative amount to reverse the positive
-            referenceType: 'income',
-            referenceId: income._id,
-            description: `Reversal of income txn ${existingTxn._id.toString()} (delete)`,
-            created_by: req.user._id,
-          },
-        ],
-        { session }
-      );
-
-      existingTxn.reversed = true;
-      existingTxn.reversalTransaction = reversal[0]._id;
-      existingTxn.reversedBy = req.user._id;
-      existingTxn.reversedAt = new Date();
-      await existingTxn.save({ session });
-    }
-
     // Soft delete
-    income.isDeleted = true;
+    markSoftDeleted(income, req.user._id);
     await income.save({ session });
 
     // Audit log
@@ -691,63 +618,101 @@ exports.deleteIncome = asyncHandler(async (req, res, next) => {
   }
 });
 
-// @desc    Restore a deleted income record
+// @desc    Restore a deleted income record (re-applies account transaction)
 // @route   PATCH /api/v1/income/:id/restore
 exports.restoreIncome = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
+  validateObjectId(id, 'ناسم عاید ID');
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError('ناسم عاید ID', 400);
-  }
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  const income = await Income.findOne({ _id: id, isDeleted: true });
-  if (!income) {
-    throw new AppError('حذف شوی عاید ریکارډ ونه موندل شو', 404);
-  }
-
-  // Validate category still exists and is active
-  const categoryDoc = await Category.findOne({
-    _id: income.category,
-    isDeleted: false,
-    isActive: true,
-    $or: [{ type: 'income' }, { type: 'both' }],
-  });
-
-  if (!categoryDoc) {
-    throw new AppError(
-      'عاید بیرته نشي راستنیدلی: کېټګورۍ نور شتون نلري یا غیرفعاله ده',
-      400
+  try {
+    const income = await Income.findOne(
+      { _id: id, isDeleted: true },
+      null,
+      { session }
     );
+    if (!income) {
+      throw new AppError('حذف شوی عاید ریکارډ ونه موندل شو', 404);
+    }
+
+    const categoryDoc = await Category.findOne(
+      {
+        _id: income.category,
+        isDeleted: false,
+        isActive: true,
+        $or: [{ type: 'income' }, { type: 'both' }],
+      },
+      null,
+      { session }
+    );
+    if (!categoryDoc) {
+      throw new AppError(
+        'عاید بیرته نشي راستنیدلی: کېټګورۍ نور شتون نلري یا غیرفعاله ده',
+        400
+      );
+    }
+
+    if (!income.placedInAccount) {
+      throw new AppError('د ځای پرځای کولو حساب شتون نلري', 400);
+    }
+
+    const moneyAccount = await Account.findOne(
+      { _id: income.placedInAccount, isDeleted: false },
+      null,
+      { session }
+    );
+    if (!moneyAccount) {
+      throw new AppError('د ځای پرځای کولو حساب ونه موندل شو یا حذف شوی دی', 400);
+    }
+
+    await redoLinkedAccountTransactions(
+      session,
+      'income',
+      income._id,
+      req.user?._id
+    );
+
+    const oldData = income.toObject();
+    markRestored(income);
+    await income.save({ session });
+
+    await income.populate([
+      { path: 'category', select: 'name type color' },
+      { path: 'createdBy', select: 'name' },
+      { path: 'placedInAccount', select: 'name type' },
+    ]);
+
+    await AuditLog.create(
+      [
+        {
+          tableName: 'Income',
+          recordId: income._id,
+          operation: 'RESTORE',
+          oldData,
+          newData: income.toObject(),
+          reason: `Income restored: ${income.amount} from ${income.source}`,
+          changedBy: req.user?.name || 'System',
+          changedAt: new Date(),
+        },
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      success: true,
+      message: 'د عاید ریکارډ په بریالیتوب سره بیرته راستون شو',
+      data: income,
+    });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    throw err;
   }
-
-  const oldData = income.toObject();
-
-  // Restore income
-  income.isDeleted = false;
-  await income.save();
-
-  await income.populate([
-    { path: 'category', select: 'name type color' },
-    { path: 'createdBy', select: 'name' },
-  ]);
-
-  // Audit log
-  await AuditLog.create({
-    tableName: 'Income',
-    recordId: income._id,
-    operation: 'UPDATE',
-    oldData,
-    newData: income.toObject(),
-    reason: `Income restored: ${income.amount} from ${income.source}`,
-    changedBy: req.user?.name || 'System',
-    changedAt: new Date(),
-  });
-
-  res.status(200).json({
-    success: true,
-    message: 'د عاید ریکارډ په بریالیتوب سره بیرته راستون شو',
-    data: income,
-  });
 });
 
 // @desc    Get income statistics
@@ -945,5 +910,51 @@ exports.getIncomeSummary = asyncHandler(async (req, res, next) => {
       groupBy,
       summary,
     },
+  });
+});
+
+// @desc    Permanently delete a soft-deleted income record
+// @route   DELETE /api/v1/income/:id/permanent
+exports.permanentDeleteIncome = asyncHandler(async (req, res, next) => {
+  validateObjectId(req.params.id, 'ناسم عاید ID');
+
+  const income = await Income.findById(req.params.id);
+  if (!income) throw new AppError('د عاید ریکارډ ونه موندل شو', 404);
+  if (!income.isDeleted) {
+    throw new AppError('لومړی باید عاید په کثافاتو کې حذف شوی وي', 400);
+  }
+
+  await AccountTransaction.deleteMany({
+    referenceType: 'income',
+    referenceId: income._id,
+  });
+  await Income.deleteOne({ _id: income._id });
+
+  res.status(200).json({
+    success: true,
+    message: 'د عاید ریکارډ په تل لپاره حذف شو',
+  });
+});
+
+// @desc    Permanently delete a soft-deleted income record
+// @route   DELETE /api/v1/income/:id/permanent
+exports.permanentDeleteIncome = asyncHandler(async (req, res, next) => {
+  validateObjectId(req.params.id, 'ناسم عاید ID');
+
+  const income = await Income.findById(req.params.id);
+  if (!income) throw new AppError('د عاید ریکارډ ونه موندل شو', 404);
+  if (!income.isDeleted) {
+    throw new AppError('لومړی باید عاید په کثافاتو کې حذف شوی وي', 400);
+  }
+
+  await AccountTransaction.deleteMany({
+    referenceType: 'income',
+    referenceId: income._id,
+  });
+  await Income.deleteOne({ _id: income._id });
+
+  res.status(200).json({
+    success: true,
+    message: 'د عاید ریکارډ په تل لپاره حذف شو',
   });
 });

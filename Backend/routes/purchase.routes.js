@@ -6,29 +6,43 @@ const {
   updatePurchase,
   softDeletePurchase,
   restorePurchase,
+  permanentDeletePurchase,
   recordPurchasePayment,
   getPurchaseReports,
+  getPurchaseStockConstraints,
 } = require('../controllers/purchase.controller');
-
-const { authenticate } = require('../middlewares/authMiddleware');
+const {
+  returnPurchaseItem,
+  getAllPurchaseReturns,
+  getPurchaseReturn,
+  deletePurchaseReturn,
+} = require('../controllers/purchaseReturn.controller');
+const { authenticate, authorizeAdmin } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
-// All routes are protected
 router.use(authenticate);
+
+router.route('/returns').get(getAllPurchaseReturns).post(returnPurchaseItem);
+
+router
+  .route('/returns/:id')
+  .get(getPurchaseReturn)
+  .delete(deletePurchaseReturn);
 
 router.route('/').post(createPurchase).get(getAllPurchases);
 
-// Reports route must come BEFORE /:id routes to avoid route conflicts
 router.get('/reports', getPurchaseReports);
+router.get('/:id/stock-constraints', getPurchaseStockConstraints);
+
+router.patch('/:id/restore', restorePurchase);
+router.delete('/:id/permanent', authorizeAdmin, permanentDeletePurchase);
+router.post('/:id/payment', recordPurchasePayment);
 
 router
   .route('/:id')
   .get(getPurchaseById)
   .patch(updatePurchase)
   .delete(softDeletePurchase);
-
-router.patch('/:id/restore', restorePurchase);
-router.post('/:id/payment', recordPurchasePayment);
 
 module.exports = router;

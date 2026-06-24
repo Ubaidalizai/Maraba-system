@@ -7,6 +7,7 @@ exports.createProductSchema = Joi.object({
   trackByBatch: Joi.boolean().default(false),
   baseUnit: Joi.string().required(), // must be valid ObjectId
   latestPurchasePrice: Joi.number().min(0).default(0),
+  notifyDaysBefore: Joi.number().min(0).allow(null, '').optional(),
 });
 
 exports.updateProductSchema = Joi.object({
@@ -15,4 +16,5 @@ exports.updateProductSchema = Joi.object({
   minLevel: Joi.number().min(0),
   trackByBatch: Joi.boolean(),
   baseUnit: Joi.string(),
+  notifyDaysBefore: Joi.number().min(0).allow(null, '').optional(),
 });

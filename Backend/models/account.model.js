@@ -38,5 +38,7 @@ accountSchema.index(
 accountSchema.index({ type: 1 });
 accountSchema.index({ name: 1 });
 
+accountSchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Account = mongoose.model('Account', accountSchema);
 module.exports = Account;

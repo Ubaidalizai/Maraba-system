@@ -18,23 +18,38 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Check if user is authenticated on app load
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        try {
-          // Verify token with backend
+      try {
+        if (!localStorage.getItem('authToken')) {
+          try {
+            const refreshResponse = await fetch(`${BASE_URL}/users/refresh`, {
+              method: 'POST',
+              credentials: 'include',
+            });
+            if (refreshResponse.ok) {
+              const refreshData = await refreshResponse.json();
+              if (refreshData.accessToken) {
+                setAuthTokens(refreshData.accessToken);
+              }
+            }
+          } catch {
+            // No valid refresh session
+          }
+        }
+
+        if (localStorage.getItem('authToken')) {
           const response = await apiRequest('/users/profile');
           setUser(response.user);
           setIsAuthenticated(true);
-        } catch (error) {
-          console.error('Token verification failed:', error);
-          clearAuthTokens();
-          setIsAuthenticated(false);
         }
+      } catch (error) {
+        console.error('Token verification failed:', error);
+        clearAuthTokens();
+        setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkAuth();
@@ -43,29 +58,27 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       setLoading(true);
-      
+
       const response = await fetch(`${BASE_URL}/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // Include cookies for refresh token
+        credentials: 'include',
         body: JSON.stringify(credentials),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Login failed');
       }
 
       const data = await response.json();
-      
-      // Store tokens if provided in response
+
       if (data.accessToken) {
-        setAuthTokens(data.accessToken, data.refreshToken);
+        setAuthTokens(data.accessToken);
       }
-      
-      // Use the user data directly from login response
+
       setUser(data.user);
       setIsAuthenticated(true);
       return { success: true, user: data.user };
@@ -80,7 +93,6 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Call logout endpoint to invalidate refresh token
       await fetch(`${BASE_URL}/users/logout`, {
         method: 'POST',
         credentials: 'include',
@@ -88,7 +100,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Clear local state and tokens
       clearAuthTokens();
       setUser(null);
       setIsAuthenticated(false);
@@ -105,7 +116,7 @@ export const AuthProvider = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         if (data.accessToken) {
-          setAuthTokens(data.accessToken, data.refreshToken);
+          setAuthTokens(data.accessToken);
           return data.accessToken;
         }
       }

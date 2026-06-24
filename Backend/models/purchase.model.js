@@ -2,11 +2,6 @@ const mongoose = require('mongoose');
 
 const purchaseSchema = new mongoose.Schema(
   {
-    purchaseNumber: {
-      type: String,
-      unique: true,
-      required: false, // Auto-generated, but can be overridden
-    },
     supplier: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Supplier',
@@ -59,31 +54,7 @@ const purchaseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Auto-generate purchase number before saving
-purchaseSchema.pre('save', async function (next) {
-  // Only generate if purchaseNumber is not provided
-  if (!this.purchaseNumber || this.purchaseNumber.trim() === '') {
-    try {
-      // Get the total count of all purchases to create a sequential number
-      const query = {};
-      
-      // Exclude current document if this is an update
-      if (!this.isNew) {
-        query._id = { $ne: this._id };
-      }
-      
-      const totalPurchasesCount = await mongoose.model('Purchase').countDocuments(query);
-      
-      // Format: PUR-XXXXXX (e.g., PUR-000001, PUR-000002, etc.)
-      // Sequential number that never resets, starting from 000001
-      const sequence = String(totalPurchasesCount + 1).padStart(6, '0');
-      this.purchaseNumber = `PUR-${sequence}`;
-    } catch (error) {
-      return next(error);
-    }
-  }
-  next();
-});
+purchaseSchema.plugin(require('../plugins/softDeletePlugin'));
 
 // Avoid OverwriteModelError in hot-reload/watch environments
 const Purchase =

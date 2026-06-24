@@ -1,152 +1,151 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "react-toastify";
+import { ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 import { useDailyReport } from "../services/useApi";
-import { FiDownload } from "react-icons/fi";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import ReportPDF from "../components/ReportPDF";
+import JalaliDatePicker from "../components/JalaliDatePicker";
+import Spinner from "../components/Spinner";
+import { normalizeDateToIso } from "../utilies/helper";
+import { addCanvasAsPagedJpegs } from "../utilies/addCanvasAsPagedJpegs";
+import {
+  buildPdfCaptureNode,
+  patchOklabColors,
+  removePdfCaptureNode,
+} from "../utilies/dailyReportPdfCapture";
 
 export default function DailyReport() {
   const { t } = useTranslation();
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split("T")[0];
   const [reportDate, setReportDate] = useState(today);
+  const [isExporting, setIsExporting] = useState(false);
 
-  const { data: dailyReportData, isLoading: reportLoading, isError } = useDailyReport({
-    startDate: reportDate,
-    endDate: reportDate,
-  });
-
-  // Patch oklch colors to standard colors for html2canvas
-  const patchOklabColors = (root) => {
-    if (!root) return;
-    const props = ['color', 'background', 'backgroundColor', 'borderColor', 'fill', 'stroke'];
-    const all = root.getElementsByTagName('*');
-    for (let i = 0; i < all.length; i++) {
-      const el = all[i];
-      const styles = window.getComputedStyle(el);
-      props.forEach((prop) => {
-        const val = styles[prop];
-        if (val && (val.includes('oklab') || val.includes('oklch'))) {
-          if (prop === 'color') {
-            el.style[prop] = '#1e293b';
-          } else if (prop.includes('background')) {
-            el.style[prop] = '#ffffff';
-          } else if (prop.includes('border')) {
-            el.style[prop] = '#e2e8f0';
-          } else {
-            el.style[prop] = '#222222';
-          }
-        }
-      });
-    }
-  };
+  const { data: dailyReportData, isLoading: reportLoading, isError } =
+    useDailyReport({
+      startDate: reportDate,
+      endDate: reportDate,
+    });
 
   const exportToPDF = async () => {
-    if (!dailyReportData) return;
+    if (!dailyReportData || isExporting) return;
 
-    const reportElement = document.getElementById('daily-report-content');
-    if (!reportElement) return;
+    const reportElement = document.getElementById("daily-report-content");
+    if (!reportElement) {
+      toast.error(t("dailyReport.exportError"));
+      return;
+    }
+
+    setIsExporting(true);
+    let captureNode = null;
 
     try {
-      reportElement.style.display = 'none';
-      reportElement.offsetHeight;
-      reportElement.style.display = 'block';
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      patchOklabColors(reportElement);
+      captureNode = buildPdfCaptureNode(reportElement);
 
-      const canvas = await html2canvas(reportElement, {
+      if (document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      patchOklabColors(captureNode);
+      void captureNode.offsetHeight;
+
+      const canvas = await html2canvas(captureNode, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#ffffff',
-        ignoreElements: (el) => el.classList?.contains('no-print'),
+        backgroundColor: "#ffffff",
         logging: false,
-        letterRendering: true,
+        letterRendering: false,
+        imageTimeout: 0,
       });
 
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgHeight = (canvas.height * pageWidth) / canvas.width;
-
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
-        heightLeft -= pageHeight;
+      if (!canvas?.width || !canvas?.height) {
+        throw new Error("Empty canvas");
       }
 
-      const fileName = `Daily_Report_${reportDate}.pdf`;
-      pdf.save(fileName);
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+        compress: true,
+      });
+
+      addCanvasAsPagedJpegs(pdf, canvas, { jpegQuality: 0.62 });
+
+      pdf.save(`Daily_Report_${reportDate}.pdf`);
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error("Error generating PDF:", error);
+      toast.error(t("dailyReport.exportError"));
+    } finally {
+      removePdfCaptureNode(captureNode);
+      setIsExporting(false);
     }
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{t("dailyReport.title")}</h1>
-        <p className="text-gray-600">{t("dailyReport.subtitle")}</p>
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">
+            {t("dailyReport.title")}
+          </h1>
+          <p className="text-gray-600 mt-1">{t("dailyReport.subtitle")}</p>
+        </div>
       </div>
 
-      {/* Date Filter */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bg-white rounded-lg border border-gray-200 p-6 no-print">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {t("dailyReport.selectDate")}
             </label>
-            <input
-              type="date"
+            <JalaliDatePicker
               value={reportDate}
-              onChange={(e) => setReportDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              onChange={(nextValue) => {
+                const iso = normalizeDateToIso(nextValue);
+                if (iso) setReportDate(iso);
+              }}
+              placeholder={t("dailyReport.selectDate")}
+              clearable={false}
             />
           </div>
-          <div className="flex items-end">
-            <button
-              onClick={exportToPDF}
-              disabled={reportLoading || !dailyReportData}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <FiDownload />
-              {t("dailyReport.exportPDF")}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={exportToPDF}
+            disabled={reportLoading || !dailyReportData || isExporting}
+            className="btn-primary shadow-none hover:shadow-none w-full md:w-auto px-4 py-2.5 rounded-sm flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ArrowDownTrayIcon className="h-5 w-5" />
+            {isExporting
+              ? t("dailyReport.exportingPDF")
+              : t("dailyReport.exportPDF")}
+          </button>
         </div>
       </div>
 
-      {/* Loading State */}
-      {reportLoading && (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-2 text-gray-600">{t("dailyReport.loading")}</p>
+      {isExporting && (
+        <div className="fixed inset-0 z-[100000] flex flex-col items-center justify-center gap-3 bg-black/60 pointer-events-none">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          <p className="text-white text-sm font-medium">
+            {t("dailyReport.exportingPDF")}
+          </p>
         </div>
       )}
 
-      {/* Error State */}
+      {reportLoading && (
+        <div className="flex justify-center items-center py-16">
+          <Spinner />
+        </div>
+      )}
+
       {isError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
           <p className="text-red-600">{t("dailyReport.error")}</p>
         </div>
       )}
 
-      {/* Report Content */}
       {dailyReportData && (
         <div id="daily-report-content">
           <ReportPDF data={dailyReportData.data} reportDate={reportDate} />

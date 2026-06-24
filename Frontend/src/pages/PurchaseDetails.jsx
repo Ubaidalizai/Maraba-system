@@ -1,13 +1,35 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { usePurchase, useSuppliers, useSystemAccounts } from "../services/useApi";
-import { formatCurrency } from "../utilies/helper";
-import { ArrowRightIcon, BanknotesIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import {
+  usePurchase,
+  usePurchaseReturns,
+  useDeletePurchaseReturn,
+  useSuppliers,
+  useSystemAccounts,
+  invalidateAccountRelatedQueries,
+  invalidateInventoryStatsQueries,
+} from "../services/useApi";
+import { formatCurrency, formatJalaliDate } from "../utilies/helper";
+import {
+  getPaymentStatusColor,
+  getPaymentStatusTableLabelKey,
+  resolvePaymentStatus,
+} from "../utilies/paymentStatus";
+import {
+  ArrowRightIcon,
+  ArrowUturnLeftIcon,
+  BanknotesIcon,
+  PencilIcon,
+  TrashIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+import { useMemo, useState } from "react";
 import GloableModal from "../components/GloableModal";
+import PurchaseReturnModal from "../components/PurchaseReturnModal";
 import { toast } from "react-toastify";
 import { usePaymentProcess } from "../services/useApi";
 import { useQueryClient } from "@tanstack/react-query";
+import { bindNumericControlled } from "../utilies/numericInput";
 
 const EASTERN_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 
@@ -18,6 +40,9 @@ const PurchaseDetails = () => {
   const { data: selectedPurchase, isLoading } = usePurchase(id);
   const { data: suppliers } = useSuppliers();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnToDelete, setReturnToDelete] = useState(null);
+  const deletePurchaseReturnMutation = useDeletePurchaseReturn();
   const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedAccount, setSelectedAccount] = useState("");
   const [paymentDescription, setPaymentDescription] = useState("");
@@ -25,6 +50,44 @@ const PurchaseDetails = () => {
   const { data: systemAccounts } = useSystemAccounts();
   const { mutate: createpaymentProces } = usePaymentProcess();
   const queryClient = useQueryClient();
+
+  const { data: returnsResponse } = usePurchaseReturns(
+    { purchaseId: id, limit: 50 },
+    { enabled: !!id }
+  );
+  const purchaseReturns = returnsResponse?.data || [];
+
+  const purchaseData = selectedPurchase?.purchase || selectedPurchase;
+  const detailItems = purchaseData?.items || [];
+
+  const returnableCount = useMemo(
+    () => detailItems.filter((item) => (item.quantity || 0) > 0).length,
+    [detailItems]
+  );
+
+  const invalidatePurchaseQueries = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["purchase", id] }),
+      queryClient.invalidateQueries({ queryKey: ["purchaseReturns"] }),
+      queryClient.invalidateQueries({ queryKey: ["allPurchases"] }),
+      invalidateAccountRelatedQueries(queryClient),
+      invalidateInventoryStatsQueries(queryClient),
+    ]);
+  };
+
+  const confirmDeleteReturn = () => {
+    if (!returnToDelete) return;
+    deletePurchaseReturnMutation.mutate(returnToDelete, {
+      onSuccess: async () => {
+        setReturnToDelete(null);
+        toast.success(t("purchases.return.deleteSuccess"));
+        await invalidatePurchaseQueries();
+      },
+      onError: (error) => {
+        toast.error(error.message || t("purchases.return.deleteError"));
+      },
+    });
+  };
 
   const toLocalizedNumber = (num) => {
     const raw = String(num ?? "");
@@ -41,25 +104,7 @@ const PurchaseDetails = () => {
     return suppliers?.data?.find((supp) => supp._id === supplierId);
   };
 
-  const getPaymentStatusColor = (status) => {
-    switch (status) {
-      case "paid":
-        return "bg-green-100 text-green-800 border border-green-200";
-      case "partial":
-        return "bg-yellow-100 text-yellow-800 border border-yellow-200";
-      case "pending":
-        return "bg-red-100 text-red-800 border border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border border-gray-200";
-    }
-  };
-
-  const formatPurchaseDate = (iso) => {
-    if (!iso) return "—";
-    const lang = (i18n.language || "ps").split("-")[0];
-    const localeTag = lang === "ps" ? "ps-AF" : "fa-IR";
-    return new Date(iso).toLocaleDateString(localeTag);
-  };
+  const formatPurchaseDate = formatJalaliDate;
 
   const handleRecordPayment = () => {
     if (!paymentAmount || !selectedAccount) {
@@ -104,7 +149,7 @@ const PurchaseDetails = () => {
       },
       {
         onSuccess: async () => {
-          toast.success(t("sales.toast.paymentSuccess"));
+          toast.success(t("purchases.toast.paymentSuccess"));
           setShowPaymentModal(false);
           setPaymentAmount("");
           setSelectedAccount("");
@@ -117,7 +162,9 @@ const PurchaseDetails = () => {
           ]);
         },
         onError: (error) => {
-          toast.error(`${t("sales.toast.paymentError")}: ${error.message}`);
+          toast.error(
+            `${t("purchases.toast.paymentError")}: ${error.message}`
+          );
         },
         onSettled: () => setIsSubmittingPayment(false),
       }
@@ -132,9 +179,6 @@ const PurchaseDetails = () => {
     );
   }
 
-  const purchaseData = selectedPurchase?.purchase || selectedPurchase;
-  const detailItems = purchaseData?.items || [];
-
   if (!purchaseData) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -146,21 +190,33 @@ const PurchaseDetails = () => {
   return (
     <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate("/purchases")}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <ArrowRightIcon className="h-6 w-6 text-gray-600" />
-        </button>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">
-            {t("purchases.details.title")}
-          </h1>
-          <p className="text-gray-600 mt-1">
-            {t("purchases.details.invoiceNumber")}: {purchaseData.batchNumber || "—"}
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate("/purchases")}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowRightIcon className="h-6 w-6 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">
+              {t("purchases.details.title")}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              {formatPurchaseDate(purchaseData.purchaseDate)}
+            </p>
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={() =>
+            navigate(`/purchases/edit/${purchaseData._id}`)
+          }
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-amber-600 text-white text-sm font-medium hover:bg-amber-700"
+        >
+          <PencilIcon className="h-5 w-5" />
+          {t("purchases.details.editPurchase")}
+        </button>
       </div>
 
       {/* Purchase Summary Cards */}
@@ -204,15 +260,7 @@ const PurchaseDetails = () => {
         <h3 className="text-sm font-medium text-gray-700 mb-3">
           {t("purchases.details.purchaseInfo")}
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div>
-            <h4 className="text-xs font-medium text-gray-500 mb-1">
-              {t("purchases.details.invoiceNumber")}
-            </h4>
-            <p className="text-sm font-medium text-gray-900">
-              {purchaseData.batchNumber || "-"}
-            </p>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <div>
             <h4 className="text-xs font-medium text-gray-500 mb-1">
               {t("purchases.details.purchaseDate")}
@@ -237,12 +285,14 @@ const PurchaseDetails = () => {
             </h4>
             <span
               className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(
-                (purchaseData.dueAmount ?? 0) > 0 ? "partial" : "paid"
+                resolvePaymentStatus(purchaseData)
               )}`}
             >
-              {(purchaseData.dueAmount ?? 0) > 0
-                ? t("purchases.table.statusPartialPaid")
-                : t("purchases.table.statusFullyPaid")}
+              {t(
+                `purchases.table.${getPaymentStatusTableLabelKey(
+                  resolvePaymentStatus(purchaseData)
+                )}`
+              )}
             </span>
           </div>
         </div>
@@ -322,9 +372,20 @@ const PurchaseDetails = () => {
         {/* Total Summary */}
         <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
           <div className="flex justify-between items-center">
-            <div>
+            <div className="flex flex-wrap gap-2">
+              {returnableCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowReturnModal(true)}
+                  className="px-3 py-1.5 bg-amber-600 text-white rounded-sm hover:bg-amber-700 flex items-center gap-2 text-sm"
+                >
+                  <ArrowUturnLeftIcon className="h-4 w-4" />
+                  {t("purchases.actions.recordReturn")}
+                </button>
+              )}
               {(purchaseData.dueAmount ?? 0) > 0 && (
                 <button
+                  type="button"
                   onClick={() => setShowPaymentModal(true)}
                   className="px-3 py-1.5 bg-green-600 text-white rounded-sm hover:bg-green-700 flex items-center gap-2 text-sm"
                 >
@@ -342,6 +403,126 @@ const PurchaseDetails = () => {
           </div>
         </div>
       </div>
+
+      {purchaseReturns.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg">
+          <div className="px-3 py-2 border-b border-gray-200">
+            <h3 className="text-sm font-medium text-gray-700">
+              {t("purchases.return.historyTitle")}
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    {t("purchases.details.product")}
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    {t("purchases.details.quantity")}
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    {t("purchases.return.creditLabel")}
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    {t("purchases.return.cashRefundLabel")}
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    {t("purchases.return.reasonLabel")}
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    {t("purchases.return.actionsLabel")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {purchaseReturns.map((ret) => (
+                  <tr key={ret._id} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 text-sm text-gray-900">
+                      {ret.product?.name || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-900">
+                      {toLocalizedNumber(ret.quantity)}{" "}
+                      {ret.unit?.name || ""}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-amber-700 font-medium">
+                      {formatMoney(ret.creditAmount || 0)}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-900">
+                      {formatMoney(ret.cashRefundAmount || 0)}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-600">
+                      {ret.reason || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => setReturnToDelete(ret._id)}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100"
+                        title={t("purchases.return.deleteAction")}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                        {t("purchases.return.deleteAction")}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <GloableModal
+        open={!!returnToDelete}
+        setOpen={(open) => {
+          if (!open) setReturnToDelete(null);
+        }}
+        isClose={true}
+      >
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="p-6">
+            <div className="flex items-center mb-4">
+              <div className="bg-red-100 p-2 rounded-full ml-3">
+                <TrashIcon className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t("purchases.return.deleteConfirmTitle")}
+              </h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              {t("purchases.return.deleteConfirmMessage")}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setReturnToDelete(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                {t("purchases.return.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteReturn}
+                disabled={deletePurchaseReturnMutation.isPending}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {deletePurchaseReturnMutation.isPending
+                  ? t("purchases.delete.deleting")
+                  : t("purchases.return.deleteAction")}
+              </button>
+            </div>
+          </div>
+        </div>
+      </GloableModal>
+
+      <PurchaseReturnModal
+        open={showReturnModal}
+        setOpen={setShowReturnModal}
+        purchaseId={id}
+        purchase={purchaseData}
+        onSuccess={invalidatePurchaseQueries}
+      />
 
       {/* Payment Modal */}
       {showPaymentModal && purchaseData && (
@@ -375,14 +556,13 @@ const PurchaseDetails = () => {
                   {t("purchases.payment.amountLabel")}
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  onWheel={(e) => e.target.blur()}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-sm"
-                  placeholder={t("purchases.payment.amountPlaceholder")}
-                  max={purchaseData.dueAmount ?? undefined}
+                  {...bindNumericControlled({
+                    allowDecimal: true,
+                    value: paymentAmount,
+                    onChange: (e) => setPaymentAmount(e.target.value),
+                    className: "w-full px-3 py-2 border border-gray-300 rounded-sm",
+                    placeholder: t("purchases.payment.amountPlaceholder"),
+                  })}
                 />
               </div>
 

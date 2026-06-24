@@ -42,6 +42,8 @@ const sarafSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+sarafSchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Saraf = mongoose.model('Saraf', sarafSchema);
 
 module.exports = Saraf;

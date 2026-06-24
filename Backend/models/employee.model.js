@@ -43,6 +43,8 @@ const employeeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+employeeSchema.plugin(require('../plugins/softDeletePlugin'));
+
 const Employee = mongoose.model('Employee', employeeSchema);
 
 module.exports = Employee;

@@ -57,4 +57,6 @@ const stockTransferSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+stockTransferSchema.plugin(require('../plugins/softDeletePlugin'));
+
 module.exports = mongoose.model('StockTransfer', stockTransferSchema);

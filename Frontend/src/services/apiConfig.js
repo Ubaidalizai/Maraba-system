@@ -2,35 +2,26 @@
 // API Configuration and Utilities
 // ========================================
 
-// Use environment variable if available, otherwise fallback to localhost for development
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api/v1";
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:3001";
 
-// Get auth token from localStorage
-const getAuthToken = () => {
-  return localStorage.getItem("authToken");
-};
+let refreshInFlight = null;
 
-// Get refresh token from localStorage
-const getRefreshToken = () => {
-  return localStorage.getItem("refreshToken");
-};
+const getAuthToken = () => localStorage.getItem("authToken");
 
-// Set auth tokens in localStorage
-export const setAuthTokens = (authToken, refreshToken) => {
-  localStorage.setItem("authToken", authToken);
-  if (refreshToken) {
-    localStorage.setItem("refreshToken", refreshToken);
+export const setAuthTokens = (authToken) => {
+  if (authToken) {
+    localStorage.setItem("authToken", authToken);
   }
 };
 
-// Clear auth tokens from localStorage
+export const setAuthToken = setAuthTokens;
+
 export const clearAuthTokens = () => {
   localStorage.removeItem("authToken");
   localStorage.removeItem("refreshToken");
 };
 
-// Get default headers with authentication
 const getDefaultHeaders = () => {
   const token = getAuthToken();
   return {
@@ -39,64 +30,74 @@ const getDefaultHeaders = () => {
   };
 };
 
-// Handle API response
-const handleApiResponse = async (response) => {
-  if (!response.ok) {
-    // If unauthorized, try to refresh token
-    if (response.status === 401) {
-      const refreshToken = getRefreshToken();
-      if (refreshToken) {
-        try {
-          const refreshResponse = await fetch(`${API_BASE_URL}/users/refresh`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refreshToken }),
-          });
-
-          if (refreshResponse.ok) {
-            const refreshData = await refreshResponse.json();
-            setAuthTokens(refreshData.accessToken, refreshData.refreshToken);
-            // Retry original request with new token
-            return fetch(response.url, {
-              ...response,
-              headers: {
-                ...getDefaultHeaders(),
-                Authorization: `Bearer ${refreshData.accessToken}`,
-              },
-            });
-          }
-        } catch (error) {
-          console.error("Token refresh failed:", error);
-          clearAuthTokens();
-          window.location.href = "/login";
+const refreshAccessToken = async () => {
+  if (!refreshInFlight) {
+    refreshInFlight = fetch(`${API_BASE_URL}/users/refresh`, {
+      method: "POST",
+      credentials: "include",
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Token refresh failed");
         }
-      } else {
-        clearAuthTokens();
-        window.location.href = "/login";
-      }
-    }
-
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      errorData.message || `HTTP error! status: ${response.status}`
-    );
+        const data = await response.json();
+        if (!data.accessToken) {
+          throw new Error("Token refresh failed");
+        }
+        setAuthTokens(data.accessToken);
+        return data.accessToken;
+      })
+      .finally(() => {
+        refreshInFlight = null;
+      });
   }
-
-  return response.json();
+  return refreshInFlight;
 };
 
-// Generic API request function
-export const apiRequest = async (endpoint, options = {}) => {
+const parseErrorResponse = async (response) => {
+  const errorData = await response.json().catch(() => ({}));
+  throw new Error(
+    errorData.message || `HTTP error! status: ${response.status}`
+  );
+};
+
+export const apiRequest = async (endpoint, options = {}, retried = false) => {
   const url = `${API_BASE_URL}${endpoint}`;
   const config = {
-    headers: getDefaultHeaders(),
-    credentials: "include", // Include cookies for authentication
+    credentials: "include",
     ...options,
+    headers: {
+      ...getDefaultHeaders(),
+      ...(options.headers || {}),
+    },
   };
 
   try {
     const response = await fetch(url, config);
-    return await handleApiResponse(response);
+
+    if (response.ok) {
+      return response.json();
+    }
+
+    const isAuthEndpoint =
+      endpoint.includes("/users/login") ||
+      endpoint.includes("/users/refresh") ||
+      endpoint.includes("/users/logout");
+
+    if (response.status === 401 && !retried && !isAuthEndpoint) {
+      try {
+        await refreshAccessToken();
+        return apiRequest(endpoint, options, true);
+      } catch (refreshError) {
+        clearAuthTokens();
+        if (!window.location.pathname.includes("/login")) {
+          window.location.href = "/login";
+        }
+        throw refreshError;
+      }
+    }
+
+    return parseErrorResponse(response);
   } catch (error) {
     console.error("API request failed:", error);
     throw error;
@@ -124,19 +125,30 @@ export const API_ENDPOINTS = {
     CREATE: "/products",
     UPDATE: (id) => `/products/${id}`,
     DELETE: (id) => `/products/${id}`,
+    RESTORE: (id) => `/products/${id}/restore`,
+    PERMANENT: (id) => `/products/${id}/permanent`,
   },
 
   // Inventory/Stock
   STOCK: {
     LIST: "/stocks",
     STATS: "/stocks/stats",
+    EXPIRING: "/stocks/expiring",
     INVENTORY: "/stocks?location=warehouse",
     STORE: "/stocks?location=store",
     DETAIL: (id) => `/stocks/${id}`,
+    PURCHASE_SOURCE: (id) => `/stocks/${id}/purchase-source`,
     CREATE: "/stocks",
     UPDATE: (id) => `/stocks/${id}`,
     DELETE: (id) => `/stocks/${id}`,
     BATCHES_BY_PRODUCT: (productId) => `/stocks/${productId}/batches`,
+  },
+
+  STOCK_DAMAGE: {
+    LIST: "/stock-damages",
+    DETAIL: (id) => `/stock-damages/${id}`,
+    CREATE: "/stock-damages",
+    DELETE: (id) => `/stock-damages/${id}`,
   },
 
   // Stock Transfers
@@ -161,11 +173,17 @@ export const API_ENDPOINTS = {
   PURCHASES: {
     LIST: "/purchases",
     DETAIL: (id) => `/purchases/${id}`,
+    STOCK_CONSTRAINTS: (id) => `/purchases/${id}/stock-constraints`,
     CREATE: "/purchases",
     UPDATE: (id) => `/purchases/${id}`,
     DELETE: (id) => `/purchases/${id}`,
     RESTORE: (id) => `/purchases/${id}/restore`,
+    PERMANENT: (id) => `/purchases/${id}/permanent`,
     REPORTS: "/purchases/reports",
+    RETURNS: {
+      LIST: "/purchases/returns",
+      DETAIL: (id) => `/purchases/returns/${id}`,
+    },
   },
 
   // Sales
@@ -175,7 +193,15 @@ export const API_ENDPOINTS = {
     CREATE: "/sales",
     UPDATE: (id) => `/sales/${id}`,
     DELETE: (id) => `/sales/${id}`,
+    RESTORE: (id) => `/sales/${id}/restore`,
+    PERMANENT: (id) => `/sales/${id}/permanent`,
     REPORTS: "/sales/reports",
+    PAYMENT: (id) => `/sales/${id}/payment`,
+    RETURNS: {
+      LIST: "/sales/returns",
+      DETAIL: (id) => `/sales/returns/${id}`,
+      RESTORE: (id) => `/sales/returns/${id}/restore`,
+    },
   },
   // Categories (for filters)
   CATEGORIES: {
@@ -291,6 +317,7 @@ export const API_ENDPOINTS = {
     UPDATE: (id) => `/expenses/${id}`,
     DELETE: (id) => `/expenses/${id}`,
     RESTORE: (id) => `/expenses/${id}/restore`,
+    PERMANENT: (id) => `/expenses/${id}/permanent`,
     BY_CATEGORY: (categoryId) => `/expenses/category/${categoryId}`,
     STATS: "/expenses/stats",
     SUMMARY: "/expenses/summary",
@@ -304,6 +331,7 @@ export const API_ENDPOINTS = {
     UPDATE: (id) => `/income/${id}`,
     DELETE: (id) => `/income/${id}`,
     RESTORE: (id) => `/income/${id}/restore`,
+    PERMANENT: (id) => `/income/${id}/permanent`,
     BY_CATEGORY: (categoryId) => `/income/category/${categoryId}`,
     BY_SOURCE: (source) => `/income/source/${source}`,
     STATS: "/income/stats",
@@ -326,6 +354,18 @@ export const API_ENDPOINTS = {
   SETTINGS: {
     GET: "/settings",
     UPDATE: "/settings",
+  },
+
+  // Backup (admin)
+  BACKUP: {
+    DOWNLOAD: "/backup/download",
+    RESTORE: "/backup/restore",
+  },
+
+  // Trash
+  TRASH: {
+    SUMMARY: "/trash/summary",
+    LIST: "/trash",
   },
 
   // Dashboard Statistics

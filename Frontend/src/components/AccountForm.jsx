@@ -5,6 +5,7 @@ import {
   fetchEmployees,
 } from "../services/apiUtiles";
 import { useSubmitLock } from "../hooks/useSubmitLock.js";
+import { registerNumeric } from "../utilies/numericInput";
 
 function AccountForm({ register, handleSubmit, watch, onClose }) {
   const [suppliers, setSuppliers] = useState([]);
@@ -170,12 +171,10 @@ function AccountForm({ register, handleSubmit, watch, onClose }) {
               )}
             </label>
             <input
-              type='number'
-              step='0.01'
-              {...register("openingBalance")}
-              className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent'
-              placeholder={accountType === 'saraf' ? 'د مثال په توګه: -5000 یا 3000' : '0.00'}
-              required
+              {...registerNumeric("openingBalance", register, { required: true }, {
+                className: 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent',
+                placeholder: accountType === 'saraf' ? 'د مثال په توګه: -5000 یا 3000' : '0.00',
+              })}
             />
           </div>
 
@@ -184,8 +183,7 @@ function AccountForm({ register, handleSubmit, watch, onClose }) {
               موجودی فعلی *
             </label>
             <input
-              type='number'
-              step='0.01'
+              type='text'
               value={currentBalance}
               readOnly
               className='w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed'

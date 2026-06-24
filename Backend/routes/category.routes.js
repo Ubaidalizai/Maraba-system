@@ -6,9 +6,11 @@ const {
   createCategory,
   updateCategory,
   deleteCategory,
+  restoreCategory,
+  permanentDeleteCategory,
   getCategoryStats,
 } = require('../controllers/category.controller');
-const { authenticate } = require('../middlewares/authMiddleware');
+const { authenticate, authorizeAdmin } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
@@ -40,9 +42,8 @@ router.post('/', createCategory);
 // PATCH /api/v1/categories/:id
 // Body: { "name": "Updated Name", "type": "both", "isActive": true }
 router.patch('/:id', updateCategory);
-
-// Delete a category (soft delete)
-// DELETE /api/v1/categories/:id
+router.patch('/:id/restore', restoreCategory);
+router.delete('/:id/permanent', authorizeAdmin, permanentDeleteCategory);
 router.delete('/:id', deleteCategory);
 
 module.exports = router;

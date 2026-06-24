@@ -11,13 +11,95 @@ const {
 } = require('../utils/unitConversion');
 const asyncHandler = require('../middlewares/asyncHandler');
 const AppError = require('../utils/AppError');
-const { createSaleSchema, updateSaleSchema } = require('../validations');
+const {
+  parseDeletionFilter,
+  markSoftDeleted,
+  markRestored,
+  validateObjectId,
+} = require('../utils/softDeleteHelpers');
+const {
+  undoSaleAccountTransactions,
+  redoSaleAccountTransactions,
+} = require('../utils/saleTrashAccounts');
+const {
+  createSaleSchema,
+  updateSaleSchema,
+  createSaleReturnSchema,
+  updateSaleReturnSchema,
+} = require('../validations');
+const {
+  resolveStoreReturnBatch,
+  resolveEmployeeReturnBatch,
+  getStockBatchMeta,
+  applyStoreReturnStock,
+  mapRestoredBatchesForStorage,
+  reverseStoreReturnStock,
+  reverseEmployeeReturnStock,
+  incrementStoreStock,
+  decrementStoreStock,
+  incrementEmployeeStock,
+  assertReturnQuantityAllowed,
+  assertRefundAmountAllowed,
+  applySaleReturnAccounts,
+  applySaleItemReturnDeduction,
+  revertSaleItemReturnDeduction,
+  computeLineRefundPreDiscount,
+  computeEffectiveCustomerRefund,
+  applySaleTotalsAfterReturn,
+  getActiveSaleItems,
+  resolveReturnLineRefund,
+  resolveReceivableReturnCredit,
+  computeRequiredCashRefund,
+  getPostedReceivableCredit,
+  sumActiveItemsSubtotal,
+  toBaseQty,
+  assertNoActiveSaleReturns,
+} = require('../utils/saleReturnHelpers');
 const Account = require('../models/account.model');
 const AccountTransaction = require('../models/accountTransaction.model');
 const AuditLog = require('../models/auditLog.model');
 const EmployeeStock = require('../models/employeeStock.model');
 const Customer = require('../models/customer.model');
 const { getOrCreateAccount } = require('../utils/accountHelper');
+const {
+  buildSaleDateFilter,
+  normalizeSaleDateInput,
+} = require('../utils/dateRange');
+const {
+  restoreSaleItemStock,
+  deductSaleLineStock,
+  buildSaleItemPayload,
+  saleItemCostExpr,
+} = require('../utils/saleItemStock');
+const {
+  toStockQuantity,
+  loadPrimaryUnitForProduct,
+} = require('../utils/primaryUnitStock');
+
+const resolveSaleTotals = (itemsSubtotal, discountAmount, paidAmount) => {
+  const subtotal = Math.max(0, Number(itemsSubtotal) || 0);
+  const discount = Math.max(0, Number(discountAmount) || 0);
+  const paid = Math.max(0, Number(paidAmount) || 0);
+
+  if (discount > subtotal) {
+    throw new AppError('تخفیف باید له ټولې اندازې څخه زیات نه وي', 400);
+  }
+
+  const totalAmount = subtotal - discount;
+  if (paid > totalAmount) {
+    throw new AppError(
+      'ورکړل شوې اندازه له ټولې اندازې (د تخفیف وروسته) څخه زیاته ده',
+      400
+    );
+  }
+
+  return {
+    subtotalAmount: subtotal,
+    discountAmount: discount,
+    totalAmount,
+    dueAmount: Math.max(0, totalAmount - paid),
+  };
+};
 
 // Helper function to validate account balance
 const validateAccountBalance = async (accountId, requiredAmount, session) => {
@@ -56,15 +138,23 @@ exports.createSale = asyncHandler(async (req, res, next) => {
       saleDate,
       items,
       paidAmount = 0,
+      discountAmount = 0,
       placedIn,
       invoiceType = 'small',
       description,
     } = req.body;
 
-    // validate placedIn account
-    const account = await Account.findById(placedIn).session(session);
-    if (!account)
-      throw new AppError('د پیسو د ځای په ځای کولو لپاره ناسم حساب (placedIn)', 400);
+    // Receipt account only when receiving money now (credit sales use POST /sales/:id/payment)
+    let account = null;
+    if (paidAmount > 0) {
+      if (!placedIn) {
+        throw new AppError('د تادیې لپاره حساب (دخل/تجري/صراف) اړین دی', 400);
+      }
+      account = await Account.findById(placedIn).session(session);
+      if (!account) {
+        throw new AppError('د پیسو د ځای په ځای کولو لپاره ناسم حساب (placedIn)', 400);
+      }
+    }
 
     // Prepare customer account (if provided) before creating sale so it participates in the transaction
     let customerAccount = null;
@@ -89,11 +179,11 @@ exports.createSale = asyncHandler(async (req, res, next) => {
           customerAccount: customerAccount?._id,
           customerName: customerNameSnapshot || undefined,
           employee: employee || null,
-          saleDate: saleDate || Date.now(),
+          saleDate: normalizeSaleDateInput(saleDate) || new Date(),
           totalAmount: 0, // will update later
           paidAmount,
           dueAmount: 0, // will update later
-          placedIn,
+          placedIn: paidAmount > 0 ? placedIn : null,
           invoiceType,
           description: description || undefined,
           soldBy: req.user?._id || null,
@@ -103,7 +193,7 @@ exports.createSale = asyncHandler(async (req, res, next) => {
     );
     const saleDoc = saleDocs[0];
 
-    let totalAmount = 0;
+    let itemsSubtotal = 0;
     let totalProfit = 0;
 
     // Process each sale item (deduct stock, compute cost & profit, create saleItem)
@@ -117,199 +207,48 @@ exports.createSale = asyncHandler(async (req, res, next) => {
       const unit = await Unit.findById(item.unit).session(session);
       if (!unit) throw new AppError('ناسم واحد ID', 400);
 
-      const baseQty = item.quantity * unit.conversion_to_base;
-      let remainingQty = baseQty;
-      let totalCost = 0;
-      let batchesUsed = []; // ← new array to track batch details
-
-      // 🟩 Employee sale
-      if (employee) {
-        // If user specified batchNumber, use it; otherwise use DEFAULT
-        const targetBatch = item.batchNumber || 'DEFAULT';
-        
-        const empStock = await EmployeeStock.findOne({
-          employee,
-          product: product._id,
-          batchNumber: targetBatch,
-        }).session(session);
-
-        if (!empStock || empStock.quantity_in_hand < baseQty) {
-          throw new AppError(
-            `کارکوونکی د ${product.name} لپاره په ${targetBatch} بیچ کې ناکافي سټاک لري`,
-            400
-          );
-        }
-
-        empStock.quantity_in_hand -= baseQty;
-        await empStock.save({ session });
-
-        // Use the employee stock's purchase price if available, otherwise fallback to product's latest purchase price
-        const costPerUnit = empStock.purchasePricePerBaseUnit || product.latestPurchasePrice || 0;
-        totalCost = costPerUnit * baseQty;
-        
-        batchesUsed.push({
-          batchNumber: targetBatch,
-          quantityUsed: baseQty,
-          costPerUnit: costPerUnit,
-        });
-      }
-
-      // 🟦 Store sale
-      else {
-        if (product.trackByBatch) {
-          // Case 1: user selected a batch
-          if (item.batchNumber) {
-            const batchStock = await Stock.findOne({
-              product: product._id,
-              batchNumber: item.batchNumber,
-              location: 'store',
-            }).session(session);
-
-            if (!batchStock || batchStock.quantity < remainingQty) {
-              throw new AppError(
-                `د ${product.name} لپاره په ${item.batchNumber} بیچ کې ناکافي سټاک`,
-                400
-              );
-            }
-
-            // Ensure required fields are present (for legacy stock records)
-            if (!batchStock.unit) {
-              batchStock.unit = product.baseUnit;
-            }
-            if (
-              batchStock.purchasePricePerBaseUnit === undefined ||
-              batchStock.purchasePricePerBaseUnit === null
-            ) {
-              batchStock.purchasePricePerBaseUnit =
-                product.latestPurchasePrice || 0;
-            }
-
-            batchStock.quantity -= remainingQty;
-            await batchStock.save({ session });
-
-            const batchCost =
-              batchStock.purchasePricePerBaseUnit * remainingQty;
-            totalCost += batchCost;
-            batchesUsed.push({
-              batchNumber: batchStock.batchNumber,
-              quantityUsed: remainingQty,
-              costPerUnit: batchStock.purchasePricePerBaseUnit,
-            });
-            remainingQty = 0;
-          } else {
-            // Case 2: Auto FEFO/FIFO
-            const availableBatches = await Stock.find({
-              product: product._id,
-              location: 'store',
-              quantity: { $gt: 0 },
-            })
-              .sort({ expiryDate: 1, createdAt: 1 })
-              .session(session);
-
-            if (availableBatches.length === 0)
-              throw new AppError(`د ${product.name} لپاره سټاک شتون نلري`, 400);
-
-            for (const batch of availableBatches) {
-              if (remainingQty <= 0) break;
-              const deductQty = Math.min(remainingQty, batch.quantity);
-
-              // Ensure required fields are present (for legacy stock records)
-              if (!batch.unit) {
-                batch.unit = product.baseUnit;
-              }
-              if (
-                batch.purchasePricePerBaseUnit === undefined ||
-                batch.purchasePricePerBaseUnit === null
-              ) {
-                batch.purchasePricePerBaseUnit =
-                  product.latestPurchasePrice || 0;
-              }
-
-              batch.quantity -= deductQty;
-              remainingQty -= deductQty;
-              await batch.save({ session });
-
-              totalCost += batch.purchasePricePerBaseUnit * deductQty;
-              batchesUsed.push({
-                batchNumber: batch.batchNumber,
-                quantityUsed: deductQty,
-                costPerUnit: batch.purchasePricePerBaseUnit,
-              });
-            }
-
-            if (remainingQty > 0)
-              throw new AppError(
-                `د ${product.name} لپاره ټول سټاک ناکافي دی`,
-                400
-              );
-          }
-        } else {
-          // Non-batch products → default batch
-          const defaultBatch = await Stock.findOne({
-            product: product._id,
-            batchNumber: 'DEFAULT',
-            location: 'store',
-          }).session(session);
-
-          if (!defaultBatch || defaultBatch.quantity < remainingQty)
-            throw new AppError(`د ${product.name} لپاره ناکافي سټاک`, 400);
-
-          // Ensure required fields are present (for legacy stock records)
-          if (!defaultBatch.unit) {
-            defaultBatch.unit = product.baseUnit;
-          }
-          if (
-            defaultBatch.purchasePricePerBaseUnit === undefined ||
-            defaultBatch.purchasePricePerBaseUnit === null
-          ) {
-            defaultBatch.purchasePricePerBaseUnit =
-              product.latestPurchasePrice || 0;
-          }
-
-          defaultBatch.quantity -= remainingQty;
-          await defaultBatch.save({ session });
-          totalCost += defaultBatch.purchasePricePerBaseUnit * remainingQty;
-          batchesUsed.push({
-            batchNumber: 'DEFAULT',
-            quantityUsed: remainingQty,
-            costPerUnit: defaultBatch.purchasePricePerBaseUnit,
-          });
-          remainingQty = 0;
-        }
-      }
+      const { totalCost, batchesUsed, baseQty } = await deductSaleLineStock({
+        session,
+        employeeId: employee || null,
+        item,
+        product,
+        unit,
+      });
 
       const saleRevenue = item.unitPrice * item.quantity;
       const profit = saleRevenue - totalCost;
 
-      totalAmount += saleRevenue;
+      itemsSubtotal += saleRevenue;
       totalProfit += profit;
 
       await SaleItem.create(
         [
-          {
-            sale: saleDoc._id,
-            product: product._id,
-            unit: unit._id,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: saleRevenue,
-            profit,
-            costPricePerUnit: totalCost / baseQty,
+          buildSaleItemPayload({
+            saleId: saleDoc._id,
+            product,
+            unit,
+            item,
+            totalCost,
             batchesUsed,
-            batchNumber:
-              batchesUsed.length === 1 ? batchesUsed[0].batchNumber : 'MULTI',
-            cartonCount: item.cartonCount || undefined,
-          },
+            baseQty,
+          }),
         ],
         { session }
       );
     } // end for items
 
+    const totals = resolveSaleTotals(itemsSubtotal, discountAmount, paidAmount);
+    totalProfit -= totals.discountAmount;
+
     // update sale totals & due
-    saleDoc.totalAmount = totalAmount;
+    saleDoc.subtotalAmount = totals.subtotalAmount;
+    saleDoc.discountAmount = totals.discountAmount;
+    saleDoc.totalAmount = totals.totalAmount;
     saleDoc.paidAmount = paidAmount;
-    saleDoc.dueAmount = totalAmount - paidAmount;
+    saleDoc.dueAmount = totals.dueAmount;
     await saleDoc.save({ session });
+
+    const totalAmount = totals.totalAmount;
 
     // 3️⃣ ACCOUNT TRANSACTIONS
     // Prepare references for accounts to reuse in payment section
@@ -489,7 +428,7 @@ exports.getAllSales = asyncHandler(async (req, res, next) => {
     status,
   } = req.query;
 
-  const query = { isDeleted: false };
+  const query = parseDeletionFilter(req.query);
 
   // 🧭 Dynamic filters
   if (customer) query.customer = customer;
@@ -500,17 +439,18 @@ exports.getAllSales = asyncHandler(async (req, res, next) => {
     if (minTotal) query.totalAmount.$gte = Number(minTotal);
     if (maxTotal) query.totalAmount.$lte = Number(maxTotal);
   }
-  if (fromDate || toDate) {
-    query.saleDate = {};
-    if (fromDate) query.saleDate.$gte = new Date(fromDate);
-    if (toDate) query.saleDate.$lte = new Date(toDate);
-  }
+  const saleDateRange = buildSaleDateFilter(fromDate, toDate);
+  if (saleDateRange) query.saleDate = saleDateRange;
   
   // Payment status filter
   if (status === 'paid') {
     query.dueAmount = { $eq: 0 };
   } else if (status === 'partial') {
     query.dueAmount = { $gt: 0 };
+    query.paidAmount = { $gt: 0 };
+  } else if (status === 'pending') {
+    query.dueAmount = { $gt: 0 };
+    query.paidAmount = { $eq: 0 };
   }
 
   const [sales, total, profitAgg] = await Promise.all([
@@ -535,7 +475,20 @@ exports.getAllSales = asyncHandler(async (req, res, next) => {
         },
       },
       { $unwind: '$sale' },
-      { $match: query },
+      {
+        $match: {
+          isDeleted: false,
+          'sale.isDeleted': false,
+          ...(query.customer && { 'sale.customer': query.customer }),
+          ...(query.employee && { 'sale.employee': query.employee }),
+          ...(query.invoiceType && { 'sale.invoiceType': query.invoiceType }),
+          ...(query.saleDate && { 'sale.saleDate': query.saleDate }),
+          ...(query.dueAmount !== undefined && {
+            'sale.dueAmount': query.dueAmount,
+          }),
+          ...(query.totalAmount && { 'sale.totalAmount': query.totalAmount }),
+        },
+      },
       { $group: { _id: null, totalProfit: { $sum: '$profit' } } },
     ]),
   ]);
@@ -610,14 +563,12 @@ exports.updateSale = asyncHandler(async (req, res, next) => {
     };
 
     const {
-      customer,
-      employee,
       saleDate,
       items,
-      paidAmount,
       placedIn,
       invoiceType,
       description,
+      discountAmount,
       reason,
     } = req.body;
 
@@ -629,135 +580,133 @@ exports.updateSale = asyncHandler(async (req, res, next) => {
     }
 
     // 2️⃣ Update basic sale fields
-    if (saleDate) sale.saleDate = saleDate;
-    if (invoiceType) sale.invoiceType = invoiceType;
-    if (paidAmount !== undefined) sale.paidAmount = paidAmount;
-    if (description !== undefined) sale.description = description;
-    if (customer) {
-      const customerExists = await Customer.findById(customer).session(session);
-      if (!customerExists) throw new AppError('ناسم پیرودونکی ID', 400);
-      sale.customer = customer;
-
-      // Ensure account exists for this customer and store reference
-      const newCustomerAcc = await getOrCreateAccount({
-        refId: customer,
-        type: 'customer',
-        name: customerExists.name,
-        session,
-      });
-      sale.customerAccount = newCustomerAcc._id;
-      sale.customerName = customerExists.name;
+    if (saleDate) {
+      const normalized = normalizeSaleDateInput(saleDate);
+      if (normalized) sale.saleDate = normalized;
     }
-    if (employee) sale.employee = employee;
+    if (invoiceType) sale.invoiceType = invoiceType;
+    // Keep cumulative paidAmount (includes payments recorded via POST /sales/:id/payment)
+    if (description !== undefined) sale.description = description;
+    // Sale party (customer / employee / walk-in) is fixed after create — stock & ledger depend on it
 
-    // 3️⃣ Reverse stock from old sale items
+    if (!items?.length) {
+      throw new AppError('لږترلږه یو پلور توکی اړین دی', 400);
+    }
+
+    const stockEmployeeId = sale.employee;
+
+    // 3️⃣ Reverse stock from old sale items (per batch, same as create)
     for (const oldItem of oldItems) {
-      const unit = await Unit.findById(oldItem.unit).session(session);
-      const baseQty = oldItem.quantity * unit.conversion_to_base;
-      const stockLoc = sale.employee ? 'employee' : 'store';
-
-      await Stock.findOneAndUpdate(
-        { product: oldItem.product, location: stockLoc, isDeleted: false },
-        { $inc: { quantity: baseQty } },
-        { session }
-      );
+      await restoreSaleItemStock({ session, sale, saleItem: oldItem });
     }
 
     // 4️⃣ Remove old sale items
     await SaleItem.deleteMany({ sale: sale._id }).session(session);
 
-    // 5️⃣ Recreate new sale items and adjust stock
-    let totalAmount = 0;
+    // 5️⃣ Recreate sale items with batch-accurate cost & profit
+    let itemsSubtotal = 0;
     let totalProfit = 0;
 
     for (const item of items) {
-      const product = await Product.findById(item.product).session(session);
+      const product = await Product.findById(item.product)
+        .populate('baseUnit', 'name')
+        .session(session);
       if (!product) throw new AppError('ناسم محصول ID', 400);
 
       const unit = await Unit.findById(item.unit).session(session);
       if (!unit) throw new AppError('ناسم واحد ID', 400);
 
-      const baseQty = item.quantity * unit.conversion_to_base;
-      const stockLoc = sale.employee ? 'employee' : 'store';
-      const stock = await Stock.findOne({
-        product: product._id,
-        location: stockLoc,
-      }).session(session);
-
-      if (!stock || stock.quantity < baseQty) {
-        throw new AppError(`د ${product.name} لپاره ناکافي سټاک`, 400);
-      }
-
-      // Deduct new stock
-      stock.quantity -= baseQty;
-      await stock.save({ session });
+      const { totalCost, batchesUsed, baseQty } = await deductSaleLineStock({
+        session,
+        employeeId: stockEmployeeId || null,
+        item,
+        product,
+        unit,
+      });
 
       const saleRevenue = item.unitPrice * item.quantity;
-      const cost = product.latestPurchasePrice * baseQty;
-      const profit = saleRevenue - cost;
+      const profit = saleRevenue - totalCost;
 
-      totalAmount += saleRevenue;
+      itemsSubtotal += saleRevenue;
       totalProfit += profit;
 
       await SaleItem.create(
         [
-          {
-            sale: sale._id,
-            product: product._id,
-            unit: unit._id,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: saleRevenue,
-            profit,
-          },
+          buildSaleItemPayload({
+            saleId: sale._id,
+            product,
+            unit,
+            item,
+            totalCost,
+            batchesUsed,
+            baseQty,
+          }),
         ],
         { session }
       );
     }
 
-    sale.totalAmount = totalAmount;
-    sale.dueAmount = totalAmount - sale.paidAmount;
+    const nextDiscount =
+      discountAmount !== undefined ? discountAmount : sale.discountAmount || 0;
+    const totals = resolveSaleTotals(
+      itemsSubtotal,
+      nextDiscount,
+      sale.paidAmount
+    );
+    totalProfit -= totals.discountAmount;
+
+    sale.subtotalAmount = totals.subtotalAmount;
+    sale.discountAmount = totals.discountAmount;
+    sale.totalAmount = totals.totalAmount;
+    sale.dueAmount = totals.dueAmount;
 
     await sale.save({ session });
 
-    // 6️⃣ Update accounts
-    // Customer account (if exists)
-    if (sale.customer) {
-      const customerAcc = sale.customerAccount
-        ? await Account.findById(sale.customerAccount).session(session)
-        : await getOrCreateAccount({ refId: sale.customer, type: 'customer', name: sale.customerName || '', session });
-      if (!customerAcc) throw new AppError('د پیرودونکي حساب ونه موندل شو', 404);
+    const totalAmount = totals.totalAmount;
+
+    // 6️⃣ Update receivable (Sale txn only — Payment txns stay from payment modal)
+    const adjustReceivableSaleTxn = async (accountId) => {
+      if (!accountId) return;
+      const acc = await Account.findById(accountId).session(session);
+      if (!acc) return;
 
       const saleTxn = await AccountTransaction.findOne({
         referenceType: 'sale',
         referenceId: sale._id,
-        account: customerAcc._id,
+        account: accountId,
+        transactionType: 'Sale',
       }).session(session);
 
       if (saleTxn) {
         const diff = totalAmount - saleTxn.amount;
         saleTxn.amount = totalAmount;
         await saleTxn.save({ session });
-        customerAcc.currentBalance += diff;
-        await customerAcc.save({ session });
+        acc.currentBalance += diff;
+        await acc.save({ session });
       }
+    };
+
+    if (sale.customer) {
+      const customerAcc = sale.customerAccount
+        ? await Account.findById(sale.customerAccount).session(session)
+        : await getOrCreateAccount({
+            refId: sale.customer,
+            type: 'customer',
+            name: sale.customerName || '',
+            session,
+          });
+      if (!customerAcc) throw new AppError('د پیرودونکي حساب ونه موندل شو', 404);
+      await adjustReceivableSaleTxn(customerAcc._id);
     }
 
-    // Money placement account
-    if (sale.placedIn && paidAmount !== undefined) {
-      const payTxn = await AccountTransaction.findOne({
-        referenceType: 'sale',
-        referenceId: sale._id,
-        transactionType: 'Payment',
+    if (sale.employee) {
+      const employeeAcc = await Account.findOne({
+        refId: sale.employee,
+        type: 'employee',
+        isDeleted: false,
       }).session(session);
-
-      if (payTxn) {
-        const payAcc = await Account.findById(payTxn.account).session(session);
-        const diff = paidAmount - payTxn.amount;
-        payTxn.amount = paidAmount;
-        await payTxn.save({ session });
-        payAcc.currentBalance += diff;
-        await payAcc.save({ session });
+      if (employeeAcc) {
+        await adjustReceivableSaleTxn(employeeAcc._id);
       }
     }
 
@@ -809,41 +758,20 @@ exports.deleteSale = asyncHandler(async (req, res) => {
     const sale = await Sale.findById(req.params.id).session(session);
     if (!sale || sale.isDeleted) throw new AppError('پلور ونه موندل شو', 404);
 
+    await assertNoActiveSaleReturns(session, sale._id);
+
     const saleItems = await SaleItem.find({ sale: sale._id }).session(session);
 
-    // 1️⃣ Restore stock quantities
+    // 1️⃣ Restore stock quantities (per batch)
     for (const item of saleItems) {
-      const unit = await Unit.findById(item.unit).session(session);
-      const baseQty = item.quantity * unit.conversion_to_base;
-      const stockLoc = sale.employee ? 'employee' : 'store';
-
-      await Stock.findOneAndUpdate(
-        { product: item.product, location: stockLoc, isDeleted: false },
-        { $inc: { quantity: baseQty } },
-        { session }
-      );
+      await restoreSaleItemStock({ session, sale, saleItem: item });
     }
 
-    // 2️⃣ Reverse account transactions
-    const saleTxns = await AccountTransaction.find({
-      referenceType: 'sale',
-      referenceId: sale._id,
-    }).session(session);
-
-    for (const txn of saleTxns) {
-      const acc = await Account.findById(txn.account).session(session);
-      if (txn.transactionType === 'Payment') {
-        acc.currentBalance -= txn.amount; // remove credited payment
-      } else if (txn.transactionType === 'Sale') {
-        acc.currentBalance -= txn.amount; // remove debit to customer
-      }
-      await acc.save({ session });
-      txn.isDeleted = true;
-      await txn.save({ session });
-    }
+    // 2️⃣ Reverse all active account transactions (customer, employee, cashier, payments)
+    await undoSaleAccountTransactions(session, sale._id);
 
     // 3️⃣ Mark sale + items as deleted
-    sale.isDeleted = true;
+    markSoftDeleted(sale, req.user?._id);
     await sale.save({ session });
 
     await SaleItem.updateMany(
@@ -901,94 +829,24 @@ exports.restoreSale = asyncHandler(async (req, res, next) => {
     // 1️⃣ Deduct stock again
     for (const item of saleItems) {
       const unit = await Unit.findById(item.unit).session(session);
-      const baseQty = item.quantity * unit.conversion_to_base;
-      
-      if (sale.employee) {
-        // For employee sales, deduct from employee stock (with batch tracking)
-        const targetBatch = item.batchNumber || 'DEFAULT';
-        const empStock = await EmployeeStock.findOne({
-          employee: sale.employee,
-          product: item.product,
-          batchNumber: targetBatch,
-        }).session(session);
-        
-        if (!empStock || empStock.quantity_in_hand < baseQty) {
-          throw new AppError(
-            `د ${item.product} محصول لپاره په ${targetBatch} بیچ کې د کارکوونکي ناکافي سټاک د پلور بیرته راستنیدو لپاره`,
-            400
-          );
-        }
-
-        empStock.quantity_in_hand -= baseQty;
-        await empStock.save({ session });
-      } else {
-        // For store sales, deduct from store stock
-        const stock = await Stock.findOne({
-          product: item.product,
-          location: 'store',
-          batchNumber: item.batchNumber || 'DEFAULT',
-        }).session(session);
-        
-        if (!stock || stock.quantity < baseQty) {
-          throw new AppError(
-            `د ${item.product} لپاره د پلور بیرته راستنیدو لپاره ناکافي سټاک`,
-            400
-          );
-        }
-
-        stock.quantity -= baseQty;
-        await stock.save({ session });
+      const product = await Product.findById(item.product).session(session);
+      if (!unit || !product) {
+        throw new AppError('د پلور توکي محصول یا واحد ونه موندل شو', 400);
       }
+      await deductSaleLineStock({
+        session,
+        employeeId: sale.employee,
+        item,
+        product,
+        unit,
+      });
     }
 
-    // 2️⃣ Recreate account transactions
-    const saleAcc = sale.customerAccount
-      ? await Account.findById(sale.customerAccount).session(session)
-      : sale.customer
-      ? await Account.findOne({ refId: sale.customer, type: 'customer' }).session(session)
-      : null;
-
-    if (saleAcc) {
-      await AccountTransaction.create(
-        [
-          {
-            account: saleAcc._id,
-            referenceType: 'sale',
-            referenceId: sale._id,
-            amount: sale.totalAmount,
-            transactionType: 'Sale',
-            description: 'Customer sale debit restored',
-            created_by: req.user?._id,
-          },
-        ],
-        { session }
-      );
-      saleAcc.currentBalance += sale.totalAmount;
-      await saleAcc.save({ session });
-    }
-
-    if (sale.placedIn && sale.paidAmount > 0) {
-      const acc = await Account.findById(sale.placedIn).session(session);
-      await AccountTransaction.create(
-        [
-          {
-            account: acc._id,
-            referenceType: 'sale',
-            referenceId: sale._id,
-            amount: sale.paidAmount,
-            transactionType: 'Payment',
-            description: `Sale payment restored to ${acc.name}`,
-            created_by: req.user?._id,
-          },
-        ],
-        { session }
-      );
-      acc.currentBalance += sale.paidAmount;
-      await acc.save({ session });
-    }
+    // 2️⃣ Re-activate original account transactions (exact inverse of soft-delete)
+    await redoSaleAccountTransactions(session, sale._id, sale);
 
     // 3️⃣ Mark sale and items active again
-    sale.isDeleted = false;
+    markRestored(sale);
     await sale.save({ session });
 
     await SaleItem.updateMany(
@@ -1030,17 +888,28 @@ exports.restoreSale = asyncHandler(async (req, res, next) => {
 });
 
 // @desc    Return a sold item (with stock & account adjustments)
-// @route   POST /api/v1/sale-returns
+// @route   POST /api/v1/sales/returns
 exports.returnSaleItem = asyncHandler(async (req, res, next) => {
+  const { error, value } = createSaleReturnSchema.validate(req.body);
+  if (error) throw new AppError(error.details[0].message, 400);
+
   const {
     saleId,
     productId,
     unitId,
     quantity,
     refundAmount,
+    cashRefundAmount = 0,
     reason,
     batchNumber,
-  } = req.body;
+  } = value;
+
+  if (cashRefundAmount > refundAmount) {
+    throw new AppError(
+      'نغدي بیرته ورکول باید له ټولیز بیرته ورکولو مبلغ څخه زیات نه وي',
+      400
+    );
+  }
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -1049,125 +918,112 @@ exports.returnSaleItem = asyncHandler(async (req, res, next) => {
     const sale = await Sale.findById(saleId).session(session);
     if (!sale || sale.isDeleted) throw new AppError('پلور ونه موندل شو', 404);
 
+    if (!sale.subtotalAmount) {
+      const itemsForSubtotal = await SaleItem.find({
+        sale: saleId,
+        isDeleted: { $ne: true },
+      }).session(session);
+      sale.subtotalAmount = sumActiveItemsSubtotal(itemsForSubtotal);
+    }
+    if (
+      (sale.discountAmount == null || sale.discountAmount === undefined) &&
+      sale.subtotalAmount > (sale.totalAmount || 0)
+    ) {
+      sale.discountAmount = sale.subtotalAmount - sale.totalAmount;
+    }
+
+    if (cashRefundAmount > sale.paidAmount) {
+      throw new AppError('نغدي بیرته ورکول له تادیه شوي مقدار څخه زیات دی', 400);
+    }
+
+    const requiredCashRefund = computeRequiredCashRefund(sale, refundAmount);
+    if (requiredCashRefund > 0 && cashRefundAmount + 0.01 < requiredCashRefund) {
+      throw new AppError(
+        `د نغدو بیرته ورکولو مبلغ اړین دی: ${requiredCashRefund} افغانۍ (د تادیه شوي برخې سره برابر)`,
+        400
+      );
+    }
+
     const unit = await Unit.findById(unitId).session(session);
     if (!unit) throw new AppError('ناسم واحد ID', 400);
-    const baseQty = quantity * unit.conversion_to_base;
 
     const item = await SaleItem.findOne({
       sale: saleId,
       product: productId,
+      isDeleted: { $ne: true },
     }).session(session);
-    if (!item || item.quantity < quantity)
-      throw new AppError('ناسم بیرته راستنیدونکی مقدار', 400);
+    if (!item) throw new AppError('د پلور توکی ونه موندل شو', 404);
+
+    const lineRefundPreDiscount = computeLineRefundPreDiscount(item, quantity);
+    const effectiveRefund = computeEffectiveCustomerRefund(
+      sale,
+      lineRefundPreDiscount
+    );
+
+    assertRefundAmountAllowed(sale, item, quantity, refundAmount);
+    const baseQty = await assertReturnQuantityAllowed({
+      session,
+      saleItem: item,
+      returnUnit: unit,
+      quantity,
+    });
+    const primaryUnit = await loadPrimaryUnitForProduct(productId, session);
+    const stockQty = toStockQuantity(quantity, unit, primaryUnit);
 
     const oldItemSnapshot = { ...item.toObject() };
     const oldSaleSnapshot = { ...sale.toObject() };
 
-    // 🧮 Update sold item
-    // Calculate the cost for the returned quantity
-    const returnedCost = (item.costPricePerUnit || 0) * quantity;
-
-    // Update quantity, totalPrice, and profit
-    item.quantity -= quantity;
-    item.totalPrice -= refundAmount;
-    item.profit -= refundAmount - returnedCost; // Reduce profit by (revenue - cost)
-
-    // If quantity becomes 0 or less, soft delete the item
-    if (item.quantity <= 0) {
-      item.isDeleted = true;
-      item.quantity = 0; // Set to 0 to avoid validation error
-      item.totalPrice = 0;
-      item.profit = 0;
-    }
-
+    applySaleItemReturnDeduction({
+      saleItem: item,
+      quantity,
+      refundAmount: lineRefundPreDiscount,
+      baseQty,
+    });
     await item.save({ session });
 
-    // ♻️ Restore stock depending on sale type
+    let recordedBatch = batchNumber || 'DEFAULT';
+    let restoredBatches = [];
+
     if (sale.employee) {
-      // Riding man sale → return to his employee stock
-      // Get the product to fetch latest purchase price
+      recordedBatch = resolveEmployeeReturnBatch(item);
       const product = await Product.findById(productId).session(session);
       if (!product) throw new AppError('محصول ونه موندل شو', 404);
-      
-      // Determine target batch (use item's batchNumber or DEFAULT)
-      const targetBatch = item.batchNumber || 'DEFAULT';
-      
-      await EmployeeStock.findOneAndUpdate(
-        { employee: sale.employee, product: productId, batchNumber: targetBatch },
-        { 
-          $inc: { quantity_in_hand: baseQty },
-          $setOnInsert: {
-            purchasePricePerBaseUnit: item.costPricePerUnit || product.latestPurchasePrice || 0,
-            batchNumber: targetBatch,
-          }
-        },
-        { upsert: true, session }
-      );
+
+      await incrementEmployeeStock({
+        session,
+        employee: sale.employee,
+        productId,
+        batchNumber: recordedBatch,
+        stockQty,
+        costPerUnit: item.costPricePerUnit || product.latestPurchasePrice || 0,
+      });
+      restoredBatches = [{ batchNumber: recordedBatch, quantityUsed: stockQty }];
     } else {
-      // Decide the target batch to restore to:
-      // 1) Prefer explicit batchNumber from request
-      // 2) Else use original item's batchNumber (unless MULTI → require explicit)
-      let targetBatch = batchNumber;
-      if (!targetBatch) {
-        const originalBatch = item.batchNumber || 'DEFAULT';
-        if (originalBatch === 'MULTI') {
-          throw new AppError(
-            'د څو بیچونو څخه پلورل شوي توکو بیرته راستنیدو لپاره د بیچ شمیره اړینه ده',
-            400
-          );
-        }
-        targetBatch = originalBatch;
-      }
-
-      // Normalize DEFAULT spelling
-      if (!targetBatch) targetBatch = 'DEFAULT';
-
-      // Return strictly to the chosen batch (no FEFO fallback)
-      const existingStock = await Stock.findOne({
-        product: productId,
-        batchNumber: targetBatch,
-        location: 'store',
-      }).session(session);
-
-      if (existingStock) {
-        existingStock.quantity += baseQty;
-        await existingStock.save({ session });
-      } else {
-        // Need to create new stock with all required fields
-        const product = await Product.findById(productId).session(session);
-        if (!product) throw new AppError('محصول ونه موندل شو', 404);
-
-        await Stock.create(
-          [
-            {
-              product: productId,
-              unit: product.baseUnit,
-              batchNumber: targetBatch,
-              location: 'store',
-              quantity: baseQty,
-              purchasePricePerBaseUnit: product.latestPurchasePrice || 0,
-            },
-          ],
-          { session }
-        );
-      }
-
-      // Ensure the SaleReturn we record carries the actual targetBatch
-      if (!batchNumber) {
-        req.body.batchNumber = targetBatch;
-      }
+      restoredBatches = await applyStoreReturnStock({
+        session,
+        productId,
+        saleItem: item,
+        stockQty,
+        batchNumberFromRequest: batchNumber,
+      });
+      recordedBatch =
+        restoredBatches.length === 1
+          ? restoredBatches[0].batchNumber
+          : 'MULTI';
     }
 
-    // 🧾 Record return
     const saleReturn = await SaleReturn.create(
       [
         {
           sale: saleId,
           product: productId,
           unit: unitId,
-          batchNumber: (req.body.batchNumber ?? batchNumber) || null,
+          batchNumber: recordedBatch,
           quantity,
-          refundAmount,
+          refundAmount: effectiveRefund,
+          lineRefundAmount: lineRefundPreDiscount,
+          cashRefundAmount,
+          stockRestoredBatches: mapRestoredBatchesForStorage(restoredBatches),
           reason,
           handledBy: req.user._id,
         },
@@ -1175,15 +1031,37 @@ exports.returnSaleItem = asyncHandler(async (req, res, next) => {
       { session }
     );
 
-    // 💰 Adjust sale totals
-    sale.totalAmount -= refundAmount;
-    sale.dueAmount = sale.totalAmount - sale.paidAmount;
+    const saleDueSnapshot = {
+      totalAmount: sale.totalAmount,
+      paidAmount: sale.paidAmount,
+    };
+
+    const activeItems = await getActiveSaleItems(session, saleId);
+    const { receivableAdjustment } = applySaleTotalsAfterReturn(sale, activeItems);
+    const receivableReduced = resolveReceivableReturnCredit(
+      saleDueSnapshot,
+      receivableAdjustment
+    );
+
+    const accountResult = await applySaleReturnAccounts({
+      session,
+      sale,
+      refundAmount: receivableReduced,
+      cashRefundAmount,
+      saleReturnId: saleReturn[0]._id,
+      userId: req.user._id,
+      reverse: false,
+    });
+
+    saleReturn[0].receivableReduced = receivableReduced;
+    saleReturn[0].cashRefundAccount = accountResult.cashRefundAccountId;
+    await saleReturn[0].save({ session });
+
     await sale.save({ session });
 
     const newItemSnapshot = { ...item.toObject() };
     const newSaleSnapshot = { ...sale.toObject() };
 
-    // 🧠 Audit Log
     await AuditLog.create(
       [
         {
@@ -1196,6 +1074,7 @@ exports.returnSaleItem = asyncHandler(async (req, res, next) => {
           },
           newData: {
             sale: newSaleSnapshot,
+            item: newItemSnapshot,
             returnedItem: saleReturn[0],
           },
           reason: reason || 'Product returned by customer',
@@ -1216,6 +1095,12 @@ exports.returnSaleItem = asyncHandler(async (req, res, next) => {
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
+    if (err.name === 'ValidationError') {
+      throw new AppError(
+        'د پلور مجموعي اندازه ناسمه ده. مهرباني وکړئ د تخفیف وروسته بیرته ورکولو مبلغ وکاروئ.',
+        400
+      );
+    }
     throw new AppError(err.message || 'د پلور بیرته راستنیدو په پروسس کولو کې ناکامي', 500);
   }
 });
@@ -1228,6 +1113,12 @@ exports.getAllSaleReturns = asyncHandler(async (req, res, next) => {
   const skip = (page - 1) * limit;
 
   const query = { isDeleted: false };
+  if (req.query.saleId) {
+    if (!mongoose.Types.ObjectId.isValid(req.query.saleId)) {
+      throw new AppError('ناسم د پلور ID', 400);
+    }
+    query.sale = req.query.saleId;
+  }
 
   const [returns, total] = await Promise.all([
     SaleReturn.find(query)
@@ -1274,14 +1165,18 @@ exports.getSaleReturn = asyncHandler(async (req, res, next) => {
 });
 
 // @desc    Update a sale return (rollback-safe)
-// @route   PATCH /api/v1/sale-returns/:id
+// @route   PATCH /api/v1/sales/returns/:id
 exports.updateSaleReturn = asyncHandler(async (req, res, next) => {
+  const { error, value } = updateSaleReturnSchema.validate(req.body);
+  if (error) throw new AppError(error.details[0].message, 400);
+
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const returnId = req.params.id;
-    const { quantity, refundAmount, reason, batchNumber, unitId } = req.body;
+    const { quantity, refundAmount, reason, batchNumber, unitId, cashRefundAmount } =
+      value;
 
     const saleReturn = await SaleReturn.findById(returnId).session(session);
     if (!saleReturn || saleReturn.isDeleted)
@@ -1292,148 +1187,198 @@ exports.updateSaleReturn = asyncHandler(async (req, res, next) => {
       throw new AppError('اصلي پلور ونه موندل شو', 404);
 
     const oldReturnSnapshot = { ...saleReturn.toObject() };
+    const oldCashRefund = saleReturn.cashRefundAmount || 0;
 
-    // 🔄 First, restore the sale item to its state before the old return
     const saleItem = await SaleItem.findOne({
       sale: saleReturn.sale,
       product: saleReturn.product,
     }).session(session);
+    if (!saleItem) throw new AppError('د پلور توکی ونه موندل شو', 404);
 
-    if (saleItem) {
-      // Calculate the cost and profit for the old return
-      const oldReturnedCost =
-        (saleItem.costPricePerUnit || 0) * saleReturn.quantity;
-      const oldReturnedProfit = saleReturn.refundAmount - oldReturnedCost;
-
-      // Restore to state before old return
-      saleItem.quantity += saleReturn.quantity;
-      saleItem.totalPrice += saleReturn.refundAmount;
-      saleItem.profit += oldReturnedProfit;
-    }
-
-    // 🔁 Revert previous stock adjustment
     const prevUnit = await Unit.findById(saleReturn.unit).session(session);
-    const prevBaseQty = saleReturn.quantity * prevUnit.conversion_to_base;
+    if (!prevUnit) throw new AppError('د بیرته راستنیدنې واحد ونه موندل شو', 400);
+    const prevBaseQty = toBaseQty(saleReturn.quantity, prevUnit);
+    const prevPrimaryUnit = await loadPrimaryUnitForProduct(
+      saleReturn.product,
+      session
+    );
+    const prevStockQty = toStockQuantity(
+      saleReturn.quantity,
+      prevUnit,
+      prevPrimaryUnit
+    );
+    const prevLineRefund = resolveReturnLineRefund(saleReturn, saleItem);
+
+    revertSaleItemReturnDeduction({
+      saleItem,
+      quantity: saleReturn.quantity,
+      refundAmount: prevLineRefund,
+      baseQty: prevBaseQty,
+    });
+    await saleItem.save({ session });
 
     if (sale.employee) {
-      await EmployeeStock.findOneAndUpdate(
-        { employee: sale.employee, product: saleReturn.product },
-        { $inc: { quantity_in_hand: -prevBaseQty } },
-        { session }
-      );
+      await reverseEmployeeReturnStock({
+        session,
+        employee: sale.employee,
+        productId: saleReturn.product,
+        saleItem,
+        saleReturn,
+        stockQty: prevStockQty,
+      });
     } else {
-      const prevBatchQuery = saleReturn.batchNumber
-        ? {
-            product: saleReturn.product,
-            batchNumber: saleReturn.batchNumber,
-            location: 'store',
-          }
-        : { product: saleReturn.product, location: 'store' };
-
-      const prevStock = await Stock.findOne(prevBatchQuery).session(session);
-      if (prevStock) {
-        prevStock.quantity -= prevBaseQty;
-        if (prevStock.quantity < 0) prevStock.quantity = 0;
-        await prevStock.save({ session });
-      }
+      await reverseStoreReturnStock({
+        session,
+        productId: saleReturn.product,
+        saleItem,
+        saleReturn,
+        stockQty: prevStockQty,
+      });
     }
 
-    // 🔁 Reverse sale totals
-    sale.totalAmount += saleReturn.refundAmount;
-    sale.dueAmount = sale.totalAmount - sale.paidAmount;
+    await applySaleReturnAccounts({
+      session,
+      sale,
+      refundAmount: getPostedReceivableCredit(saleReturn),
+      cashRefundAmount: oldCashRefund,
+      cashRefundAccountId: saleReturn.cashRefundAccount,
+      saleReturnId: saleReturn._id,
+      userId: req.user._id,
+      reverse: true,
+    });
+
+    let activeItems = await getActiveSaleItems(session, saleReturn.sale);
+    applySaleTotalsAfterReturn(sale, activeItems);
     await sale.save({ session });
 
-    // 🆕 Apply new return values
     const newQuantity = quantity ?? saleReturn.quantity;
     const newRefund = refundAmount ?? saleReturn.refundAmount;
+    const newCashRefund =
+      cashRefundAmount !== undefined ? cashRefundAmount : oldCashRefund;
     const newBatch = batchNumber ?? saleReturn.batchNumber;
-    const newUnit = unitId ?? saleReturn.unit;
+    const newUnitId = unitId ?? saleReturn.unit;
 
-    const unitDoc = await Unit.findById(newUnit).session(session);
-    if (!unitDoc) throw new AppError('ناسم واحد ID', 400);
-    const newBaseQty = newQuantity * unitDoc.conversion_to_base;
-
-    // ➕ Restore stock for new values
-    if (sale.employee) {
-      await EmployeeStock.findOneAndUpdate(
-        { employee: sale.employee, product: saleReturn.product },
-        { $inc: { quantity_in_hand: newBaseQty } },
-        { upsert: true, session }
+    if (newCashRefund > newRefund) {
+      throw new AppError(
+        'نغدي بیرته ورکول باید له ټولیز بیرته ورکولو مبلغ څخه زیات نه وي',
+        400
       );
+    }
+    if (newCashRefund > sale.paidAmount) {
+      throw new AppError('نغدي بیرته ورکول له تادیه شوي مقدار څخه زیات دی', 400);
+    }
+
+    const requiredCashRefund = computeRequiredCashRefund(sale, newRefund);
+    if (requiredCashRefund > 0 && newCashRefund + 0.01 < requiredCashRefund) {
+      throw new AppError(
+        `د نغدو بیرته ورکولو مبلغ اړین دی: ${requiredCashRefund} افغانۍ (د تادیه شوي برخې سره برابر)`,
+        400
+      );
+    }
+
+    const unitDoc = await Unit.findById(newUnitId).session(session);
+    if (!unitDoc) throw new AppError('ناسم واحد ID', 400);
+
+    const newLineRefund = computeLineRefundPreDiscount(saleItem, newQuantity);
+    const newEffectiveRefund = computeEffectiveCustomerRefund(
+      sale,
+      newLineRefund
+    );
+
+    assertRefundAmountAllowed(sale, saleItem, newQuantity, newRefund);
+    const newBaseQty = await assertReturnQuantityAllowed({
+      session,
+      saleItem,
+      returnUnit: unitDoc,
+      quantity: newQuantity,
+    });
+    const newPrimaryUnit = await loadPrimaryUnitForProduct(
+      saleReturn.product,
+      session
+    );
+    const newStockQty = toStockQuantity(
+      newQuantity,
+      unitDoc,
+      newPrimaryUnit
+    );
+
+    applySaleItemReturnDeduction({
+      saleItem,
+      quantity: newQuantity,
+      refundAmount: newLineRefund,
+      baseQty: newBaseQty,
+    });
+    await saleItem.save({ session });
+
+    let recordedBatch = newBatch || 'DEFAULT';
+    let restoredBatches = [];
+    if (sale.employee) {
+      recordedBatch = resolveEmployeeReturnBatch(saleItem);
+      const product = await Product.findById(saleReturn.product).session(session);
+      if (!product) throw new AppError('محصول ونه موندل شو', 404);
+
+      await incrementEmployeeStock({
+        session,
+        employee: sale.employee,
+        productId: saleReturn.product,
+        batchNumber: recordedBatch,
+        stockQty: newStockQty,
+        costPerUnit: saleItem.costPricePerUnit || product.latestPurchasePrice || 0,
+      });
+      restoredBatches = [{ batchNumber: recordedBatch, quantityUsed: newStockQty }];
     } else {
-      const stockQuery = newBatch
-        ? {
-            product: saleReturn.product,
-            batchNumber: newBatch,
-            location: 'store',
-          }
-        : { product: saleReturn.product, location: 'store' };
-
-      const stock = await Stock.findOne(stockQuery).session(session);
-      if (stock) {
-        stock.quantity += newBaseQty;
-        await stock.save({ session });
-      } else {
-        // Fetch product to get baseUnit and latestPurchasePrice
-        const product = await Product.findById(saleReturn.product).session(
-          session
-        );
-        if (!product) throw new AppError('محصول ونه موندل شو', 404);
-
-        await Stock.create(
-          [
-            {
-              product: saleReturn.product,
-              unit: product.baseUnit,
-              batchNumber: newBatch || 'DEFAULT',
-              location: 'store',
-              quantity: newBaseQty,
-              purchasePricePerBaseUnit: product.latestPurchasePrice || 0,
-            },
-          ],
-          { session }
-        );
-      }
+      restoredBatches = await applyStoreReturnStock({
+        session,
+        productId: saleReturn.product,
+        saleItem,
+        stockQty: newStockQty,
+        batchNumberFromRequest: newBatch,
+      });
+      recordedBatch =
+        restoredBatches.length === 1
+          ? restoredBatches[0].batchNumber
+          : 'MULTI';
     }
 
-    // 🔢 Update sale totals again
-    sale.totalAmount -= newRefund;
-    sale.dueAmount = sale.totalAmount - sale.paidAmount;
-    await sale.save({ session });
-
-    // 🔄 Apply new return to the sale item
-    if (saleItem) {
-      // Calculate the cost and profit for the new return
-      const newReturnedCost = (saleItem.costPricePerUnit || 0) * newQuantity;
-      const newReturnedProfit = newRefund - newReturnedCost;
-
-      // Apply new return values
-      saleItem.quantity -= newQuantity;
-      saleItem.totalPrice -= newRefund;
-      saleItem.profit -= newReturnedProfit;
-
-      // If quantity becomes 0 or less, soft delete the item
-      if (saleItem.quantity <= 0) {
-        saleItem.isDeleted = true;
-        saleItem.quantity = 0;
-        saleItem.totalPrice = 0;
-        saleItem.profit = 0;
-      }
-
-      await saleItem.save({ session });
-    }
-
-    // 📝 Update return record
     Object.assign(saleReturn, {
       quantity: newQuantity,
-      refundAmount: newRefund,
+      refundAmount: newEffectiveRefund,
+      lineRefundAmount: newLineRefund,
+      cashRefundAmount: newCashRefund,
       reason: reason ?? saleReturn.reason,
-      batchNumber: newBatch,
-      unit: newUnit,
+      batchNumber: recordedBatch,
+      stockRestoredBatches: mapRestoredBatchesForStorage(restoredBatches),
+      unit: newUnitId,
     });
     await saleReturn.save({ session });
 
-    // 🧾 Audit log
+    activeItems = await getActiveSaleItems(session, saleReturn.sale);
+    const saleDueSnapshot = {
+      totalAmount: sale.totalAmount,
+      paidAmount: sale.paidAmount,
+    };
+    const { receivableAdjustment } = applySaleTotalsAfterReturn(sale, activeItems);
+    const receivableReduced = resolveReceivableReturnCredit(
+      saleDueSnapshot,
+      receivableAdjustment
+    );
+
+    const accountResult = await applySaleReturnAccounts({
+      session,
+      sale,
+      refundAmount: receivableReduced,
+      cashRefundAmount: newCashRefund,
+      saleReturnId: saleReturn._id,
+      userId: req.user._id,
+      reverse: false,
+    });
+
+    saleReturn.receivableReduced = receivableReduced;
+    saleReturn.cashRefundAccount = accountResult.cashRefundAccountId;
+    await saleReturn.save({ session });
+
+    await sale.save({ session });
+
     await AuditLog.create(
       [
         {
@@ -1465,86 +1410,86 @@ exports.updateSaleReturn = asyncHandler(async (req, res, next) => {
 });
 
 // @desc    Soft delete a sale return (rollback-safe)
-// @route   DELETE /api/v1/sale-returns/:id
+// @route   DELETE /api/v1/sales/returns/:id
 exports.deleteSaleReturn = asyncHandler(async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const saleReturn = await SaleReturn.findById(req.params.id).session(
-      session
-    );
-    if (!saleReturn || saleReturn.isDeleted)
+    const saleReturn = await SaleReturn.findById(req.params.id).session(session);
+    if (!saleReturn || saleReturn.isDeleted) {
       throw new AppError('د پلور بیرته راستنیدنه ونه موندل شوه', 404);
+    }
 
     const sale = await Sale.findById(saleReturn.sale).session(session);
-    if (!sale || sale.isDeleted)
+    if (!sale || sale.isDeleted) {
       throw new AppError('اصلي پلور ونه موندل شو', 404);
+    }
 
     const oldReturnSnapshot = { ...saleReturn.toObject() };
 
     const unit = await Unit.findById(saleReturn.unit).session(session);
-    const baseQty = saleReturn.quantity * unit.conversion_to_base;
+    if (!unit) throw new AppError('د بیرته راستنیدنې واحد ونه موندل شو', 400);
+    const baseQty = toBaseQty(saleReturn.quantity, unit);
+    const primaryUnit = await loadPrimaryUnitForProduct(
+      saleReturn.product,
+      session
+    );
+    const stockQty = toStockQuantity(saleReturn.quantity, unit, primaryUnit);
 
-    // 🔄 Restore the sale item (quantity, totalPrice, profit)
     const saleItem = await SaleItem.findOne({
       sale: saleReturn.sale,
       product: saleReturn.product,
     }).session(session);
 
-    if (saleItem) {
-      // Calculate the cost for the returned quantity
-      const returnedCost =
-        (saleItem.costPricePerUnit || 0) * saleReturn.quantity;
-      const returnedProfit = saleReturn.refundAmount - returnedCost;
-
-      // Restore the item to its original state before the return
-      saleItem.quantity += saleReturn.quantity;
-      saleItem.totalPrice += saleReturn.refundAmount;
-      saleItem.profit += returnedProfit;
-
-      // If item was soft-deleted (quantity was 0), restore it
-      if (saleItem.isDeleted && saleItem.quantity > 0) {
-        saleItem.isDeleted = false;
-      }
-
-      await saleItem.save({ session });
-    }
-
-    // 🔁 Reverse stock added on return creation
     if (sale.employee) {
-      await EmployeeStock.findOneAndUpdate(
-        { employee: sale.employee, product: saleReturn.product },
-        { $inc: { quantity_in_hand: -baseQty } },
-        { session }
-      );
+      await reverseEmployeeReturnStock({
+        session,
+        employee: sale.employee,
+        productId: saleReturn.product,
+        saleItem,
+        saleReturn,
+        stockQty,
+      });
     } else {
-      const stockQuery = saleReturn.batchNumber
-        ? {
-            product: saleReturn.product,
-            batchNumber: saleReturn.batchNumber,
-            location: 'store',
-          }
-        : { product: saleReturn.product, location: 'store' };
-
-      const stock = await Stock.findOne(stockQuery).session(session);
-      if (stock) {
-        stock.quantity -= baseQty;
-        if (stock.quantity < 0) stock.quantity = 0;
-        await stock.save({ session });
-      }
+      await reverseStoreReturnStock({
+        session,
+        productId: saleReturn.product,
+        saleItem,
+        saleReturn,
+        stockQty,
+      });
     }
 
-    // 🔁 Reverse sale totals
-    sale.totalAmount += saleReturn.refundAmount;
-    sale.dueAmount = sale.totalAmount - sale.paidAmount;
+    await applySaleReturnAccounts({
+      session,
+      sale,
+      refundAmount: getPostedReceivableCredit(saleReturn),
+      cashRefundAmount: saleReturn.cashRefundAmount || 0,
+      cashRefundAccountId: saleReturn.cashRefundAccount,
+      saleReturnId: saleReturn._id,
+      userId: req.user._id,
+      reverse: true,
+    });
+
+    if (saleItem) {
+      const lineRefund = resolveReturnLineRefund(saleReturn, saleItem);
+      revertSaleItemReturnDeduction({
+        saleItem,
+        quantity: saleReturn.quantity,
+        refundAmount: lineRefund,
+        baseQty,
+      });
+      await saleItem.save({ session });
+
+      const activeItems = await getActiveSaleItems(session, saleReturn.sale);
+      applySaleTotalsAfterReturn(sale, activeItems);
+    }
     await sale.save({ session });
 
-    // 🗑️ Soft delete return
     saleReturn.isDeleted = true;
     await saleReturn.save({ session });
 
-    // 🧾 Audit
     await AuditLog.create(
       [
         {
@@ -1564,16 +1509,20 @@ exports.deleteSaleReturn = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'د پلور بیرته راستنیدنه په بریالیتوب سره حذف شوه',
+      message: 'د پلور بیرته راستنیدنه په بریالیتوب سره لغوه شوه',
     });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    throw new AppError(err.message || 'د پلور بیرته راستنیدنې په حذف کولو کې ناکامي', 500);
+    throw new AppError(
+      err.message || 'د پلور بیرته راستنیدنې په لغوه کولو کې ناکامي',
+      err.statusCode || 500
+    );
   }
 });
 
 // @desc Restore soft-deleted sale return (rollback-safe)
+// @route   PATCH /api/v1/sales/returns/:id/restore
 exports.restoreSaleReturn = asyncHandler(async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -1588,69 +1537,115 @@ exports.restoreSaleReturn = asyncHandler(async (req, res, next) => {
     if (!sale || sale.isDeleted)
       throw new AppError('اصلي پلور ونه موندل شو', 404);
 
-    const unit = await Unit.findById(saleReturn.unit).session(session);
-    const baseQty = saleReturn.quantity * unit.conversion_to_base;
+    const cashRefund = saleReturn.cashRefundAmount || 0;
+    if (cashRefund > sale.paidAmount) {
+      throw new AppError('نغدي بیرته ورکول له تادیه شوي مقدار څخه زیات دی', 400);
+    }
 
-    // 🔄 Re-apply the return to the sale item (reduce quantity, totalPrice, profit)
+    const unit = await Unit.findById(saleReturn.unit).session(session);
+    if (!unit) throw new AppError('د بیرته راستنیدنې واحد ونه موندل شو', 400);
+
     const saleItem = await SaleItem.findOne({
       sale: saleReturn.sale,
       product: saleReturn.product,
     }).session(session);
+    if (!saleItem) throw new AppError('د پلور توکی ونه موندل شو', 404);
 
-    if (saleItem) {
-      // Calculate the cost and profit for the return
-      const returnedCost = saleItem.costPricePerUnit * saleReturn.quantity;
-      const returnedProfit = saleReturn.refundAmount - returnedCost;
+    const baseQty = toBaseQty(saleReturn.quantity, unit);
+    const primaryUnit = await loadPrimaryUnitForProduct(
+      saleReturn.product,
+      session
+    );
+    const stockQty = toStockQuantity(saleReturn.quantity, unit, primaryUnit);
+    const lineRefund = resolveReturnLineRefund(saleReturn, saleItem);
 
-      // Re-apply the return
-      saleItem.quantity -= saleReturn.quantity;
-      saleItem.totalPrice -= saleReturn.refundAmount;
-      saleItem.profit -= returnedProfit;
-      await saleItem.save({ session });
-    }
+    assertRefundAmountAllowed(
+      sale,
+      {
+        ...saleItem.toObject(),
+        totalPrice: saleItem.totalPrice + lineRefund,
+      },
+      saleReturn.quantity,
+      saleReturn.refundAmount
+    );
+    await assertReturnQuantityAllowed({
+      session,
+      saleItem,
+      returnUnit: unit,
+      quantity: saleReturn.quantity,
+      extraBaseAllowance: baseQty,
+    });
 
-    // Re-apply stock restore
+    applySaleItemReturnDeduction({
+      saleItem,
+      quantity: saleReturn.quantity,
+      refundAmount: lineRefund,
+      baseQty,
+    });
+    await saleItem.save({ session });
+
+    let restoredBatches = [];
+    let recordedBatch = saleReturn.batchNumber || 'DEFAULT';
     if (sale.employee) {
-      await EmployeeStock.findOneAndUpdate(
-        { employee: sale.employee, product: saleReturn.product },
-        { $inc: { quantity_in_hand: baseQty } },
-        { upsert: true, session }
-      );
+      recordedBatch = resolveEmployeeReturnBatch(saleItem);
+      const product = await Product.findById(saleReturn.product).session(session);
+      if (!product) throw new AppError('محصول ونه موندل شو', 404);
+
+      await incrementEmployeeStock({
+        session,
+        employee: sale.employee,
+        productId: saleReturn.product,
+        batchNumber: recordedBatch,
+        stockQty,
+        costPerUnit: saleItem.costPricePerUnit || product.latestPurchasePrice || 0,
+      });
+      restoredBatches = [{ batchNumber: recordedBatch, quantityUsed: stockQty }];
     } else {
-      const existingStock = await Stock.findOne({
-        product: saleReturn.product,
-        batchNumber: saleReturn.batchNumber,
-        location: 'store',
-      }).session(session);
-
-      if (existingStock) {
-        existingStock.quantity += baseQty;
-        await existingStock.save({ session });
-      } else {
-        // Need to create new stock with all required fields
-        const product = await Product.findById(saleReturn.product).session(
-          session
-        );
-        if (!product) throw new AppError('محصول ونه موندل شو', 404);
-
-        await Stock.create(
-          [
-            {
-              product: saleReturn.product,
-              unit: product.baseUnit,
-              batchNumber: saleReturn.batchNumber || 'DEFAULT',
-              location: 'store',
-              quantity: baseQty,
-              purchasePricePerBaseUnit: product.latestPurchasePrice || 0,
-            },
-          ],
-          { session }
-        );
-      }
+      restoredBatches = await applyStoreReturnStock({
+        session,
+        productId: saleReturn.product,
+        saleItem,
+        stockQty,
+        batchNumberFromRequest:
+          saleReturn.batchNumber && saleReturn.batchNumber !== 'MULTI'
+            ? saleReturn.batchNumber
+            : undefined,
+      });
+      recordedBatch =
+        restoredBatches.length === 1
+          ? restoredBatches[0].batchNumber
+          : 'MULTI';
     }
 
-    sale.totalAmount -= saleReturn.refundAmount;
-    sale.dueAmount = sale.totalAmount - sale.paidAmount;
+    saleReturn.batchNumber = recordedBatch;
+    saleReturn.stockRestoredBatches = mapRestoredBatchesForStorage(restoredBatches);
+
+    const saleDueSnapshot = {
+      totalAmount: sale.totalAmount,
+      paidAmount: sale.paidAmount,
+    };
+
+    const activeItems = await getActiveSaleItems(session, saleReturn.sale);
+    const { receivableAdjustment } = applySaleTotalsAfterReturn(sale, activeItems);
+    const receivableReduced = resolveReceivableReturnCredit(
+      saleDueSnapshot,
+      receivableAdjustment
+    );
+
+    const accountResult = await applySaleReturnAccounts({
+      session,
+      sale,
+      refundAmount: receivableReduced,
+      cashRefundAmount: cashRefund,
+      saleReturnId: saleReturn._id,
+      userId: req.user._id,
+      reverse: false,
+    });
+
+    saleReturn.receivableReduced = receivableReduced;
+    saleReturn.cashRefundAccount = accountResult.cashRefundAccountId;
+    await saleReturn.save({ session });
+
     await sale.save({ session });
 
     saleReturn.isDeleted = false;
@@ -1664,7 +1659,7 @@ exports.restoreSaleReturn = asyncHandler(async (req, res, next) => {
           operation: 'RESTORE',
           oldData: null,
           newData: saleReturn.toObject(),
-          reason: 'Sale return restored',
+          reason: req.body.reason || 'Sale return restored',
           changedBy: req.user?.name || 'System',
         },
       ],
@@ -1782,7 +1777,10 @@ exports.recordSalePayment = asyncHandler(async (req, res, next) => {
 
     // 6️⃣ Update sale paid amount
     sale.paidAmount += amount;
-    sale.dueAmount = sale.totalAmount - sale.paidAmount;
+    sale.dueAmount = Math.max(0, sale.totalAmount - sale.paidAmount);
+    if (!sale.placedIn) {
+      sale.placedIn = paymentAccount;
+    }
     await sale.save({ session });
 
     // 7️⃣ Audit Log
@@ -1837,45 +1835,63 @@ exports.getSalesReports = asyncHandler(async (req, res, next) => {
     throw new AppError('د پیل او پای نیټه اړینه ده', 400);
   }
 
+  const saleDateRange = buildSaleDateFilter(startDate, endDate);
+  if (!saleDateRange) {
+    throw new AppError('د پیل او پای نیټه اړینه ده', 400);
+  }
+
   const matchStage = {
     isDeleted: false,
-    saleDate: {
-      $gte: new Date(startDate),
-      $lte: new Date(endDate),
-    },
+    saleDate: saleDateRange,
   };
 
-  let groupStage;
-  let dateFormat;
-  
+  let saleGroupStage;
+  let saleItemGroupStage;
+
   switch (groupBy) {
     case 'day':
-      groupStage = {
+      saleGroupStage = {
         _id: {
           year: { $year: '$saleDate' },
           month: { $month: '$saleDate' },
           day: { $dayOfMonth: '$saleDate' },
         },
       };
-      dateFormat = '%Y-%m-%d';
+      saleItemGroupStage = {
+        _id: {
+          year: { $year: '$sale.saleDate' },
+          month: { $month: '$sale.saleDate' },
+          day: { $dayOfMonth: '$sale.saleDate' },
+        },
+      };
       break;
     case 'week':
-      groupStage = {
+      saleGroupStage = {
         _id: {
           year: { $year: '$saleDate' },
           week: { $week: '$saleDate' },
         },
       };
-      dateFormat = '%Y-W%U';
+      saleItemGroupStage = {
+        _id: {
+          year: { $year: '$sale.saleDate' },
+          week: { $week: '$sale.saleDate' },
+        },
+      };
       break;
     case 'month':
-      groupStage = {
+      saleGroupStage = {
         _id: {
           year: { $year: '$saleDate' },
           month: { $month: '$saleDate' },
         },
       };
-      dateFormat = '%Y-%m';
+      saleItemGroupStage = {
+        _id: {
+          year: { $year: '$sale.saleDate' },
+          month: { $month: '$sale.saleDate' },
+        },
+      };
       break;
     default:
       throw new AppError(
@@ -1889,7 +1905,7 @@ exports.getSalesReports = asyncHandler(async (req, res, next) => {
     { $match: matchStage },
     {
       $group: {
-        ...groupStage,
+        ...saleGroupStage,
         totalSales: { $sum: '$totalAmount' },
         totalPaid: { $sum: '$paidAmount' },
         totalDue: { $sum: '$dueAmount' },
@@ -1899,6 +1915,12 @@ exports.getSalesReports = asyncHandler(async (req, res, next) => {
     { $sort: { '_id.year': -1, '_id.month': -1, '_id.day': -1 } },
   ]);
   let combinedSummary = salesSummary;
+
+  const saleItemProfitMatch = {
+    isDeleted: false,
+    'sale.isDeleted': false,
+    'sale.saleDate': saleDateRange,
+  };
 
   // Optionally include profit (heavier join) only when requested
   if (includeProfit === 'true') {
@@ -1912,13 +1934,13 @@ exports.getSalesReports = asyncHandler(async (req, res, next) => {
         },
       },
       { $unwind: '$sale' },
-      { $match: matchStage },
+      { $match: saleItemProfitMatch },
       {
         $group: {
-          ...groupStage,
+          ...saleItemGroupStage,
           totalProfit: { $sum: '$profit' },
-          totalCost: { $sum: '$cost' },
-          totalRevenue: { $sum: '$revenue' },
+          totalCost: { $sum: saleItemCostExpr },
+          totalRevenue: { $sum: '$totalPrice' },
         },
       },
       { $sort: { '_id.year': -1, '_id.month': -1, '_id.day': -1 } },
@@ -1983,5 +2005,32 @@ exports.getSalesReports = asyncHandler(async (req, res, next) => {
         totalCount: formattedSummary.reduce((sum, item) => sum + item.count, 0),
       },
     },
+  });
+});
+
+// @desc    Permanently delete a soft-deleted sale
+// @route   DELETE /api/v1/sales/:id/permanent
+exports.permanentDeleteSale = asyncHandler(async (req, res, next) => {
+  validateObjectId(req.params.id, 'ناسم پلور ID');
+
+  const sale = await Sale.findById(req.params.id);
+  if (!sale) throw new AppError('پلور ونه موندل شو', 404);
+  if (!sale.isDeleted) {
+    throw new AppError('لومړی باید پلور په کثافاتو کې حذف شوی وي', 400);
+  }
+
+  await assertNoActiveSaleReturns(null, sale._id);
+
+  await SaleItem.deleteMany({ sale: sale._id });
+  await SaleReturn.deleteMany({ sale: sale._id });
+  await AccountTransaction.deleteMany({
+    referenceType: 'sale',
+    referenceId: sale._id,
+  });
+  await Sale.deleteOne({ _id: sale._id });
+
+  res.status(200).json({
+    success: true,
+    message: 'پلور په تل لپاره حذف شو',
   });
 });

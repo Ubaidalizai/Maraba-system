@@ -5,16 +5,18 @@ const {
   getSupplier,
   updateSupplier,
   deleteSupplier,
+  restoreSupplier,
+  permanentDeleteSupplier,
 } = require('../controllers/supplier.controller');
-const { authenticate } = require('../middlewares/authMiddleware');
+const { authenticate, authorizeAdmin } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
-// All routes are protected
 router.use(authenticate);
 
-// Supplier routes
 router.route('/').get(getAllSuppliers).post(createSupplier);
+router.patch('/:id/restore', restoreSupplier);
+router.delete('/:id/permanent', authorizeAdmin, permanentDeleteSupplier);
 router
   .route('/:id')
   .get(getSupplier)

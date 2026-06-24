@@ -9,11 +9,59 @@
     "accounts": "حسابونه",
     "income": "عاید",
     "reports": "راپورونه",
+    "trash": "کچره دانی",
     "admin": "اداري پینل"
   },
   "brand": {
     "title": "بلال سدیس شرکت",
     "tagline": " سوداګري او تجارت سیستم  "
+  },
+  "trash": {
+    "title": "کچره دانی",
+    "subtitle": "حذف شوي ریکارډونه وګورئ، بیرته راستون یا تل لپاره حذف کړئ",
+    "totalCount": "ټول حذف شوي",
+    "filterType": "ډول:",
+    "restore": "بیرته راستون",
+    "permanentDelete": "تل لپاره حذف",
+    "empty": "په دې ډول کې هیڅ حذف شوی ریکارډ نشته",
+    "emptyAll": "هیڅ حذف شوی ریکارډ نشته",
+    "confirmRestore": "ایا تاسو ډاډه یاست چې دا ریکارډ بیرته راستون کړئ؟",
+    "confirmPermanent": "ایا تاسو ډاډه یاست؟ دا عمل بیرته نشي راګرځیدلی.",
+    "navEmpty": "کچره دانی خالي ده",
+    "navHasItems": "{{count}} حذف شوي ریکارډ",
+    "table": {
+      "name": "نوم",
+      "details": "جزئیات",
+      "type": "ډول",
+      "recordDate": "د ریکارډ نېټه",
+      "deletedAt": "د حذف نېټه",
+      "deletedBy": "حذف کوونکی",
+      "actions": "عملیات"
+    },
+    "toast": {
+      "restoreSuccess": "ریکارډ په بریالیتوب سره بیرته راستون شو",
+      "restoreError": "بیرته راستنیدل ناکام شو",
+      "permanentSuccess": "ریکارډ په تل لپاره حذف شو",
+      "permanentError": "تل لپاره حذف ناکام شو"
+    },
+    "types": {
+      "all": "ټول",
+      "product": "محصول",
+      "purchase": "رانیول",
+      "sale": "پلور",
+      "expense": "لګښت",
+      "income": "عاید",
+      "account": "حساب",
+      "customer": "پېرودونکی",
+      "supplier": "عرضه کوونکی",
+      "category": "کېټګورۍ",
+      "brand": "برانډ",
+      "employee": "کارکوونکی",
+      "company": "شرکت",
+      "type": "ډول",
+      "saraf": "صراف",
+      "unit": "واحد"
+    }
   },
   "user": {
     "adminFallback": "ادمین",
@@ -26,24 +74,122 @@
     "logoutSuccess": "په بریالیتوب سره له سیستم څخه ووتلاست",
     "logoutError": "  له سیستم څخه پّ وتلو کي ستونزه پیښه سوه ",
     "loginSuccess": "په بریالیتوب سره داخل شو",
-    "loginError": "ننوتل ممکن نه شول"
+    "loginError": "داخلېدل ممکن نه شول"
+  },
+  "useApi": {
+    "password": {
+      "updateSuccess": "ستاسو پاسورډ بدل شو",
+      "updateError": "ستونزه پېښه شوه، بیا هڅه وکړئ"
+    },
+    "forgotPassword": {
+      "success": "مهرباني وکړئ خپل ایمیل وګورئ!",
+      "error": "ایمیل ناسم دی"
+    },
+    "transaction": {
+      "createSuccess": "راکړه ورکړه په بریالیتوب سره ثبت شوه",
+      "createError": "د راکړې ورکړې ثبت ناکام شو",
+      "reverseSuccess": "راکړه ورکړه په بریالیتوب سره بېرته وګرځول شوه",
+      "reverseError": "د راکړې ورکړې په بېرته ګرځولو کې ستونزه: {{message}}",
+      "ledgerLoadError": "د حساب راکړو ورکړو په بارولو کې ستونزه. بیا هڅه وکړئ."
+    },
+    "product": {
+      "deleteSuccess": "محصول په بریالیتوب سره حذف شو",
+      "deleteError": "د محصول په حذف کولو کې ستونزه پېښه شوه"
+    },
+    "store": {
+      "updateSuccess": "موجودي په بریالیتوب سره اپډیټ شوه",
+      "updateError": "د موجودي په اپډیټ کولو کې ستونزه پېښه شوه"
+    },
+    "purchase": {
+      "createSuccess": "ستاسو رانیول په بریالیتوب سره ثبت شو، مننه!",
+      "createError": "ستاسو په رانیول کې ستونزه ده"
+    },
+    "supplier": {
+      "createSuccess": "عرضه کوونکی په بریالیتوب سره جوړ شو",
+      "createError": "د عرضه کوونکي په جوړولو کې ستونزه",
+      "updateSuccess": "عرضه کوونکی په بریالیتوب سره اپډیټ شو",
+      "updateError": "د عرضه کوونکي په اپډیټ کولو کې ستونزه",
+      "deleteSuccess": "عرضه کوونکی په بریالیتوب سره حذف شو",
+      "deleteError": "د عرضه کوونکي په حذف کولو کې ستونزه"
+    },
+    "customer": {
+      "createSuccess": "مشتري په بریالیتوب سره جوړ شو",
+      "createError": "د مشتري په جوړولو کې ستونزه پېښه شوه",
+      "updateSuccess": "مشتري په بریالیتوب سره اپډیټ شو",
+      "updateError": "د مشتري په اپډیټ کولو کې ستونزه پېښه شوه",
+      "deleteSuccess": "مشتري په بریالیتوب سره حذف شو",
+      "deleteError": "د مشتري په حذف کولو کې ستونزه پېښه شوه"
+    },
+    "saraf": {
+      "createSuccess": "صراف په بریالیتوب سره جوړ شو",
+      "createError": "د صراف په جوړولو کې ستونزه پېښه شوه",
+      "updateSuccess": "صراف په بریالیتوب سره اپډیټ شو",
+      "updateError": "د صراف په اپډیټ کولو کې ستونزه پېښه شوه",
+      "deleteSuccess": "صراف په بریالیتوب سره حذف شو",
+      "deleteError": "د صراف په حذف کولو کې ستونزه پېښه شوه"
+    },
+    "account": {
+      "createSuccess": "نوی حساب په بریالیتوب سره جوړ شو",
+      "createError": "ستاسو د نوی حساب په جوړولو کې ستونزه پېښه شوه",
+      "updateSuccess": "په بریالیتوب سره اپډیټ شو",
+      "updateError": "په اپډیټ کولو کې ستونزه پېښه شوه",
+      "deleteSuccess": "په بریالیتوب سره حذف شو",
+      "deleteError": "له بده مرغه ستونزه پېښه شوه"
+    },
+    "employee": {
+      "createSuccess": "کارکوونکی په بریالیتوب سره جوړ شو",
+      "createError": "د کارکوونکي په جوړولو کې ستونزه",
+      "updateSuccess": "کارکوونکی په بریالیتوب سره اپډیټ شو",
+      "updateError": "د کارکوونکي په اپډیټ کولو کې ستونزه",
+      "deleteSuccess": "کارکوونکی په بریالیتوب سره حذف شو",
+      "deleteError": "د کارکوونکي په حذف کولو کې ستونزه"
+    },
+    "unit": {
+      "createSuccess": "واحد په بریالیتوب سره جوړ شو",
+      "createError": "د واحد په جوړولو کې ستونزه",
+      "updateSuccess": "واحد په بریالیتوب سره اپډیټ شو",
+      "updateError": "د واحد په اپډیټ کولو کې ستونزه",
+      "deleteSuccess": "واحد په بریالیتوب سره حذف شو",
+      "deleteError": "د واحد په حذف کولو کې ستونزه"
+    },
+    "stockTransfer": {
+      "deleteSuccess": "تاسو موجودي په بریالیتوب سره حذف کړه",
+      "deleteError": "عملیه ناکامه شوه",
+      "createSuccess": "لیږد په بریالیتوب سره ترسره شو",
+      "createError": "لیږد ناکام شو"
+    },
+    "accountTransfer": {
+      "success": "پیسې په بریالیتوب سره انتقال شوې",
+      "error": "انتقال ناکام شو"
+    },
+    "profile": {
+      "updateSuccess": "بدلونونه په بریالیتوب سره ثبت شول",
+      "updateError": "له بده مرغه ستونزه پېښه شوه"
+    },
+    "settings": {
+      "updateSuccess": "تنظیمات په بریالیتوب سره اپډیټ شول",
+      "updateError": "د تنظیماتو په اپډیټ کولو کې ستونزه"
+    }
   },
   "login": {
-    "title": "ننوتل",
-    "subtitle": "د سوداګرۍ او وېش مدیریت",
-    "email": "ایمیل ",
-    "emailPlaceholder": "خپل ایمیل  داخل کړئ",
+    "title": "ښه راغلاست",
+    "subtitle": "د سوداګرۍ او وېش مدیریت سیستم ته داخل شئ",
+    "email": "برېښنالیک",
+    "emailPlaceholder": "خپل برېښنالیک ولیکئ",
     "password": "پاسورډ",
-    "passwordPlaceholder": "خپل پاسورډ داخل کړئ",
-    "forgotPassword": "پاسورډ مو هېر کړی؟",
-    "submit": "ننوتل",
-    "submitting": "ننوتل روان دي...",
+    "passwordPlaceholder": "خپل پاسورډ ولیکئ",
+    "showPassword": "پاسورډ وښایاست",
+    "hidePassword": "پاسورډ پټ کړئ",
+    "forgotPassword": "پاسورډ مو هېر شوی؟",
+    "submit": "داخل شئ",
+    "submitting": "داخلېدنه روانه ده...",
     "forgotTitle": "پاسورډ بیا تنظیم کړئ",
-    "forgotDescription": "خپل ایمیل  ورکړئ، موږ به تاسو ته د پاسورډ د تفیریدلو لینک ولېږو.",
-    "forgotEmailLabel": "ایمیل ",
+    "forgotDescription": "خپل برېښنالیک ولیکئ؛ موږ به تاسو ته د پاسورډ د بدلولو لینک ولېږو.",
+    "forgotEmailLabel": "برېښنالیک",
     "forgotSubmit": "لینک ولېږئ",
+    "forgotSubmitting": "لېږل روان دي...",
     "rememberPassword": "پاسورډ مو یاد دی؟",
-    "backToLogin": "بېرته سیستم ته داخل شه  ته"
+    "backToLogin": "بېرته داخلېدل ته"
   },
   "language": {
     "ps": "پښتو",
@@ -71,6 +217,10 @@
       "logs": "سیسټم لاګونه",
       "transactions": "وروستي راکړې ورکړې"
     },
+    "dailyReport": {
+      "expandHint": "د بشپړ راپور لیدلو لپاره کلیک وکړئ",
+      "collapseHint": "د راپور د پټولو لپاره کلیک وکړئ"
+    },
     "searchTransactions": "راکړې ورکړې ولټوئ...",
     "searchAudit": "دلیل، کاروونکی یا عملیات ولټوئ...",
     "loading": "سرچ روان دي...",
@@ -79,7 +229,7 @@
     "from": "له:",
     "to": "تر:",
     "unknown": "نامعلوم",
-    "refPurchase": "پېرود:",
+    "refPurchase": "رانیول:",
     "refSale": "خرڅلاو:",
     "reverseTitle": "بېرته ګرځول",
     "confirmReverseTitle": "د راکړې ورکړې بېرته ګرځولو تایید",
@@ -98,6 +248,8 @@
     "viewDetailsTitle": "جزئیات وګورئ",
     "newRowsTitle": "نوی معلومات اضافه شول",
     "compareTitle": "مخکې او وروسته پرتله",
+    "restoreCompareTitle": "د بیرته راستنولو بدلون",
+    "noVisibleChanges": "د کارونکي لپاره څرګند بدلون نشته (یوازې د سیسټم داخلي فیلډونه بدل شوي)",
     "oldBlockTitle": "پخواني معلومات",
     "newBlockTitle": "نوي معلومات",
     "deletedRowsTitle": "حذف شوي معلومات",
@@ -135,7 +287,7 @@
       "customer": "مشتري",
       "employee": "کارکوونکی",
       "product": "محصول",
-      "purchase": "پېرود",
+      "purchase": "رانیول",
       "sale": "خرڅلاو",
       "account": "حساب",
       "transactionType": "د راکړې ورکړې ډول",
@@ -146,7 +298,23 @@
       "tableName": "د جدول نوم",
       "operation": "عملیات",
       "created_by": "جوړ کړی",
-      "updated_by": "نوی کړی"
+      "updated_by": "نوی کړی",
+      "source": "سرچینه",
+      "placedInAccount": "حساب",
+      "createdBy": "جوړونکی",
+      "unitPrice": "د واحد بیه",
+      "totalPrice": "د کرښې ټول",
+      "batchNumber": "بیچ",
+      "lineCreditAmount": "د بیرته راستنولو مبلغ",
+      "creditAmount": "کریډیټ",
+      "cashRefundAmount": "نغدي",
+      "stockQtyRemoved": "سټاک مقدار",
+      "payableReduced": "پاتې کمښت",
+      "baseUnit": "اصلي واحد",
+      "latestPurchasePrice": "وروستۍ رانیول بیه",
+      "returnedItem": "بیرته راستنیدنه",
+      "item": "توکی",
+      "items": "توکي"
     },
     "tables": {
       "all": "ټول",
@@ -162,8 +330,8 @@
       "Expense": "لګښت",
       "Income": "عاید",
       "Product": "محصول",
-      "Purchase": "پېرود",
-      "PurchaseItem": "د پېرود توکي",
+      "Purchase": "رانیول",
+      "PurchaseItem": "د رانیول توکي",
       "Sale": "خرڅلاو",
       "SaleItem": "د خرڅلاو توکي",
       "SaleReturn": "د خرڅلاو بېرته ورکول",
@@ -176,7 +344,7 @@
     },
     "transactionTypes": {
       "Sale": "خرڅلاو",
-      "Purchase": "پېرود",
+      "Purchase": "رانیول",
       "Payment": "تادیه",
       "Transfer": "انتقال",
       "Expense": "لګښت",
@@ -187,7 +355,9 @@
     "operations": {
       "INSERT": "اضافه کول",
       "UPDATE": "اپډیټ کول",
-      "DELETE": "حذف"
+      "DELETE": "حذف",
+      "RESTORE": "بیرته راستنول",
+      "PERMANENT_DELETE": "تل لپاره حذف"
     },
     "headers": {
       "account": "حساب",
@@ -215,13 +385,78 @@
     "storeStock": "د دوکان سټاک",
     "productCount": "{{count}} محصولات",
     "lowStock": "کم سټاک",
-    "needPurchase": "توکي بیا پېر ته اړتیا لري"
+    "needPurchase": "توکي بیا پېر ته اړتیا لري",
+    "expiring": "د پای نېټې خبرتیا",
+    "expiringHint": "نږدې یا تیر شوې پای نېټې"
   },
   "tabs": {
     "all": "ټول محصولات",
     "warehouse": "ګودام",
     "store": "دوکان",
-    "seller": "پلورونکی"
+    "lowStock": "کم سټاک",
+    "expiring": "د پای نېټه",
+    "seller": "پلورونکی",
+    "damage": "ضایعات"
+  },
+  "lowStock": {
+    "searchPlaceholder": "د توکي نوم له مخې لټون...",
+    "filterLabel": "حالت",
+    "locationFilterLabel": "ځای",
+    "filters": {
+      "all": "ټول",
+      "low": "کم",
+      "critical": "ډېر کم",
+      "out": "بې سټاک"
+    },
+    "status": {
+      "low": "کم سټاک",
+      "critical": "بحراني",
+      "out": "بې سټاک",
+      "normal": "عادي"
+    },
+    "table": {
+      "product": "توکی",
+      "batch": "بچ",
+      "location": "ځای",
+      "quantity": "شمېر",
+      "unit": "واحد",
+      "minLevel": "لږترلږه کچه",
+      "status": "حالت"
+    },
+    "empty": "د دې فلټر له مخې هیڅ کم‌سټاک توکی ونه موندل شو."
+  },
+  "expiring": {
+    "searchPlaceholder": "د توکي نوم له مخې لټون...",
+    "filterLabel": "حالت",
+    "locationFilterLabel": "ځای",
+    "notifyHint": "د خبرتیا کړکۍ (ډیفالټ): {{days}} ورځې مخکې له پای نېټې",
+    "daysRemaining": "{{count}} ورځې پاتې",
+    "daysExpired": "{{count}} ورځې تیرې",
+    "filters": {
+      "all": "ټول",
+      "low": "نږدې پای",
+      "critical": "ډېر نږدې",
+      "out": "تیر شوی"
+    },
+    "status": {
+      "low": "نږدې پای",
+      "critical": "ډېر نږدې",
+      "out": "تیر شوی",
+      "normal": "عادي"
+    },
+    "table": {
+      "product": "توکی",
+      "batch": "بچ",
+      "location": "ځای",
+      "quantity": "شمېر",
+      "unit": "واحد",
+      "expiryDate": "د پای نېټه",
+      "daysLeft": "پاتې ورځې",
+      "status": "حالت",
+      "actions": "عملیات"
+    },
+    "editPurchase": "رانیول سمول",
+    "empty": "د دې فلټر له مخې هیڅ د پای نېټې خبرتیا ونه موندل شوه."
   },
   "transfer": {
     "title": "وروستي سټاک انتقالونه",
@@ -234,12 +469,100 @@
       "actions": "عملیات"
     },
     "empty": "—",
-    "notAvailable": "نشته"
+    "notAvailable": "نشته",
+    "modal": {
+      "title": "سټاک انتقال",
+      "product": "محصول",
+      "transferType": "د انتقال ډول",
+      "employee": "کارکوونکی",
+      "selectEmployee": "کارکوونکی وټاکئ",
+      "unit": "واحد",
+      "defaultUnit": "اصلي",
+      "baseUnit": "بنسټیز",
+      "quantity": "مقدار",
+      "quantityPlaceholder": "مقدار ولیکئ",
+      "destination": "مقصد",
+      "cancel": "لغوه",
+      "submit": "انتقال",
+      "submitting": "انتقال روان دی...",
+      "types": {
+        "warehouseStore": "ګودام ↔ دوکان",
+        "warehouseEmployee": "ګودام → پلورونکی",
+        "storeWarehouse": "دوکان ↔ ګودام",
+        "storeEmployee": "دوکان → پلورونکی"
+      }
+    }
   },
   "locations": {
     "warehouse": "ګودام",
     "store": "دوکان",
     "employee": "پلورونکی"
+  },
+  "damage": {
+    "subtitle": "د ضایع شویو توکو ثبت — سټاک کمېږي، په ګټه راپور کې جلا کرښه ښکاري",
+    "recordDamage": "ضایعات ثبت کړئ",
+    "formTitle": "د ضایعات ثبت",
+    "location": "ځای",
+    "damageType": "د ضایعات ډول",
+    "employee": "پلورونکی",
+    "selectEmployee": "پلورونکی وټاکئ",
+    "selectProduct": "توکی وټاکئ",
+    "selectBatch": "بیچ وټاکئ",
+    "selectUnit": "واحد وټاکئ",
+    "quantity": "مقدار",
+    "description": "یادښت (اختیاري)",
+    "line": "کرښه",
+    "addLine": "بله کرښه",
+    "removeLine": "حذف",
+    "save": "ثبت",
+    "saving": "ثبت روان دی...",
+    "cancel": "لغوه",
+    "cancelReason": "د کارونکي لخوا لغوه شو",
+    "fillAllLines": "ټولې کرښې په سمه توګه ډکې کړئ",
+    "createSuccess": "ضایعات ثبت شول",
+    "createSuccessMultiple": "{{count}} ضایعات ثبت شول",
+    "createError": "په ثبت کې ستونزه",
+    "deleteSuccess": "ضایعات لغوه شول او سټاک بیرته ورګرځېد",
+    "deleteError": "په لغوه کولو کې ستونزه",
+    "empty": "تر اوسه هیڅ ضایعات ثبت نشوي",
+    "noStockAtLocation": "په دې ځای کې د ضایعات لپاره هیڅ موجود سټاک نشته",
+    "table": {
+      "date": "نېټه",
+      "location": "ځای",
+      "type": "ډول",
+      "items": "توکي",
+      "product": "توکی",
+      "loss": "زیان (افغانی)",
+      "actions": "عملیات"
+    },
+    "types": {
+      "broken": "مات شوی",
+      "expired": "تیر شوی",
+      "spoiled": "خراب شوی",
+      "theft": "غلا",
+      "other": "نور"
+    }
+  },
+  "stockEdit": {
+    "warehouseTitle": "ګودام سمول",
+    "storeTitle": "دوکان سمول",
+    "unitPriceLabel": "د هر واحد بیه",
+    "minLevelLabel": "لږترلږه موجودي",
+    "expiryDateLabel": "د پای نېټه",
+    "expiryDatePlaceholder": "نېټه وټاکئ",
+    "expiryDateInvalid": "نېټه سمه نه ده",
+    "expiryDateMinDays": "د پای نېټه باید له نن څخه لږ تر لږه ۱۰ ورځې وروسته وي",
+    "submitWarehouse": "ګودام اپډیټ کړئ",
+    "submitStore": "دوکان اپډیټ کړئ",
+    "cancel": "لغوه",
+    "updateSuccess": "سټاک په بریالیتوب سره اپډیټ شو",
+    "updateError": "په اپډیټ کې ستونزه رامنځته شوه",
+    "table": {
+      "notifyDays": "د خبرتیا ورځې"
+    },
+    "purchaseOnlyHint": "د پای نېټه او د رانیول بیه یوازې په رانیول کې سمېږي.",
+    "editInPurchase": "رانیول کې سمول",
+    "noPurchaseLinked": "اړوند رانیول ونه موندل شو — په لیست کې رانیول سم کړئ."
   },
   "delete": {
     "title": "د حذف تایید",
@@ -255,8 +578,12 @@
       "name": "د توکي نوم",
       "baseUnit": "اساسي  واحد",
       "batchTracking": "د بیچ تعقیب",
+      "notifyDays": "د خبرتیا ورځې",
       "actions": "عملیات"
     },
+    "notifyDaysLabel": "د خبرتیا ورځې",
+    "notifyDaysDefault": "ډیفالټ (تنظیمات)",
+    "notifyDaysSuffix": "ورځې",
     "loading": "سرچ روان دي...",
     "empty": "هیڅ محصول ونه موندل شو",
     "active": "فعال",
@@ -277,16 +604,27 @@
     "description": "تشریح",
     "noDescription": "هیڅ تشریح نشته.",
     "form": {
-      "titleCreate": "نوی محصول زیات کړئ",
-      "titleEdit": "محصول سمول",
-      "nameLabel": "د محصول نوم",
-      "namePlaceholder": "د محصول نوم ولیکئ",
-      "nameRequired": "د محصول نوم اړین دی",
-      "baseUnitRequired": "اساسي  واحد اړین دی",
+      "titleCreate": "نوی توکی زیات کړئ",
+      "titleEdit": "توکی سمول",
+      "nameLabel": "د توکي نوم",
+      "namePlaceholder": "د توکي نوم ولیکئ",
+      "nameRequired": "د توکي نوم اړین دی",
+      "baseUnitRequired": "اساسي واحد اړین دی",
       "selectUnit": "واحد وټاکئ",
-      "trackByBatch": "د بیچ له مخې تعقیب",
+      "primaryUnitHint": "اصلي واحد (لکه کارټن) — رانیول یوازې په دې واحد کې؛ پلور کې فرعي واحد (لکه کیلو) هم کارولای شي.",
+      "trackByBatch": "د بچ له مخې تعقیب",
+      "notifyDaysBefore": "د خبرتیا ورځې (اختیاري)",
+      "notifyDaysBeforeHint": "خالي پریږدئ = د تنظیماتو ډیفالټ به کارول شي",
+      "notifyDaysBeforePlaceholder": "لکه ۷",
       "cancel": "لغوه",
-      "save": "ثبت"
+      "save": "ثبت",
+      "saveEdit": "بدلون ثبت کړئ"
+    },
+    "toast": {
+      "createSuccess": "توکی په بریالیتوب سره زیات شو",
+      "createError": "د توکي زیاتول ناکام شول",
+      "updateSuccess": "توکی په بریالیتوب سره اپډیټ شو",
+      "updateError": "د توکي اپډیټ ناکام شو"
     },
     "delete": {
       "title": "د حذف تایید",
@@ -298,10 +636,10 @@
   }
 },
 "purchases": {
-  "title": "د پېرود مدیریت",
-  "subtitle": "پېرودونه وګورئ او اداره کړئ",
+  "title": "د رانیول مدیریت",
+  "subtitle": "رانیولونه وګورئ او اداره کړئ",
   "stats": {
-    "totalPurchases": "ټول پېرودونه",
+    "totalPurchases": "ټول رانیولونه",
     "totalAmount": "ټوله اندازه",
     "totalPaid": "ورکړل شوې اندازه",
     "totalOwed": "پاتې اندازه"
@@ -312,7 +650,7 @@
     "statusPaid": "ورکړل شوی",
     "statusPartial": "نیمګړی ورکړل شوی",
     "statusPending": "پاتې",
-    "addPurchase": "پېرود زیات کړئ"
+    "addPurchase": "رانیول زیات کړئ"
   },
   "table": {
     "date": "نېټه",
@@ -323,55 +661,62 @@
     "status": "حالت",
     "actions": "عملیات",
     "loading": "سرچ روان دي...",
-    "empty": "هیڅ پېرود ونه موندل شو",
+    "empty": "هیڅ رانیول ونه موندل شو",
     "statusPartialPaid": "نیمګړی ورکړل شوی",
-    "statusFullyPaid": "بشپړ ورکړل شوی"
+    "statusFullyPaid": "بشپړ ورکړل شوی",
+    "statusUnpaid": "تادیه نشوی"
   },
   "actions": {
     "viewDetails": "جزئیات وګورئ",
     "recordPayment": "تادیه ثبت کړئ",
+    "recordReturn": "بیرته راستنول",
     "edit": "سمول",
     "delete": "حذف"
   },
   "details": {
-    "title": "د پېرود جزئیات",
+    "title": "د رانیول جزئیات",
     "loading": "سرچ روان دي...",
-    "loadError": "د پېرود جزئیات ونه لوډ شول",
+    "loadError": "د رانیول جزئیات ونه لوډ شول",
     "totalAmount": "ټوله اندازه",
     "paidAmount": "ورکړل شوې اندازه",
     "dueAmount": "پاتې اندازه",
     "itemCount": "توکي",
-    "purchaseInfo": "د پېرود معلومات",
+    "purchaseInfo": "د رانیول معلومات",
     "invoiceNumber": "د بل نمبر",
-    "purchaseDate": "د پېرود نېټه",
+    "purchaseDate": "د رانیول نېټه",
     "supplier": "عرضه کوونکی",
     "paymentStatus": "د تادیې حالت",
-    "itemsTitle": "پېرودل شوي توکي",
+    "itemsTitle": "رانیول شوي توکي",
     "product": "محصول",
     "unit": "واحد",
     "quantity": "مقدار",
     "unitPrice": "د واحد بیه",
     "lineTotal": "ټوټل ",
     "noItems": "هیڅ توکي ونه موندل شول",
-    "grandTotal": "ټوله اندازه:"
+    "grandTotal": "ټوله اندازه:",
+    "editPurchase": "رانیول سمول"
   },
   "delete": {
     "title": "د حذف تایید",
-    "message": "ایا تاسو ډاډه یاست چې دا پېرود حذف کړئ؟ دا عمل بېرته نه راګرځي.",
+    "message": "ایا تاسو ډاډه یاست چې دا رانیول حذف کړئ؟ دا عمل بېرته نه راګرځي.",
     "cancel": "لغوه",
     "confirm": "حذف",
     "deleting": "حذف روان دی..."
   },
   "toast": {
-    "deleteError": "پېرود حذف نشو",
+    "cannotDeleteWithReturns": "دا رانیول نشي حذف کیدای ځکه چې بیرته راستنیدنې ثبت شوې دي.",
+    "deleteError": "رانیول حذف نشو",
     "enterAmountAndAccount": "مهرباني وکړئ اندازه او د تادیې حساب داخل کړئ",
-    "noPurchaseSelected": "د تادیې لپاره کوم پېرود نه دی ټاکل شوی",
-    "noDebtRemaining": "په دې پېرود کې نور پور نشته",
+    "noPurchaseSelected": "د تادیې لپاره کوم رانیول نه دی ټاکل شوی",
+    "noDebtRemaining": "په دې رانیول کې نور پور نشته",
     "amountRange": "اندازه باید د {{min}} او {{max}} ترمنځ وي",
-    "editError": "پېرود اپډیټ نشو"
-  },
+    "editError": "رانیول اپډیټ نشو",
+    "editSuccess": "رانیول په بریالیتوب سره اپډیټ شو",
+    "paymentSuccess": "تادیه په بریالیتوب سره ثبت شوه",
+    "paymentError": "د تادیې ثبت ستونزه"
+    },
   "payment": {
-    "defaultDescription": "د پېرود لپاره تادیه",
+    "defaultDescription": "د رانیول لپاره تادیه",
     "title": "تادیه ثبت کړئ",
     "remaining": "پاتې اندازه:",
     "currency": "افغانۍ",
@@ -384,6 +729,45 @@
     "cancel": "لغوه",
     "submit": "تادیه ثبت کړئ",
     "submitting": "ثبت روان دی..."
+  },
+  "return": {
+    "title": "د رانیول بیرته راستنول",
+    "historyTitle": "بیرته راستنیدنې",
+    "hint": "تادیه شوې پیسې: {{paid}} — که نغدي ترلاسه کړئ، له دې څخه زیات نشي.",
+    "cashRefundRequiredHint": "که رانیول کې تادیه شوې وي، باید هماغه برخه په «نغدي ترلاسه کول» کې ولیکئ.",
+    "cashRefundRequired": "نغدي ترلاسه کول اړین دی: {{amount}}",
+    "cashRefundSuggested": "وړاندیز: {{amount}}",
+    "productLabel": "محصول *",
+    "selectProduct": "محصول وټاکئ",
+    "lineInfo": "واحد: {{unit}} | اعظمي مقدار: {{max}} | د کرښې ټول: {{lineTotal}}",
+    "quantityLabel": "مقدار *",
+    "creditLabel": "د بیرته راستنولو مبلغ *",
+    "cashRefundLabel": "نغدي ترلاسه کول",
+    "cashRefundHint": "اعظمي نغدي ترلاسه کول: {{max}}",
+    "batchLabel": "د بیچ شمیره *",
+    "batchPlaceholder": "بیچ شمیره داخل کړئ",
+    "reasonLabel": "دلیل",
+    "reasonPlaceholder": "اختیاري دلیل...",
+    "cancel": "لغوه",
+    "submit": "بیرته راستنول ثبت کړئ",
+    "submitting": "ثبت روان دی...",
+    "noItems": "د بیرته راستنولو لپاره پاتې توکي نشته",
+    "quantityRange": "مقدار باید له 0 څخه تر {{max}} پورې وي",
+    "creditMax": "بیرته راستنولو مبلغ له {{max}} څخه زیات نشي",
+    "cashExceedsCredit": "نغدي ترلاسه کول له ټولیز بیرته راستنولو څخه زیات دی",
+    "cashExceedsPaid": "نغدي ترلاسه کول له تادیه شوي مقدار څخه زیات دی",
+    "batchRequired": "د څو بیچونو رانیول لپاره بیچ شمیره اړینه ده",
+    "missingUnit": "د توکي واحد ونه موندل شو",
+    "creditInvalid": "د بیرته راستنولو مبلغ ناسم دی",
+    "creditExceedsPurchase": "بیرته راستنولو مبلغ له پاتې د رانیول مجموعي ({{max}}) څخه زیات نشي",
+    "success": "بیرته راستنول په بریالیتوب سره ثبت شو",
+    "error": "بیرته راستنول ثبت نشو",
+    "deleteConfirmTitle": "د بیرته راستنیدنې لغوه کول",
+    "deleteConfirmMessage": "ایا ډاډه یاست چې دا بیرته راستنیدنه لغوه کړئ؟ سټاک او حسابونه به بیرته تنظیم شي.",
+    "deleteSuccess": "بیرته راستنیدنه لغوه شوه",
+    "deleteError": "بیرته راستنیدنه لغوه نشوه",
+    "deleteAction": "لغوه کول",
+    "actionsLabel": "عملیات"
   },
  "edit": {
   "title": "رانیول سمول",
@@ -398,8 +782,8 @@
   "warehouse": "ګودام",
   "store": "دوکان",
   "reason": "د بدلون دلیل",
-  "reasonPlaceholder": "د دې پیرود د سمولو دلیل",
-  "itemsTitle": "د پېرود توکي",
+  "reasonPlaceholder": "د دې رانیول د سمولو دلیل",
+  "itemsTitle": "د رانیول توکي",
   "product": "محصول",
   "selectProduct": "محصول وټاکئ",
   "unit": "واحد",
@@ -421,7 +805,9 @@
   "cancel": "لغوه",
   "save": "تفیر  ثبت کړئ",
   "saving": "ثبت روان دی...",
-  "defaultReason": "رانیول د سیسټم له لارې اپډیټ شو"
+  "defaultReason": "رانیول د سیسټم له لارې اپډیټ شو",
+  "stockReceiptNote": "دا رانیول په {{location}} کې ثبت شوی — سمون یوازې همدلته سټاک بدلوي، ځای نه بدلیږي.",
+  "stockLocationReadOnlyHint": "د سټاک ځای د رانیول پر مهال ټاکل شوی — په سمون کې بدلیدونکی نه دی."
 }
 },
 "purchaseModal": {
@@ -435,6 +821,16 @@
   "placeholderZero": "۰",
   "placeholderMoney": "۰.۰۰",
   "addItemTitle": "توکی زیات کړئ",
+  "editItemTitle": "توکی سمول",
+  "selectItemToEditHint": "په جدول کې د قلم نښې باندې کلیک وکړئ — فیلډونه به دلته ډک شي.",
+  "editItemHint": "لاندې فیلډونه سم کړئ، بیا «اپډیټ» ووهئ.",
+  "editItemAction": "دا توکی سمول",
+  "removeItemAction": "توکی لرې کول",
+  "updateItemButton": "اپډیټ",
+  "cancelEditItem": "لغوه",
+  "minQuantityHint": "لږترلږه {{min}} {{unit}} — دا اندازه لا دمخه پلور یا انتقال شوې.",
+  "minQuantityError": "{{product}} (بچ {{batch}}): لږترلږه {{min}} {{unit}} اړین دی ({{consumed}} په اساس واحد کې لاښتون).",
+  "minQtyShort": "لږترلږه: {{min}}",
   "addButton": "زیات کړئ",
   "productLabel": "محصول",
   "selectProduct": "محصول وټاکئ",
@@ -469,7 +865,7 @@
   "toast": {
     "fillRequired": "مهرباني وکړئ ټول اړین فیلډونه ډک کړئ",
     "addOneItem": "مهرباني وکړئ لږ تر لږه یو توکی اضافه کړئ",
-    "createError": "پېرود جوړ نشو"
+    "createError": "رانیول جوړ نشو"
   }
 },
 "sales": {
@@ -495,6 +891,7 @@
     "customer": "مشتري",
     "employee": "کارکوونکی",
     "totalAmount": "ټوله اندازه",
+    "discount": "تخفیف",
     "paid": "ورکړل شوی",
     "due": "پاتې",
     "status": "حالت",
@@ -502,7 +899,8 @@
     "loading": "سرچ روان دي...",
     "empty": "هیڅ خرڅلاو ونه موندل شو",
     "statusPartialPaid": "نیمګړی ورکړل شوی",
-    "statusFullyPaid": "بشپړ ورکړل شوی"
+    "statusFullyPaid": "بشپړ ورکړل شوی",
+    "statusUnpaid": "تادیه نشوی"
   },
   "actions": {
     "viewDetails": "جزئیات وګورئ",
@@ -514,7 +912,10 @@
   "details": {
     "title": "د خرڅلاو جزئیات",
     "loading": "سرچ روان دي...",
+    "loadError": "د خرڅلاو جزئیات ونه لوډ شول",
     "totalAmount": "ټوله اندازه",
+    "subtotalAmount": "فرعي ټول:",
+    "discountAmount": "تخفیف:",
     "paidAmount": "ورکړل شوې اندازه",
     "dueAmount": "پاتې اندازه",
     "itemCount": "توکي",
@@ -533,7 +934,48 @@
     "lineTotal": "ټوټل",
     "noItems": "هیڅ توکي نشته",
     "grandTotal": "ټوله اندازه:",
-    "recordPayment": "تادیه ثبت کړئ"
+    "recordPayment": "تادیه ثبت کړئ",
+    "recordReturn": "بیرته راستنول"
+  },
+  "return": {
+    "title": "د خرڅلاو بیرته راستنول",
+    "historyTitle": "بیرته راستنیدنې",
+    "hint": "تادیه شوې پیسې: {{paid}} — که نغدي بیرته ورکوئ، له دې څخه زیات نشي.",
+    "cashRefundRequiredHint": "که پلور کې تادیه شوې وي، باید هماغه برخه په «نغدي بیرته ورکول» کې ولیکئ.",
+    "cashRefundRequired": "نغدي بیرته ورکول اړین دی: {{amount}}",
+    "cashRefundSuggested": "وړاندیز: {{amount}}",
+    "productLabel": "محصول *",
+    "selectProduct": "محصول وټاکئ",
+    "lineInfo": "واحد: {{unit}} | اعظمي مقدار: {{max}} | د کرښې ټول: {{lineTotal}}",
+    "quantityLabel": "مقدار *",
+    "refundLabel": "بیرته ورکولو مبلغ *",
+    "cashRefundLabel": "نغدي بیرته ورکول",
+    "cashRefundHint": "اعظمي نغدي بیرته ورکول: {{max}}",
+    "batchLabel": "د بیچ شمیره *",
+    "batchPlaceholder": "بیچ شمیره داخل کړئ",
+    "reasonLabel": "دلیل",
+    "reasonPlaceholder": "اختیاري دلیل...",
+    "cancel": "لغوه",
+    "submit": "بیرته راستنول ثبت کړئ",
+    "submitting": "ثبت روان دی...",
+    "noItems": "د بیرته راستنولو لپاره پاتې توکي نشته",
+    "quantityRange": "مقدار باید له 0 څخه تر {{max}} پورې وي",
+    "refundMax": "بیرته ورکولو مبلغ له {{max}} څخه زیات نشي",
+    "cashExceedsRefund": "نغدي بیرته ورکول له ټولیز بیرته ورکولو څخه زیات دی",
+    "cashExceedsPaid": "نغدي بیرته ورکول له تادیه شوي مقدار څخه زیات دی",
+    "batchRequired": "د څو بیچونو پلور لپاره بیچ شمیره اړینه ده",
+    "missingUnit": "د توکي واحد ونه موندل شو",
+    "discountHint": "په دې پلور کې {{discount}} تخفیف شامل دی — بیرته ورکولو مبلغ له دې وروسته محاسبه کېږي.",
+    "refundInvalid": "د بیرته ورکولو مبلغ ناسم دی",
+    "refundExceedsSale": "بیرته ورکولو مبلغ له پاتې د پلور مجموعي ({{max}}) څخه زیات نشي",
+    "success": "بیرته راستنول په بریالیتوب سره ثبت شو",
+    "error": "بیرته راستنول ثبت نشو",
+    "deleteConfirmTitle": "د بیرته راستنیدنې لغوه کول",
+    "deleteConfirmMessage": "ایا ډاډه یاست چې دا بیرته راستنیدنه لغوه کړئ؟ سټاک او حسابونه به بیرته تنظیم شي.",
+    "deleteSuccess": "بیرته راستنیدنه لغوه شوه",
+    "deleteError": "بیرته راستنیدنه لغوه نشوه",
+    "deleteAction": "لغوه کول",
+    "actionsLabel": "عملیات"
   },
   "delete": {
     "title": "د حذف تایید",
@@ -556,7 +998,18 @@
     "submitting": "ثبت روان دی...",
     "defaultDescription": "د خرڅلاو لپاره تادیه"
   },
+  "edit": {
+    "title": "خرڅلاو سمول",
+    "store": "دوکان",
+    "employee": "پلورونکی",
+    "stockIssueNote": "دا خرڅلاو له {{location}} څخه ثبت شوی — سمون یوازې هماغه سټاک بدلوي.",
+    "paidAmountReadOnlyHint": "اضافي تادیې له خرڅلاوونو لیست یا جزئیات څخه ثبتېږي — دلته یوازې توکي/بیه سمېږي.",
+    "saleTypeReadOnlyHint": "د خرڅلاو ډول (مشتري/کارکوونکی/نقدي) د ثبت پر مهال ټاکل شوی — بدلیدونکی نه دی.",
+    "save": "بدلون ثبت کړئ",
+    "saving": "ثبت روان دی..."
+  },
   "toast": {
+    "cannotDeleteWithReturns": "دا پلور نشي حذف کیدای ځکه چې بیرته راستنیدنې ثبت شوې دي.",
     "deleteError": "خرڅلاو حذف نشو",
     "updateSuccess": "خرڅلاو په بریالیتوب سره اپډیټ شو",
     "updateError": "خرڅلاو اپډیټ نشو",
@@ -564,7 +1017,9 @@
     "enterAmountAndAccount": "مهرباني وکړئ اندازه او د ترلاسه کولو حساب داخل کړئ",
     "amountRange": "اندازه باید د {{min}} او {{max}} ترمنځ وي",
     "paymentSuccess": "تادیه په بریالیتوب سره ثبت شوه",
-    "paymentError": "تادیه ثبت نشوه"
+    "paymentError": "تادیه ثبت نشوه",
+    "returnSuccess": "بیرته راستنول په بریالیتوب سره ثبت شو",
+    "returnError": "بیرته راستنول ثبت نشو"
   }
 },
 "saleBilling": {
@@ -604,6 +1059,7 @@
   "itemsCount": "{{count}} توکي",
   "paymentPaid": "ورکړل شوی",
   "paymentPartial": "نیمګړی",
+  "paymentUnpaid": "تادیه نشوی",
   "actions": {
     "view": "کتل",
     "edit": "سمول",
@@ -627,7 +1083,7 @@
   "loading": "فاکتور بار کیږي...",
   "management": "د بلال سدیس شرکت اداره",
   "signatureStamp": "مهر او لاسلیک",
-  "thanksTitle": "له خپل پیرود څخه مننه",
+  "thanksTitle": "له خپلې اخیستنې څخه مننه",
   "thanksSubtitle": "هیله لرو بیا ستاسو خدمت وکړو",
   "printError": "د فاکتور په چاپ کې ستونزه. بیا کوښښ وکړئ.",
   "pdfError": "د PDF په جوړولو کې ستونزه. بیا کوښښ وکړئ.",
@@ -637,7 +1093,9 @@
   "invoiceFor": "فاکتور لپاره:",
   "invoiceNumber": "د فاکتور شمېره",
   "customerBalance": "د پېرودونکي حساب بیلانس",
-  "totalUnit": "ټول",
+  "totalUnit": "ټوټل",
+  "subtotal": "فرعي ټول",
+  "discount": "تخفیف",
   "grandTotal": "ټوله اندازه",
   "amountReceived": "ترلاسه شوې اندازه",
   "remaining": "پاتې"
@@ -669,6 +1127,15 @@
   "itemsTitle": "اجناس",
   "addItem": "زیات کړئ",
   "addItemSaving": "اضافه کول روان دي...",
+  "updateItem": "سمول",
+  "cancelEditLine": "لغوه",
+  "editLineHint": "د سمولو لپاره د قلم نښه وکاروئ",
+  "editingLineHint": "پورته فیلدونه سم کړئ، بیا «سمول» ووهئ یا لغوه کړئ",
+  "actions": {
+    "edit": "سمول",
+    "delete": "حذف"
+  },
+  "unknownProduct": "نامعلوم محصول",
   "productName": "د محصول نوم",
   "requiredStar": "*",
   "unitLabel": "واحد",
@@ -682,12 +1149,16 @@
   "cartonPlaceholder": "کارتنونه",
   "priceLabel": "بیه",
   "pricePlaceholder": "بیه",
-  "belowPurchaseWarning": "⚠️ د پېرود له بیې څخه ټیټه",
+  "belowPurchaseWarning": "⚠️ د رانیول له بیې څخه ټیټه — لږترلږه {{min}} افغانی/{{unit}}",
   "expiryDate": "د پای نېټه",
   "purchaseHintPrefix": "💰 ",
   "summaryFinal": "ټوله اندازه",
+  "summarySubtotal": "فرعي ټول",
+  "summaryDiscount": "تخفیف",
   "summaryPaid": "ورکړل شوې",
   "summaryDue": "پاتې",
+  "discountAmount": "تخفیف",
+  "discountPlaceholder": "۰.۰۰",
   "notesLabel": "یادښت (اختیاري)",
   "notesPlaceholder": "د خرڅلاو یادښت...",
   "cancel": "لغوه",
@@ -713,6 +1184,8 @@
   "validation": {
     "paidExceedsTotal": "ورکړل شوې اندازه ({{paid}}) باید له ټولې اندازې ({{total}}) زیاته نه وي",
     "paidExceedsTotalField": "ورکړل شوې اندازه باید له ټولې اندازې ({{total}}) زیاته نه وي",
+    "discountExceedsSubtotal": "تخفیف باید له فرعي ټول څخه زیات نه وي",
+    "discountExceedsSubtotalField": "تخفیف باید له فرعي ټول ({{subtotal}}) څخه زیات نه وي",
     "customerRequired": "مهرباني وکړئ د مشتري حساب وټاکئ",
     "employeeRequired": "مهرباني وکړئ د کارمند حساب وټاکئ",
     "walkinMustBePaid": "د عادي مشتري لپاره باید بشپړه پیسې ورکړي"
@@ -727,6 +1200,13 @@
 "expenses": {
   "title": "لګښتونه",
   "addExpense": "لګښت زیات کړئ",
+  "summary": {
+    "totalExpense": "ټول لګښتونه",
+    "totalFiltered": "ټول لګښتونه ({{category}})",
+    "byCategory": "د کټګورۍ له مخې ټول",
+    "expenseCount": "{{count}} لګښتونه",
+    "loading": "محاسبه کیږي..."
+  },
   "filters": {
     "category": "کټګوري",
     "all": "ټول",
@@ -781,6 +1261,13 @@
 "income": {
   "title": "عاید",
   "addIncome": "عاید زیات کړئ",
+  "summary": {
+    "totalIncome": "ټول عاید",
+    "totalFiltered": "ټول عاید ({{category}})",
+    "byCategory": "د کټګورۍ له مخې ټول",
+    "incomeCount": "{{count}} عایدونه",
+    "loading": "محاسبه کیږي..."
+  },
   "filters": {
     "category": "کټګوري",
     "all": "ټول",
@@ -789,7 +1276,7 @@
     "dateFromPlaceholder": "د پیل نېټه وټاکئ",
     "dateToPlaceholder": "د پای نېټه وټاکئ",
     "search": "لټون",
-    "searchPlaceholder": "سرچینه یا تشریح..."
+    "searchPlaceholder": "تشریح..."
   },
   "table": {
     "date": "نېټه",
@@ -952,12 +1439,50 @@
   "transactionsTitle": "معاملې",
   "table": {
     "date": "نېټه",
+    "source": "له کومه",
+    "movement": "پیسې",
     "type": "ډول",
     "amount": "اندازه",
     "balanceAfter": "وروسته بیلانس",
     "description": "تشریح",
+    "actions": "عمل",
     "empty": "هیڅ معامله ونه موندل شوه",
     "updating": "معاملې اپډیټ کېږي..."
+  },
+  "viewRecord": "لیدل",
+  "moneyDirection": {
+    "in": "راغلې",
+    "out": "ووتلي"
+  },
+  "txSource": {
+    "sale": "خرڅلاو",
+    "purchase": "رانیول",
+    "expense": "لګښت",
+    "income": "عاید",
+    "transfer": "د پیسو انتقال",
+    "manualPayment": "لاسي تادیه",
+    "saleReturn": "د خرڅلاو بیرته راتګ",
+    "purchaseReturn": "د رانیول بیرته راتګ",
+    "reversal": "بیرته راتګ",
+    "other": "نور"
+  },
+  "txDesc": {
+    "expense": "لګښت: {{name}}",
+    "income": "عاید: {{name}}",
+    "manualPayment": "لاسي تادیه",
+    "salePayment": "د خرڅلاو تادیه — بل #{{bill}}",
+    "salePaymentPlain": "د خرڅلاو لپاره تادیه",
+    "purchasePayment": "د رانیول تادیه — بل #{{bill}}",
+    "purchasePaymentPlain": "د رانیول لپاره تادیه",
+    "saleReturn": "د خرڅلاو بیرته راتګ — بل #{{bill}}",
+    "saleReturnPlain": "د خرڅلاو بیرته راتګ",
+    "transferTo": "د پیسو انتقال — ته {{name}}",
+    "transferFrom": "د پیسو انتقال — له {{name}} څخه",
+    "transferGeneric": "د پیسو انتقال",
+    "accountEntry": "معامله: {{name}}",
+    "reversal": "بیرته راتګ",
+    "reversalWithReason": "بیرته راتګ: {{reason}}",
+    "reversalTransfer": "بیرته راتګ — له {{from}} څخه {{to}} ته"
   },
   "clickToView": "(د لیدلو لپاره کلیک وکړئ)",
   "balance": {
@@ -978,7 +1503,7 @@
     "Debit": "ډیبیټ",
     "Transfer": "انتقال",
     "Expense": "لګښت",
-    "Purchase": "پېرود",
+    "Purchase": "رانیول",
     "Sale": "خرڅلاو",
     "Payment": "تادیه"
   }
@@ -1022,7 +1547,35 @@
     "units": {
       "name": "د واحدونو اداره",
       "description": "د اندازه کولو واحدونه او بدلون"
+    },
+    "backup": {
+      "name": "بیک اپ او بېرته رغونه",
+      "description": "د ډیټابیس بیک اپ ډاونلوډ او بېرته رغونه"
     }
+  },
+  "backupPage": {
+    "title": "بیک اپ او بېرته رغونه",
+    "subtitle": "د MongoDB بشپړ بیک اپ ډاونلوډ کړئ یا له فایل څخه بېرته رغونه وکړئ",
+    "adminOnly": "بیک اپ یوازې د ادمین لپاره دی",
+    "downloadTitle": "بیک اپ ډاونلوډ",
+    "downloadHint": "ټول ډیټابیس په .gz فایل کې به ډاونلوډ شي",
+    "downloadButton": "بیک اپ ډاونلوډ کړئ",
+    "downloading": "ډاونلوډ روان دی...",
+    "downloadSuccess": "بیک اپ په بریالیتوب سره ډاونلوډ شو",
+    "downloadError": "بیک اپ ډاونلوډ ناکام شو",
+    "restoreTitle": "بېرته رغونه (خطرناک)",
+    "restoreWarning": "دا عمل ټول اوسني ډیټا له منځه وړي او د اپلوډ شوي بیک اپ سره بدلوي. د بېرته رغونې مخکې اتوماتیک pre-backup جوړیږي.",
+    "preBackupNote": "د بېرته رغونې مخکې به اوسنی بیک اپ په اوتومات ډول ستاسو کمپیوټر ته ډاونلوډ شي.",
+    "preBackupDownloading": "لومړی د امنیت بیک اپ ډاونلوډ روان دی...",
+    "fileLabel": "بیک اپ فایل (.gz)",
+    "fileRequired": "مهرباني وکړئ بیک اپ فایل وټاکئ",
+    "passwordLabel": "د ادمین پاسورډ",
+    "passwordHint": "د بېرته رغونې لپاره خپل ادمین پاسورډ ولیکئ (که په براوزر کې خوندي وي، په اوتومات ډول ډکېږي)",
+    "passwordRequired": "د ادمین پاسورډ اړین دی",
+    "restoreButton": "بېرته رغونه وکړئ",
+    "restoring": "بېرته رغونه روانه ده...",
+    "restoreSuccess": "ډیټابیس په بریالیتوب سره بېرته رغول شو",
+    "restoreError": "بېرته رغونه ناکامه شوه"
   },
   "suppliersPage": {
     "pageTitle": "د عرضه کوونکو اداره",
@@ -1189,7 +1742,7 @@
     "empty": "هیڅ مشتري ونه موندل شو",
     "tooltipEdit": "سمول",
     "tooltipDelete": "حذف",
-    "modalTitleAdd": "نوی پیرودونکی",
+    "modalTitleAdd": "نوی پېرودونکی",
     "modalTitleEdit": "مشتري سمول",
     "closeSr": "تړل",
     "nameLabel": "د مشتري نوم *",
@@ -1344,6 +1897,9 @@
     "taxIdPlaceholder": "TAX-XXXXX",
     "description": "تشریح",
     "descriptionPlaceholder": "د شرکت لنډ تشریح",
+    "expiryNotifyDays": "د پای نېټې خبرتیا (ورځې مخکې)",
+    "expiryNotifyDaysHint": "د ټولو محصولاتو لپاره ډیفالټ کړکۍ — لکه کم سټاک",
+    "expiryNotifyDaysPlaceholder": "۱۴",
     "saveChanges": "بدلونونه ثبت کړئ",
     "saving": "ثبت روان دی..."
   }
@@ -1357,7 +1913,7 @@
   "types": {
     "sales": "د خرڅلاو راپورونه",
     "inventory": "د سټاک راپورونه",
-    "purchases": "د زانیولو  راپورونه",
+    "purchases": "د رانیول راپورونه",
     "accounts": "د حسابونو راپورونه",
     "expenses": "د لګښت راپورونه",
     "profit": "ګټه او تاوان"
@@ -1390,8 +1946,8 @@
     }
   },
   "periodTitle": {
-    "monthly": "{{type}} - میاشتنۍ ({{month}})",
-    "yearly": "{{type}} - کلنۍ ({{year}})"
+    "monthly": "{{month}}",
+    "yearly": "{{year}} کال"
   },
   "states": {
     "loadingSales": "د خرڅلاو معلومات لوډ کیږي ...",
@@ -1402,11 +1958,12 @@
     "loadingProfit": "د ګټې/تاوان معلومات لوډ کیږي ...",
     "noData": "د ښودلو لپاره معلومات نشته",
     "noDataPeriodSales": "د ټاکلې مودې لپاره د خرڅلاو معلومات ونه موندل شول.",
-    "noDataPeriodPurchases": "د ټاکلې مودې لپاره د پېرود معلومات ونه موندل شول.",
+    "noDataPeriodPurchases": "د ټاکلې مودې لپاره د رانیول معلومات ونه موندل شول.",
     "noDataPeriodExpenses": "د ټاکلې مودې لپاره د لګښت معلومات ونه موندل شول.",
     "noDataPeriodAccounts": "د ټاکلې مودې لپاره د نغدي جریان معلومات ونه موندل شول.",
     "noDataPeriodInventory": "د ټاکل شوي فلټر لپاره سټاک ونه موندل شو.",
     "noDataPeriodProfit": "د ټاکلې مودې لپاره د ګټې/تاوان معلومات ونه موندل شول.",
+    "noProductProfit": "په دې موده کې د توکو ګټه نشته",
     "comingSoonTitle": "{{type}} زر راځي",
     "comingSoonDesc": "دا د راپور ډول د جوړېدو په حال کې دی او ژر به شتون ولري."
   },
@@ -1414,15 +1971,16 @@
     "salesTotal": "ټول خرڅلاو",
     "paidTotal": "ټول ورکړل شوی",
     "dueTotal": "ټول پوروړی",
-    "purchasesTotal": "ټول پېرود",
+    "purchasesTotal": "ټول رانیول",
     "expensesTotal": "ټول لګښتونه",
     "expenseCount": "د لګښتونو شمېر",
     "cashAccountsTotal": "د نغدي حسابونو مجموعه",
     "supplierDebtTotal": "عرضه کوونکو ته ټول پور",
     "customerCreditTotal": "له پېرودونکو ټول طلب",
-    "netPosition": "خالص موقف",
+    "netPosition": "بیلانس",
     "grossProfit": "ناخالصه ګټه",
     "otherIncome": "نور عاید",
+    "stockDamageLoss": "د ضایعات زیان",
     "netProfit": "خالصه ګټه",
     "moneyInTotal": "ټول ورودي",
     "moneyOutTotal": "ټول خروجي",
@@ -1436,7 +1994,7 @@
     "profitTrendNet": "د خالصې ګټې معلومات د چارټ په ډول ",
     "profitTrendGross": "د ناخالصې ګټې معلومات د چارټ په ډول ",
     "barSales": "خرڅلاو",
-    "barPurchases": "رانیول (رانیول)",
+    "barPurchases": "رانیول",
     "barExpenses": "لګښت",
     "barMoneyIn": "ورودي پیسې",
     "barMoneyOut": "خروجي پیسې",
@@ -1444,7 +2002,15 @@
     "barNetProfit": "خالصه ګټه",
     "barGrossProfit": "ناخالصه ګټه",
     "toggleGross": "ناخالصه ګټه",
-    "toggleNet": "خالصه ګټه"
+    "toggleNet": "خالصه ګټه",
+    "productProfit": "د توکو له مخې ګټه (لوړه څخه ټیټه)"
+  },
+  "productProfitTable": {
+    "product": "توکی",
+    "revenue": "د خرڅلاو عاید",
+    "profit": "ګټه",
+    "lineCount": "د کرښو شمېر",
+    "rank": "#"
   },
   "inventoryTable": {
     "product": "محصول",
@@ -1468,6 +2034,8 @@
   "endDate": "د پای نېټه",
   "dateRange": "د نېټې موده",
   "exportPDF": "PDF ډاونلوډ",
+  "exportingPDF": "PDF جوړیږي...",
+  "exportError": "د PDF جوړولو کې ستونزه. بیا هڅه وکړئ.",
   "loading": "راپور لوډ کیږي...",
   "error": "د راپور په لوډولو کې ستونزه",
   "selectDateRange": "د راپور لیدلو لپاره د پیل او پای نېټه وټاکئ",
@@ -1492,7 +2060,22 @@
   "category": "کټګوري",
   "amount": "اندازه",
   "description": "تشریح",
-  "count": "شمېر"
+  "count": "شمېر",
+  "storeInfo": "د دوکان معلومات",
+  "storeProductsTitle": "د دوکان محصولات",
+  "storeProducts": "محصولات",
+  "customers": "مشتریان",
+  "suppliers": "عرضه کوونکي",
+  "moneyIn": "راغلې پیسې",
+  "moneyOut": "ووتلي پیسې",
+  "product": "محصول",
+  "unit": "واحد",
+  "quantity": "مقدار",
+  "value": "ارزښت",
+  "supplierAccounts": "د عرضه کوونکو حسابونه",
+  "customerAccounts": "د مشتریانو حسابونه",
+  "balance": "بیلانس",
+  "cashSale": "نغدي"
 },
 "accountsPDF": {
   "customerTitle": "د مشتریانو حسابونه",

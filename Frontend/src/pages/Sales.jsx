@@ -13,7 +13,13 @@ import {
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { formatCurrency, formatNumber } from "../utilies/helper";
+import { formatCurrency, formatNumber, formatJalaliDate } from "../utilies/helper";
+import {
+  getPaymentStatusColor,
+  getPaymentStatusTableLabelKey,
+  resolvePaymentStatus,
+} from "../utilies/paymentStatus";
+import { resolveSaleFromQuery } from "../utilies/saleQuery";
 import {
   useSales,
   useSale,
@@ -21,16 +27,16 @@ import {
   useEmployees,
   useDeleteSales,
   useAccounts,
+  useRecordSalePayment,
 } from "../services/useApi";
-import { useQueryClient } from "@tanstack/react-query";
 import {
-  recordSalePayment,
   fetchAccounts,
   fetchSale,
 } from "../services/apiUtiles";
 import SaleBillPrint from "../components/SaleBillPrint";
 import GloableModal from "../components/GloableModal";
 import { inputStyle } from "../components/ProductForm";
+import { bindNumericControlled } from "../utilies/numericInput";
 import { toast } from "react-toastify";
 import Pagination from "../components/Pagination";
 
@@ -74,13 +80,17 @@ const Sales = () => {
   const { data: salesResp, isLoading } = useSales(salesQueryParams);
   const { data: customers } = useCustomers();
   const { data: employees } = useEmployees();
-  const { data: selectedSale } = useSale(selectedSaleId);
+  const { data: selectedSaleRaw } = useSale(selectedSaleId);
+  const selectedSale = useMemo(
+    () => resolveSaleFromQuery(selectedSaleRaw),
+    [selectedSaleRaw]
+  );
   const deleteSaleMutation = useDeleteSales();
   const { data: accountsData } = useAccounts({ type: "cashier" });
   const accounts = accountsData?.accounts || [];
   const { data: customerAccountsData } = useAccounts({ type: "customer" });
   const customerAccounts = customerAccountsData?.accounts || [];
-  const queryClient = useQueryClient();
+  const recordSalePaymentMutation = useRecordSalePayment();
 
   // Data processing
   const sales = useMemo(() => salesResp?.sales || [], [salesResp?.sales]);
@@ -266,92 +276,58 @@ const Sales = () => {
     setShowPrintModal(true);
   };
 
-  const handleRecordPayment = async () => {
+  const handleRecordPayment = () => {
     if (!paymentAmount || !selectedAccount) {
       toast.error(t("sales.toast.enterAmountAndAccount"));
       return;
     }
 
     const amount = parseFloat(paymentAmount);
-    if (amount <= 0 || amount > selectedSale.dueAmount) {
+    if (amount <= 0 || amount > (selectedSale?.dueAmount ?? 0)) {
       toast.error(
         t("sales.toast.amountRange", {
           min: 0,
-          max: selectedSale.dueAmount,
+          max: selectedSale?.dueAmount ?? 0,
         })
       );
       return;
     }
 
     setIsSubmittingPayment(true);
-    try {
-      const updatedSale = await recordSalePayment(selectedSaleId, {
-        amount,
-        paymentAccount: selectedAccount,
-        description:
-          paymentDescription || t("sales.payment.defaultDescription"),
-      });
-
-      const updatedSaleData =
-        updatedSale?.sale ||
-        updatedSale?.data?.sale ||
-        updatedSale?.data ||
-        updatedSale ||
-        {};
-
-      toast.success(t("sales.toast.paymentSuccess"));
-      setShowPaymentModal(false);
-      setPaymentAmount("");
-      setSelectedAccount("");
-      setPaymentDescription("");
-      clearUrlParams();
-      setRecentlyUpdatedSale({
-        id: selectedSaleId,
-        paidAmount: updatedSaleData.paidAmount,
-        dueAmount: updatedSaleData.dueAmount,
-      });
-      queryClient.setQueryData(["allSales", salesQueryParams], (prev) => {
-        if (!prev) return prev;
-        const list = prev.sales || prev.data || [];
-        const updatedSales = list.map((sale) =>
-          sale._id === selectedSaleId
-            ? {
-                ...sale,
-                paidAmount: updatedSaleData.paidAmount ?? sale.paidAmount ?? 0,
-                dueAmount: updatedSaleData.dueAmount ?? sale.dueAmount ?? 0,
-              }
-            : sale
-        );
-        return prev.sales
-          ? { ...prev, sales: updatedSales }
-          : { ...prev, data: updatedSales };
-      });
-      queryClient.setQueryData(["sale", selectedSaleId], (prev) =>
-        prev
-          ? {
-              ...prev,
-              sale: {
-                ...prev.sale,
-                paidAmount:
-                  updatedSaleData.paidAmount ?? prev.sale.paidAmount ?? 0,
-                dueAmount:
-                  updatedSaleData.dueAmount ?? prev.sale.dueAmount ?? 0,
-              },
-            }
-          : prev
-      );
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-        queryClient.invalidateQueries({ queryKey: ["accountLedger"] }),
-        queryClient.invalidateQueries({ queryKey: ["recentTransactions"] }),
-      ]);
-    } catch (error) {
-      toast.error(
-        `${t("sales.toast.paymentError")}: ${error.message}`
-      );
-    } finally {
-      setIsSubmittingPayment(false);
-    }
+    recordSalePaymentMutation.mutate(
+      {
+        saleId: selectedSaleId,
+        payload: {
+          amount,
+          paymentAccount: selectedAccount,
+          description:
+            paymentDescription || t("sales.payment.defaultDescription"),
+        },
+      },
+      {
+        onSuccess: (response) => {
+          const updated =
+            response?.sale || response?.data?.sale || response?.data || {};
+          toast.success(t("sales.toast.paymentSuccess"));
+          setShowPaymentModal(false);
+          setPaymentAmount("");
+          setSelectedAccount("");
+          setPaymentDescription("");
+          clearUrlParams();
+          setRecentlyUpdatedSale({
+            id: selectedSaleId,
+            paidAmount: updated.paidAmount,
+            dueAmount: updated.dueAmount,
+          });
+        },
+        onError: (error) => {
+          toast.error(
+            `${t("sales.toast.paymentError")}: ${error.message}`
+          );
+        },
+        onSettled: () => setIsSubmittingPayment(false),
+      }
+    );
   };
 
   // Calculate statistics
@@ -367,27 +343,6 @@ const Sales = () => {
       sales?.filter((s) => parseFloat(s.dueAmount) > 0).length || 0,
     completedPayments:
       sales?.filter((s) => parseFloat(s.dueAmount) === 0).length || 0,
-  };
-
-  const getPaymentStatusColor = (status) => {
-    switch (status) {
-      case "paid":
-        return "bg-green-100 text-green-800 border border-green-200";
-      case "partial":
-        return "bg-yellow-100 text-yellow-800 border border-yellow-200";
-      case "pending":
-        return "bg-red-100 text-red-800 border border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border border-gray-200";
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "—";
-    const lang = (i18n.language || "ps").split("-")[0];
-    const localeTag =
-      lang === "ps" ? "ps-AF" : "fa-IR";
-    return new Date(dateString).toLocaleDateString(localeTag);
   };
 
   return (
@@ -535,6 +490,9 @@ const Sales = () => {
                   {t("sales.table.totalAmount")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  {t("sales.table.discount")}
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                   {t("sales.table.paid")}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
@@ -552,7 +510,7 @@ const Sales = () => {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-8 text-center text-gray-500"
                   >
                     {t("sales.table.loading")}
@@ -561,7 +519,7 @@ const Sales = () => {
               ) : sales.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-8 text-center text-gray-500"
                   >
                     {t("sales.table.empty")}
@@ -571,7 +529,7 @@ const Sales = () => {
                 sales.map((sale) => (
                   <tr key={sale._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      {formatDate(sale.saleDate)}
+                      {formatJalaliDate(sale.saleDate)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       {sale.customerAccount?.name ||
@@ -584,6 +542,11 @@ const Sales = () => {
                     <td className="px-6 py-4 text-sm font-semibold text-purple-600">
                       {formatCurrency(sale.totalAmount || 0)}
                     </td>
+                    <td className="px-6 py-4 text-sm font-semibold text-red-600">
+                      {(sale.discountAmount || 0) > 0
+                        ? formatCurrency(sale.discountAmount)
+                        : "—"}
+                    </td>
                     <td className="px-6 py-4 text-sm font-semibold text-blue-600">
                       {formatCurrency(sale.paidAmount || 0)}
                     </td>
@@ -591,19 +554,24 @@ const Sales = () => {
                       {formatCurrency(sale.dueAmount || 0)}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getPaymentStatusColor(
-                          sale.dueAmount > 0 ? "partial" : "paid"
-                        )}`}
-                      >
-                        {recentlyUpdatedSale?.id === sale._id
-                          ? recentlyUpdatedSale.dueAmount > 0
-                            ? t("sales.table.statusPartialPaid")
-                            : t("sales.table.statusFullyPaid")
-                          : sale.dueAmount > 0
-                          ? t("sales.table.statusPartialPaid")
-                          : t("sales.table.statusFullyPaid")}
-                      </span>
+                      {(() => {
+                        const row =
+                          recentlyUpdatedSale?.id === sale._id
+                            ? recentlyUpdatedSale
+                            : sale;
+                        const status = resolvePaymentStatus(row);
+                        return (
+                          <span
+                            className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getPaymentStatusColor(
+                              status
+                            )}`}
+                          >
+                            {t(
+                              `sales.table.${getPaymentStatusTableLabelKey(status)}`
+                            )}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <div className="flex items-center gap-2">
@@ -716,14 +684,13 @@ const Sales = () => {
                   {t("sales.payment.amountLabel")}
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  onWheel={(e) => e.target.blur()}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                  placeholder={t("sales.payment.amountPlaceholder")}
-                  max={selectedSale.dueAmount}
+                  {...bindNumericControlled({
+                    allowDecimal: true,
+                    value: paymentAmount,
+                    onChange: (e) => setPaymentAmount(e.target.value),
+                    className: "w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500",
+                    placeholder: t("sales.payment.amountPlaceholder"),
+                  })}
                 />
               </div>
 

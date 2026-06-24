@@ -1,98 +1,144 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useSale, useCustomers, useAccounts } from "../services/useApi";
-import { formatCurrency, formatNumber } from "../utilies/helper";
-import { ArrowRightIcon, BanknotesIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import {
+  useSale,
+  useSaleReturns,
+  useDeleteSaleReturn,
+  useCustomers,
+  useAccounts,
+  invalidateSalePaymentQueries,
+  invalidateInventoryStatsQueries,
+  useRecordSalePayment,
+} from "../services/useApi";
+import { formatCurrency, formatNumber, formatJalaliDate } from "../utilies/helper";
+import {
+  getPaymentStatusColor,
+  getPaymentStatusTableLabelKey,
+  resolvePaymentStatus,
+} from "../utilies/paymentStatus";
+import { resolveSaleFromQuery } from "../utilies/saleQuery";
+import {
+  ArrowRightIcon,
+  ArrowUturnLeftIcon,
+  BanknotesIcon,
+  TrashIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+import { useMemo, useState } from "react";
 import GloableModal from "../components/GloableModal";
+import SaleReturnModal from "../components/SaleReturnModal";
 import { toast } from "react-toastify";
-import { recordSalePayment } from "../services/apiUtiles";
 import { useQueryClient } from "@tanstack/react-query";
+import { bindNumericControlled } from "../utilies/numericInput";
 
 const SaleDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  const { data: selectedSale, isLoading } = useSale(id);
+  const { data: saleQueryData, isLoading } = useSale(id);
+  const selectedSale = useMemo(
+    () => resolveSaleFromQuery(saleQueryData),
+    [saleQueryData]
+  );
   const { data: customers } = useCustomers();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnToDelete, setReturnToDelete] = useState(null);
+  const deleteSaleReturnMutation = useDeleteSaleReturn();
   const [paymentAmount, setPaymentAmount] = useState("");
   const [selectedAccount, setSelectedAccount] = useState("");
   const [paymentDescription, setPaymentDescription] = useState("");
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const recordSalePaymentMutation = useRecordSalePayment();
   const { data: accountsData } = useAccounts({ type: "cashier" });
   const accounts = accountsData?.accounts || [];
   const queryClient = useQueryClient();
 
-  const handleRecordPayment = async () => {
+  const { data: returnsResponse } = useSaleReturns(
+    { saleId: id, limit: 50 },
+    { enabled: !!id }
+  );
+  const saleReturns = returnsResponse?.data || [];
+
+  const returnableCount = useMemo(
+    () =>
+      (selectedSale?.items || []).filter((item) => (item.quantity || 0) > 0)
+        .length,
+    [selectedSale?.items]
+  );
+
+  const invalidateSaleQueries = async () => {
+    await Promise.all([
+      invalidateSalePaymentQueries(queryClient, id),
+      invalidateInventoryStatsQueries(queryClient),
+    ]);
+  };
+
+  const confirmDeleteReturn = () => {
+    if (!returnToDelete) return;
+    deleteSaleReturnMutation.mutate(returnToDelete, {
+      onSuccess: async () => {
+        setReturnToDelete(null);
+        toast.success(t("sales.return.deleteSuccess"));
+        await invalidateSaleQueries();
+      },
+      onError: (error) => {
+        toast.error(error.message || t("sales.return.deleteError"));
+      },
+    });
+  };
+
+  const handleRecordPayment = () => {
     if (!paymentAmount || !selectedAccount) {
       toast.error(t("sales.toast.enterAmountAndAccount"));
       return;
     }
 
     const amount = parseFloat(paymentAmount);
-    if (amount <= 0 || amount > selectedSale.dueAmount) {
+    if (amount <= 0 || amount > (selectedSale?.dueAmount ?? 0)) {
       toast.error(
         t("sales.toast.amountRange", {
           min: 0,
-          max: selectedSale.dueAmount,
+          max: selectedSale?.dueAmount ?? 0,
         })
       );
       return;
     }
 
     setIsSubmittingPayment(true);
-    try {
-      await recordSalePayment(id, {
-        amount,
-        paymentAccount: selectedAccount,
-        description:
-          paymentDescription || t("sales.payment.defaultDescription"),
-      });
-
-      toast.success(t("sales.toast.paymentSuccess"));
-      setShowPaymentModal(false);
-      setPaymentAmount("");
-      setSelectedAccount("");
-      setPaymentDescription("");
-      
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["sale", id] }),
-        queryClient.invalidateQueries({ queryKey: ["allSales"] }),
-        queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-      ]);
-    } catch (error) {
-      toast.error(
-        `${t("sales.toast.paymentError")}: ${error.message}`
-      );
-    } finally {
-      setIsSubmittingPayment(false);
-    }
+    recordSalePaymentMutation.mutate(
+      {
+        saleId: id,
+        payload: {
+          amount,
+          paymentAccount: selectedAccount,
+          description:
+            paymentDescription || t("sales.payment.defaultDescription"),
+        },
+      },
+      {
+        onSuccess: async () => {
+          toast.success(t("sales.toast.paymentSuccess"));
+          setShowPaymentModal(false);
+          setPaymentAmount("");
+          setSelectedAccount("");
+          setPaymentDescription("");
+        },
+        onError: (error) => {
+          toast.error(
+            `${t("sales.toast.paymentError")}: ${error.message}`
+          );
+        },
+        onSettled: () => setIsSubmittingPayment(false),
+      }
+    );
   };
 
   const findCustomer = (customerId) => {
     return customers?.data?.find((cust) => cust._id === customerId);
   };
 
-  const getPaymentStatusColor = (status) => {
-    switch (status) {
-      case "paid":
-        return "bg-green-100 text-green-800 border border-green-200";
-      case "partial":
-        return "bg-yellow-100 text-yellow-800 border border-yellow-200";
-      case "pending":
-        return "bg-red-100 text-red-800 border border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border border-gray-200";
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "—";
-    const lang = (i18n.language || "ps").split("-")[0];
-    const localeTag = lang === "ps" ? "ps-AF" : "fa-IR";
-    return new Date(dateString).toLocaleDateString(localeTag);
-  };
+  const formatDate = formatJalaliDate;
 
   if (isLoading) {
     return (
@@ -204,12 +250,14 @@ const SaleDetails = () => {
             </h4>
             <span
               className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(
-                selectedSale.dueAmount > 0 ? "partial" : "paid"
+                resolvePaymentStatus(selectedSale)
               )}`}
             >
-              {selectedSale.dueAmount > 0
-                ? t("sales.table.statusPartialPaid")
-                : t("sales.table.statusFullyPaid")}
+              {t(
+                `sales.table.${getPaymentStatusTableLabelKey(
+                  resolvePaymentStatus(selectedSale)
+                )}`
+              )}
             </span>
           </div>
           {selectedSale.description && (
@@ -291,9 +339,20 @@ const SaleDetails = () => {
         {/* Total Summary */}
         <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
           <div className="flex justify-between items-center">
-            <div>
+            <div className="flex flex-wrap gap-2">
+              {returnableCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowReturnModal(true)}
+                  className="px-3 py-1.5 bg-amber-600 text-white rounded-sm hover:bg-amber-700 flex items-center gap-2 text-sm"
+                >
+                  <ArrowUturnLeftIcon className="h-4 w-4" />
+                  {t("sales.details.recordReturn")}
+                </button>
+              )}
               {selectedSale.dueAmount > 0 && (
                 <button
+                  type="button"
                   onClick={() => setShowPaymentModal(true)}
                   className="px-3 py-1.5 bg-green-600 text-white rounded-sm hover:bg-green-700 flex items-center gap-2 text-sm"
                 >
@@ -302,7 +361,26 @@ const SaleDetails = () => {
                 </button>
               )}
             </div>
-            <div className="text-right">
+            <div className="text-right space-y-1">
+              {(selectedSale.discountAmount || 0) > 0 && (
+                <>
+                  <div className="text-sm text-gray-600">
+                    {t("sales.details.subtotalAmount")}{" "}
+                    {formatCurrency(
+                      selectedSale.subtotalAmount ??
+                        selectedSale.items?.reduce(
+                          (sum, item) => sum + (item.totalPrice || 0),
+                          0
+                        ) ??
+                        0
+                    )}
+                  </div>
+                  <div className="text-sm text-red-600">
+                    {t("sales.details.discountAmount")}{" "}
+                    -{formatCurrency(selectedSale.discountAmount || 0)}
+                  </div>
+                </>
+              )}
               <div className="text-sm font-semibold text-gray-900">
                 {t("sales.details.grandTotal")}{" "}
                 {formatCurrency(selectedSale.totalAmount || 0)}
@@ -311,6 +389,126 @@ const SaleDetails = () => {
           </div>
         </div>
       </div>
+
+      {saleReturns.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg">
+          <div className="px-3 py-2 border-b border-gray-200">
+            <h3 className="text-sm font-medium text-gray-700">
+              {t("sales.return.historyTitle")}
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    {t("sales.details.product")}
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    {t("sales.details.quantity")}
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    {t("sales.return.refundLabel")}
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    {t("sales.return.cashRefundLabel")}
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    {t("sales.return.reasonLabel")}
+                  </th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                    {t("sales.return.actionsLabel")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {saleReturns.map((ret) => (
+                  <tr key={ret._id} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 text-sm text-gray-900">
+                      {ret.product?.name || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-900">
+                      {formatNumber(ret.quantity)}{" "}
+                      {ret.unit?.name || ""}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-amber-700 font-medium">
+                      {formatCurrency(ret.refundAmount || 0)}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-900">
+                      {formatCurrency(ret.cashRefundAmount || 0)}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-600">
+                      {ret.reason || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => setReturnToDelete(ret._id)}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100"
+                        title={t("sales.return.deleteAction")}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                        {t("sales.return.deleteAction")}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <GloableModal
+        open={!!returnToDelete}
+        setOpen={(open) => {
+          if (!open) setReturnToDelete(null);
+        }}
+        isClose={true}
+      >
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="p-6">
+            <div className="flex items-center mb-4">
+              <div className="bg-red-100 p-2 rounded-full ml-3">
+                <TrashIcon className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t("sales.return.deleteConfirmTitle")}
+              </h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              {t("sales.return.deleteConfirmMessage")}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setReturnToDelete(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                {t("sales.return.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteReturn}
+                disabled={deleteSaleReturnMutation.isPending}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteSaleReturnMutation.isPending
+                  ? t("sales.delete.deleting")
+                  : t("sales.return.deleteAction")}
+              </button>
+            </div>
+          </div>
+        </div>
+      </GloableModal>
+
+      <SaleReturnModal
+        open={showReturnModal}
+        setOpen={setShowReturnModal}
+        saleId={id}
+        sale={selectedSale}
+        onSuccess={invalidateSaleQueries}
+      />
 
       {/* Payment Modal */}
       {showPaymentModal && selectedSale && (
@@ -344,14 +542,13 @@ const SaleDetails = () => {
                   {t("sales.payment.amountLabel")}
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  onWheel={(e) => e.target.blur()}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                  placeholder={t("sales.payment.amountPlaceholder")}
-                  max={selectedSale.dueAmount}
+                  {...bindNumericControlled({
+                    allowDecimal: true,
+                    value: paymentAmount,
+                    onChange: (e) => setPaymentAmount(e.target.value),
+                    className: "w-full px-3 py-2 border border-gray-300 rounded-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500",
+                    placeholder: t("sales.payment.amountPlaceholder"),
+                  })}
                 />
               </div>
 

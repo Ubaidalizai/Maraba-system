@@ -1,11 +1,25 @@
 const Stock = require('../models/stock.model');
 const Product = require('../models/product.model');
+const Settings = require('../models/settings.model');
 const asyncHandler = require('../middlewares/asyncHandler');
 const AppError = require('../utils/AppError');
+const {
+  computeDaysLeft,
+  computeExpiryAlertLevel,
+  resolveNotifyDays,
+  countExpiringAlerts,
+} = require('../utils/expiryAlert');
+const { countLowStockAlerts } = require('../utils/stockAlert');
+const { findLatestPurchaseForBatch } = require('../utils/purchaseStockLink');
 const {
   stockValidationSchema,
   updateStockValidationSchema,
 } = require('../validations');
+const Unit = require('../models/unit.model');
+const {
+  toStockQuantity,
+  loadPrimaryUnitForProduct,
+} = require('../utils/primaryUnitStock');
 
 // @desc    Create new stock entry (e.g., during purchase)
 // @route   POST /api/v1/stocks
@@ -31,6 +45,15 @@ exports.createStock = asyncHandler(async (req, res) => {
     sale_price,
   } = req.body;
 
+  let stockQty = Number(quantity) || 0;
+  if (unit) {
+    const unitDoc = await Unit.findById(unit);
+    const primaryUnit = await loadPrimaryUnitForProduct(product);
+    stockQty = toStockQuantity(quantity, unitDoc, primaryUnit);
+  } else if (conversion_to_default) {
+    stockQty = quantity * conversion_to_default;
+  }
+
   // If stock exists for same product + batch + location → update it
   let stock = await Stock.findOne({
     product,
@@ -40,7 +63,7 @@ exports.createStock = asyncHandler(async (req, res) => {
   });
 
   if (stock) {
-    stock.quantity += quantity * conversion_to_default;
+    stock.quantity += stockQty;
     await stock.save();
   } else {
     stock = await Stock.create({
@@ -50,7 +73,7 @@ exports.createStock = asyncHandler(async (req, res) => {
       purchasePricePerBaseUnit: sale_price || 0, // Use sale_price as purchase price
       expiryDate: expiry_date,
       location,
-      quantity: quantity * conversion_to_default,
+      quantity: stockQty,
     });
   }
 
@@ -91,7 +114,7 @@ exports.getAllStocks = asyncHandler(async (req, res) => {
 
   // Step 2️⃣ — Fetch paginated stocks (sorted by newest first)
   const stocks = await Stock.find(query)
-    .populate('product', 'name')
+    .populate('product', 'name notifyDaysBefore')
     .populate('unit', 'name conversion_to_base base_unit')
     .populate({
       path: 'unit',
@@ -104,32 +127,15 @@ exports.getAllStocks = asyncHandler(async (req, res) => {
     .skip((page - 1) * limit)
     .limit(parseInt(limit));
 
-  // Step 3️⃣ — Calculate derived unit quantities
-  const stocksWithDerivedUnits = stocks.map(stock => {
-    const stockObj = stock.toObject();
-    
-    if (stock.unit && stock.unit.conversion_to_base && stock.unit.conversion_to_base > 1) {
-      // Calculate how many derived units (e.g., cartons)
-      const derivedQuantity = Math.floor(stock.quantity / stock.unit.conversion_to_base);
-      
-      stockObj.derivedQuantity = {
-        derivedUnit: derivedQuantity, // e.g., 2 cartons
-        baseUnitName: stock.unit.base_unit?.name || 'pieces' // e.g., "kg" or "pieces"
-      };
-    }
-    
-    return stockObj;
-  });
-
   const total = await Stock.countDocuments(query);
 
   res.status(200).json({
     status: 'success',
-    results: stocksWithDerivedUnits.length,
+    results: stocks.length,
     total,
     page: parseInt(page),
     limit: parseInt(limit),
-    data: stocksWithDerivedUnits,
+    data: stocks,
   });
 });
 
@@ -137,7 +143,7 @@ exports.getAllStocks = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/stocks/:id
 exports.getStock = asyncHandler(async (req, res) => {
   const stock = await Stock.findOne({ _id: req.params.id, isDeleted: false })
-    .populate('product', 'name')
+    .populate('product', 'name notifyDaysBefore')
     .populate('unit', 'name');
 
   console.log(stock);
@@ -146,14 +152,30 @@ exports.getStock = asyncHandler(async (req, res) => {
   res.status(200).json({ status: 'success', data: stock });
 });
 
+// @desc    Purchase that introduced this stock batch (for edit-in-purchase links)
+// @route   GET /api/v1/stocks/:id/purchase-source
+exports.getStockPurchaseSource = asyncHandler(async (req, res) => {
+  const stock = await Stock.findOne({
+    _id: req.params.id,
+    isDeleted: false,
+  }).select('product batchNumber');
+
+  if (!stock) throw new AppError('سټاک ونه موندل شو', 404);
+
+  const source = await findLatestPurchaseForBatch(
+    stock.product,
+    stock.batchNumber
+  );
+
+  res.status(200).json({
+    success: true,
+    data: source,
+  });
+});
+
 // @desc    Update stock (e.g., adjust quantity manually)
 // @route   PATCH /api/v1/stocks/:id
 exports.updateStock = asyncHandler(async (req, res) => {
-  // Convert empty string expiry_date to null before validation
-  if (req.body.expiry_date === '' || req.body.expiry_date === undefined) {
-    req.body.expiry_date = null;
-  }
-
   // Validate the request body
   const { error } = updateStockValidationSchema.validate(req.body);
 
@@ -164,12 +186,19 @@ exports.updateStock = asyncHandler(async (req, res) => {
     });
   }
 
-  // Prepare update data - convert expiry_date to expiryDate (model field name) and handle null
-  const updateData = { ...req.body };
-  if (updateData.expiry_date !== undefined) {
-    updateData.expiryDate = updateData.expiry_date === null || updateData.expiry_date === '' ? null : updateData.expiry_date;
-    delete updateData.expiry_date; // Remove the snake_case version
+  let productNotifyDays;
+  if (req.body.notifyDaysBefore !== undefined) {
+    const raw = req.body.notifyDaysBefore;
+    productNotifyDays =
+      raw === '' || raw === null ? null : Number(raw);
   }
+
+  // Cost and expiry are owned by purchase lines — not editable on stock directly
+  const updateData = { ...req.body };
+  delete updateData.notifyDaysBefore;
+  delete updateData.expiry_date;
+  delete updateData.expiryDate;
+  delete updateData.purchasePricePerBaseUnit;
 
   const stock = await Stock.findOneAndUpdate(
     { _id: req.params.id, isDeleted: false },
@@ -178,6 +207,12 @@ exports.updateStock = asyncHandler(async (req, res) => {
   );
 
   if (!stock) throw new AppError('سټاک ونه موندل شو یا دمخه حذف شوی دی', 404);
+
+  if (productNotifyDays !== undefined && stock.product) {
+    await Product.findByIdAndUpdate(stock.product, {
+      notifyDaysBefore: productNotifyDays,
+    });
+  }
 
   res.status(200).json({ status: 'success', data: stock });
 });
@@ -228,23 +263,13 @@ exports.getStockReport = asyncHandler(async (req, res, next) => {
     if (stock.quantity === 0) {
       status = 'out';
     } else if (stock.minLevel > 0) {
-      // Has minLevel defined - calculate difference
       const difference = stock.quantity - stock.minLevel;
       if (difference <= 0) {
-        // Quantity is at or below minLevel
         if (stock.quantity <= stock.minLevel * 0.5) {
           status = 'critical';
         } else {
           status = 'low';
         }
-      }
-      // If difference > 0, status remains 'normal'
-    } else {
-      // No minLevel defined (minLevel = 0), use default thresholds
-      if (stock.quantity <= 10) {
-        status = 'critical';
-      } else if (stock.quantity <= 50) {
-        status = 'low';
       }
     }
 
@@ -335,6 +360,121 @@ exports.getBatchesByProduct = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Stocks with expiry alerts (sorted by nearest expiry)
+// @route   GET /api/v1/stocks/expiring
+exports.getExpiringStocks = asyncHandler(async (req, res) => {
+  const {
+    page = 1,
+    limit = 10,
+    location,
+    search,
+    status = 'all',
+  } = req.query;
+
+  const settings = await Settings.findOne().lean();
+  const defaultNotifyDays = settings?.expiryNotifyDays ?? 14;
+
+  const query = {
+    isDeleted: false,
+    quantity: { $gt: 0 },
+    expiryDate: { $ne: null },
+  };
+
+  if (location && location !== 'all') {
+    query.location = location;
+  }
+
+  if (search) {
+    const matchingProducts = await Product.find({
+      name: { $regex: search, $options: 'i' },
+      isDeleted: false,
+    }).select('_id');
+    const ids = matchingProducts.map((p) => p._id);
+    if (ids.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        total: 0,
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        totalPages: 0,
+        counts: { total: 0, out: 0, critical: 0, low: 0 },
+        defaultNotifyDays,
+      });
+    }
+    query.product = { $in: ids };
+  }
+
+  const stocks = await Stock.find(query)
+    .populate('product', 'name notifyDaysBefore')
+    .populate('unit', 'name')
+    .sort({ expiryDate: 1 })
+    .lean();
+
+  let rows = await Promise.all(
+    stocks.map(async (stock) => {
+      const notifyDays = resolveNotifyDays(
+        stock.product?.notifyDaysBefore,
+        defaultNotifyDays
+      );
+      const daysLeft = computeDaysLeft(stock.expiryDate);
+      const alertLevel = computeExpiryAlertLevel(daysLeft, notifyDays);
+      const productId = stock.product?._id;
+      const purchaseSource = productId
+        ? await findLatestPurchaseForBatch(productId, stock.batchNumber)
+        : null;
+
+      return {
+        _id: stock._id,
+        product: stock.product
+          ? { _id: stock.product._id, name: stock.product.name }
+          : null,
+        unit: stock.unit ? { _id: stock.unit._id, name: stock.unit.name } : null,
+        batchNumber: stock.batchNumber,
+        location: stock.location,
+        quantity: stock.quantity,
+        expiryDate: stock.expiryDate,
+        daysLeft,
+        notifyDays,
+        alertLevel,
+        purchaseId: purchaseSource?.purchaseId ?? null,
+        purchaseDate: purchaseSource?.purchaseDate ?? null,
+      };
+    })
+  );
+
+  rows = rows.filter((r) => r.alertLevel !== 'normal');
+
+  const counts = {
+    total: rows.length,
+    out: rows.filter((r) => r.alertLevel === 'out').length,
+    critical: rows.filter((r) => r.alertLevel === 'critical').length,
+    low: rows.filter((r) => r.alertLevel === 'low').length,
+  };
+
+  if (status && status !== 'all') {
+    rows = rows.filter((r) => r.alertLevel === status);
+  }
+
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / limitNum));
+  const start = (pageNum - 1) * limitNum;
+  const data = rows.slice(start, start + limitNum);
+
+  res.status(200).json({
+    success: true,
+    data,
+    total,
+    page: pageNum,
+    limit: limitNum,
+    totalPages,
+    counts,
+    defaultNotifyDays,
+  });
+});
+
 // @desc    Get inventory statistics
 // @route   GET /api/v1/stocks/stats
 exports.getInventoryStats = asyncHandler(async (req, res) => {
@@ -371,50 +511,10 @@ exports.getInventoryStats = asyncHandler(async (req, res) => {
     },
   ]);
 
-  // Get low stock items (products below minimum level)
-  const lowStockItems = await Product.aggregate([
-    { $match: { isDeleted: false } },
-    {
-      $lookup: {
-        from: 'stocks',
-        let: { productId: '$_id' },
-        pipeline: [
-          {
-            $match: {
-              $expr: { $eq: ['$product', '$$productId'] },
-              isDeleted: false,
-            },
-          },
-          {
-            $group: {
-              _id: null,
-              totalQuantity: { $sum: '$quantity' },
-            },
-          },
-        ],
-        as: 'stockInfo',
-      },
-    },
-    {
-      $addFields: {
-        currentStock: {
-          $ifNull: [{ $arrayElemAt: ['$stockInfo.totalQuantity', 0] }, 0],
-        },
-      },
-    },
-    {
-      $match: {
-        $expr: { $lt: ['$currentStock', '$minLevel'] },
-      },
-    },
-    {
-      $project: {
-        name: 1,
-        minLevel: 1,
-        currentStock: 1,
-      },
-    },
-  ]);
+  const stockRowsForAlerts = await Stock.find({ isDeleted: false })
+    .select('quantity minLevel location')
+    .lean();
+  const lowStockAlertCount = countLowStockAlerts(stockRowsForAlerts);
 
   const warehouseData = warehouseStats[0] || {
     totalQuantity: 0,
@@ -426,6 +526,23 @@ exports.getInventoryStats = asyncHandler(async (req, res) => {
     totalValue: 0,
     uniqueProducts: [],
   };
+
+  const settings = await Settings.findOne().lean();
+  const defaultNotifyDays = settings?.expiryNotifyDays ?? 14;
+
+  const expiryStocks = await Stock.find({
+    isDeleted: false,
+    quantity: { $gt: 0 },
+    expiryDate: { $ne: null },
+  })
+    .populate('product', 'notifyDaysBefore')
+    .select('expiryDate product')
+    .lean();
+
+  const expiringAlertCount = countExpiringAlerts(
+    expiryStocks,
+    defaultNotifyDays
+  );
 
   res.status(200).json({
     success: true,
@@ -441,8 +558,9 @@ exports.getInventoryStats = asyncHandler(async (req, res) => {
         totalValue: storeData.totalValue,
         uniqueProducts: storeData.uniqueProducts.length,
       },
-      lowStockItems: lowStockItems.length,
-      lowStockDetails: lowStockItems,
+      lowStockItems: lowStockAlertCount,
+      expiringAlertCount,
+      expiryNotifyDays: defaultNotifyDays,
     },
   });
 });

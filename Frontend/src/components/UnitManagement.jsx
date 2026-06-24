@@ -17,6 +17,7 @@ import {
 } from "@heroicons/react/24/outline";
 import GloableModal from "./GloableModal";
 import { inputStyle } from "./ProductForm";
+import { bindNumericControlled } from "../utilies/numericInput";
 
 const UnitManagement = () => {
   const { t } = useTranslation();
@@ -51,28 +52,11 @@ const UnitManagement = () => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        type === "checkbox"
-          ? checked
-          : type === "number"
-          ? parseFloat(value) || 0
-          : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (editingUnit) {
-      updateUnitMutation.mutate({
-        id: editingUnit._id,
-        unitData: formData,
-      });
-    } else {
-      createUnitMutation.mutate(formData);
-    }
-
-    setIsModalOpen(false);
+  const resetForm = () => {
     setEditingUnit(null);
     setFormData({
       name: "",
@@ -82,6 +66,30 @@ const UnitManagement = () => {
       base_unit: "",
       unit_type: "",
     });
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    resetForm();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      ...formData,
+      base_unit: formData.is_base_unit ? "" : formData.base_unit,
+      conversion_to_base: formData.is_base_unit ? 1 : formData.conversion_to_base,
+    };
+
+    if (editingUnit) {
+      updateUnitMutation.mutate(
+        { id: editingUnit._id, unitData: payload },
+        { onSuccess: closeModal }
+      );
+    } else {
+      createUnitMutation.mutate(payload, { onSuccess: closeModal });
+    }
   };
 
   const handleEdit = (unit) => {
@@ -429,22 +437,24 @@ const UnitManagement = () => {
                         <option value="">
                           {t("admin.unitsPage.selectBaseUnit")}
                         </option>
-                        {units?.data?.filter(u => u.is_base_unit && u.unit_type === formData.unit_type).map(unit => (
-                          <option key={unit._id} value={unit._id}>{unit.name}</option>
-                        ))}
+                        {units?.data
+                          ?.filter((u) => u.is_base_unit)
+                          .map((unit) => (
+                            <option key={unit._id} value={unit._id}>
+                              {unit.name}
+                              {unit.unit_type
+                                ? ` (${unitTypeLabel(unit.unit_type)})`
+                                : ""}
+                            </option>
+                          ))}
                       </select>
-                      {formData.unit_type && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {t("admin.unitsPage.baseUnitsAvailable", {
-                            count:
-                              units?.data?.filter(
-                                (u) =>
-                                  u.is_base_unit &&
-                                  u.unit_type === formData.unit_type
-                              ).length || 0,
-                          })}
-                        </p>
-                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        {t("admin.unitsPage.baseUnitsAvailable", {
+                          count:
+                            units?.data?.filter((u) => u.is_base_unit).length ||
+                            0,
+                        })}
+                      </p>
                     </div>
 
                     <div>
@@ -452,15 +462,21 @@ const UnitManagement = () => {
                         {t("admin.unitsPage.conversionLabel")}
                       </label>
                       <input
-                        type="number"
-                        name="conversion_to_base"
-                        value={formData.conversion_to_base}
-                        onChange={handleInputChange}
-                        min="0.0001"
-                        step="0.0001"
-                        required
-                        className={inputStyle}
-                        placeholder="10"
+                        {...bindNumericControlled({
+                          allowDecimal: true,
+                          maxDecimals: 4,
+                          name: "conversion_to_base",
+                          value: formData.conversion_to_base,
+                          onChange: (e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              conversion_to_base:
+                                Number(e.target.value) || 0,
+                            })),
+                          required: true,
+                          className: inputStyle,
+                          placeholder: "10",
+                        })}
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         {t("admin.unitsPage.conversionHint")}

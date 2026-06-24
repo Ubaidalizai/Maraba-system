@@ -7,10 +7,11 @@ const {
   updateExpense,
   deleteExpense,
   restoreExpense,
+  permanentDeleteExpense,
   getExpenseStats,
   getExpenseSummary,
 } = require('../controllers/expense.controller');
-const { authenticate } = require('../middlewares/authMiddleware');
+const { authenticate, authorizeAdmin } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
@@ -50,9 +51,7 @@ router.patch('/:id', updateExpense);
 // Restore a deleted expense
 // PATCH /api/v1/expenses/:id/restore
 router.patch('/:id/restore', restoreExpense);
-
-// Delete an expense (soft delete)
-// DELETE /api/v1/expenses/:id
+router.delete('/:id/permanent', authorizeAdmin, permanentDeleteExpense);
 router.delete('/:id', deleteExpense);
 
 module.exports = router;
